@@ -24,6 +24,8 @@ my $QC;      #quality check
 my $SM;      #second mapping
 my $force;   #force
 my $root = "$RealBin/../PIPELINE";
+my $anno = "$RealBin/../ANNOTATION";
+my $bin  = "$RealBin/";
 
 
 if (@ARGV == 0) {
@@ -47,6 +49,7 @@ GetOptions(
            "SM"           => \$SM,
            "force"        => \$force,
            "root=s"       => \$root,
+           "anno=s"       => \$anno,
            "help|h"       => \$help,
           );
 
@@ -55,10 +58,6 @@ helpm() if ($help);
 
 
 ### Paths parameters------------------------------------------------------
-my $bin  = "$RealBin/";
-my $anno = "$RealBin/../ANNOTATION";
-
-### Annotations
 my $bowtie_index = "$anno/ruping_hg18_index/hg18";
 my $gene_annotation = "$anno/Homo_sapiens\.NCBI36\.54\.chr\.gtf\.gff";
 #-------------------------------------------------------------------------
@@ -600,7 +599,8 @@ sub helpm {
   print STDERR "\t--AB\t\tsplit reads up to generate non-overlapping paired-end reads.\n";
   print STDERR "\t--QC\t\tdo the quality check of reads, will stop the pipeline once it is finished. for testing purpose\n";
   print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads (using tophat)\n";
-  print STDERR "\t--root\t\tthe root directory of the running pipeline (default is \$bin/../PIPELINE/)\n";
+  print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
+  print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
   print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
   print STDERR "\t--seglen\tthe segment length for tophat mapping (default 27)\n";
   print STDERR "\t--insertmean\tthe mean insert size of read mates (not required, can be decided automatically)\n";
