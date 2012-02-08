@@ -40,9 +40,11 @@ while ( <UM> ) {
    if ($_ =~ /^@(.+?)\s+/) {
       $frag_name = $1;
    }
-   elsif ($_ =~ /^@(\S+)$/){
+   elsif ($_ =~ /^@(\S+)$/) {
       $frag_name = $1;
    }
+   $frag_name =~ s/\/[12].*?$//;  #replace the end
+
    if ($AB) {
      $frag_name =~ s/^(.+)[AB]$/\1/;
    }
@@ -98,7 +100,7 @@ while ( <R1P> ) {
 close R1P;
 
 open R2P, "$read_file_2";
-while ( <R2P> ){
+while ( <R2P> ) {
   chomp;
   if ($_ =~ /^@(.+?)[\/\s]/){
      my $frag_name = $1;
