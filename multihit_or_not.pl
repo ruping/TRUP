@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-#
+
+#deprecated script for sam format
 #TODO:1) read in the .sam mapping file and generate uniquely mapped and multiple mapped reads
 #     2) generate the numbers for basic statistics of mapping
 #

@@ -1,9 +1,9 @@
-         #!/usr/bin/perl
+#!/usr/bin/perl
 
 ######
 #TODO: merge the overlapping pair-end reads into one read
-###### 
-      
+######
+
 use strict;
 use Getopt::Long;
 

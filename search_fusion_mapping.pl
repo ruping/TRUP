@@ -1,3 +1,5 @@
+#deprecated script for sam format
+
 use strict;
 use Getopt::Long;
 

@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-#
+
+#deprecated script for sam format
 #TODO: determine the expression level of each transcripts (the splitly mapped reads are not considered)
 #      from the mapping result of TopHat
 #
