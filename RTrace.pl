@@ -27,6 +27,8 @@ my $force;   #force
 my $root = "$RealBin/../PIPELINE";
 my $anno = "$RealBin/../ANNOTATION";
 my $bin  = "$RealBin/";
+my $qual_zero = 33;
+my $qual_move = 0;
 
 
 if (@ARGV == 0) {
@@ -226,6 +228,28 @@ if (exists $runlevel{$runlevels}) {
 ###
 printtime();
 print STDERR "####### insert mean and sd calculation #######\n\n";
+
+if ( -e "$lanepath/01_READS/$lanename\_1\.fq\.qc" ) { #decide the quality shift
+     open QC, "<$lanepath/01_READS/$lanename\_1\.fq\.qc";
+     my $qual_min = -1;
+     my $qual_max = -1;
+     while ( <QC> ){
+        chomp;
+        next if ($_ !~ /^\d+/);
+        my @cols = split /\t/;
+        $qual_min = $cols[2] if ($cols[2] < $qual_min or $qual_min = -1);
+        $qual_max = $cols[3] if ($cols[3] > $qual_max or $qual_max = -1);
+      }
+     close QC;
+     print STDERR "qual_min: $qual_min; qual_max: $qual_max; ";
+     $qual_zero = $qual_min+33;
+     $qual_move = -$qual_min;
+     print STDERR "qual_zero: $qual_zero; qual_shift: $qual_move.\n";
+}
+else {
+    print STDERR "please do quality check first using option --QC.\n";
+    exit;
+}
 
 if ($ins_mean == 0 or $ins_mean_AB == 0) {
 
@@ -429,7 +453,7 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute);
         } else {
 
-          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads --trim-mismatch-score=0 --trim-indel-score=0 -s $gmap_splicesites --npaths=10 $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
+          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads --trim-mismatch-score=0 --trim-indel-score=0 -s $gmap_splicesites --npaths=10 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
           RunCommand($cmd,$noexecute);
           $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
