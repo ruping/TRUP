@@ -48,7 +48,7 @@ my @rs;       #start array for each chr
 my $old_chr;  #checking the chr
 my $ptr;      #pointer for repeatmask sub
 open REPEAT, "$repeatmasker";
-while (<REPEAT>){
+while ( <REPEAT> ){
     next if /^#/;
     chomp;
     my @tmp = split /\t/;
@@ -174,13 +174,13 @@ while ( <IN> ){
       my ($mg1_chr, $mg1_start, $mg1_end, $mg1_strand, $mg2_chr, $mg2_start, $mg2_end, $mg2_strand);
 
       #message1
-      if ($gene{$message1} ne ''){
+      if ($gene{$message1} ne '') {
          $mg1_chr   = $gene{$message1}{'chr'};
          $mg1_start = $gene{$message1}{'start'};
          $mg1_end   = $gene{$message1}{'end'};
          $mg1_strand= $gene{$message1}{'strand'};
       }
-      elsif ($refgenes{$message_ref1} ne ''){
+      elsif ($refgenes{$message_ref1} ne '') {
          $mg1_chr   = $refgenes{$message_ref1}{'chr'};
          $mg1_start = $refgenes{$message_ref1}{'start'};
          $mg1_end   = $refgenes{$message_ref1}{'end'};
@@ -191,7 +191,7 @@ while ( <IN> ){
          $mg1_start  = $loc{$message1}{'start'};
          $mg1_end    = $loc{$message1}{'end'};
          $mg1_strand = $loc{$message1}{'strand'};
-      } 
+      }
       elsif ($name2ens{$message1} ne '') {
          my $ensemble_id1 = $name2ens{$message1};
          if ($gene{$ensemble_id1} ne ''){
@@ -203,13 +203,13 @@ while ( <IN> ){
       }
 
       #message2
-      if ($gene{$message2} ne ''){
+      if ($gene{$message2} ne '') {
          $mg2_chr   = $gene{$message2}{'chr'};
          $mg2_start = $gene{$message2}{'start'};
          $mg2_end   = $gene{$message2}{'end'};
          $mg2_strand= $gene{$message2}{'strand'};
       }
-      elsif ($refgenes{$message_ref2} ne ''){
+      elsif ($refgenes{$message_ref2} ne '') {
          $mg2_chr   = $refgenes{$message_ref2}{'chr'};
          $mg2_start = $refgenes{$message_ref2}{'start'};
          $mg2_end   = $refgenes{$message_ref2}{'end'};
@@ -220,7 +220,7 @@ while ( <IN> ){
          $mg2_start  = $loc{$message2}{'start'};
          $mg2_end    = $loc{$message2}{'end'};
          $mg2_strand = $loc{$message2}{'strand'};
-      }  
+      }
       elsif (exists $name2ens{$message2}) {
          my $ensemble_id2 = $name2ens{$message2};
          if ($gene{$ensemble_id2} ne ''){
@@ -383,11 +383,11 @@ while ( <AH> ) {
     next unless ($mateRname eq '=');
     next if ($FLAG & 2);         #ignore correct pair
 
-    if ($Rname ne $old_chrA){
+    if ($Rname ne $old_chrA) {
        @ssA  = sort {$a <=> $b} keys %{$encoposA{$Rname}};
        $ptrA = 0;
     }
-    if ($Rname ne $old_chrB){
+    if ($Rname ne $old_chrB) {
        @ssB  = sort {$a <=> $b} keys %{$encoposB{$Rname}};
        $ptrB = 0;
     }
@@ -455,7 +455,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
    $bpr = 'R' if ($bprepeat{$transcript} =~ /R/);
    $bpr = 'N' if ($bprepeat{$transcript} !~ /R/);
 
-   foreach my $read_root (keys %{$coverage{$transcript}}){
+   foreach my $read_root (keys %{$coverage{$transcript}}) {
 
       my @pair = keys %{$coverage{$transcript}{$read_root}};
 
@@ -464,16 +464,17 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          next if (scalar (@starts) >= 2);
          my $start = $starts[0];
          my $end = $start+$read_length-1;
-         if ($start < $bps and $end > $bpe){ #spanning
+         if ($start < $bps and $end > $bpe) { #spanning
+            next if ( ($bps-$start) < 5 or ($end-$bpe) < 5 );    #requiring minimal anchoring length
             $coverage{$transcript}{'spanning'}{$start}++;
             push (@{$coverage{$transcript}{reads}},  $coverage{$transcript}{$read_root}{$pair[0]}{$start});
          }
-         elsif (($start < $bps and $end > $bps) or ($start >= $bps and $start <= $bpe)) { #other overlapping
-            push (@{$coverage{$transcript}{reads}},  $coverage{$transcript}{$read_root}{$pair[0]}{$start});
+         elsif (($start < $bps and $end > $bps) or ($start >= $bps and $start <= $bpe)) { #other overlapping with bp, not interesting
+            #push (@{$coverage{$transcript}{reads}},  $coverage{$transcript}{$read_root}{$pair[0]}{$start});
          }
       }
 
-      if (scalar(@pair) == 2){ #pair mapped
+      if (scalar(@pair) == 2) { #pair mapped
          my @starts1 = keys %{$coverage{$transcript}{$read_root}{1}};
          my @starts2 = keys %{$coverage{$transcript}{$read_root}{2}};
          next if (scalar (@starts1) >= 2 or scalar (@starts2) >= 2);
@@ -490,25 +491,29 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          my $flag = 0;
 
          if ($start1 < $bps and $end1 > $bpe) { # 5'end spanning
-            $coverage{$transcript}{'spanning'}{$start1}++;
-            $flag = 1;
+           if ( ($bps-$start1) >= 5 or ($end1-$bpe) >= 5 ) {   #minimal anchoring length
+             $coverage{$transcript}{'spanning'}{$start1}++;
+             $flag = 1;
+           }
          }
-
          elsif (($start1 < $bps and $end1 > $bps) or ($start1 >= $bps and $start1 <= $bpe)){ #5'end overlapping
             $flag = 2;
          }
 
          if ($flag == 0 and ($start2 < $bps and $end2 > $bpe)) { # 3'end spanning
-            $coverage{$transcript}{'spanning'}{$start2}++;
-            $flag = 3;
+           if ( ($bps-$start2) >= 5 or ($end2-$bpe) >= 5 ) { #minimal anchoring length
+             $coverage{$transcript}{'spanning'}{$start2}++;
+             $flag = 3;
+           }
          }
-
-         elsif ($flag == 0 and ($start2 < $bps and $end2 > $bps) or ($start2 >= $bps and $start2 <= $bpe)){  #3'end overlapping
+         elsif ($flag == 0 and ($start2 < $bps and $end2 > $bps) or ($start2 >= $bps and $start2 <= $bpe)){ #3'end overlapping
             $flag = 4;
          }
 
          elsif ($flag == 1 and ($start2 < $bps and $end2 > $bpe)) { # 5' end and 3' end both spanning
-            $flag = 5;
+            if ( ($bps-$start2) >= 5 or ($end2-$bpe) >= 5 ) { #minimal anchoring length
+              $flag = 5;
+            }
          }
 
          elsif ($flag == 1 and ($start2 < $bps and $end2 > $bps) or ($start2 >= $bps and $start2 <= $bpe)){  #3'end overlapping and 5'end spanning
@@ -516,8 +521,10 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          }
 
          elsif ($flag == 2 and ($start2 < $bps and $end2 > $bpe)) { # 5' end overlapping and 3' end spanning
-            $coverage{$transcript}{'spanning'}{$start2}++;
-            $flag = 7;
+            if ( ($bps-$start2) >= 5 or ($end2-$bpe) >= 5 ) { #minimal anchoring length
+              $coverage{$transcript}{'spanning'}{$start2}++;
+              $flag = 7;
+            }
          }
 
          elsif ($flag == 2 and ($start2 < $bps and $end2 > $bps) or ($start2 >= $bps and $start2 <= $bpe)){  #both 5' and 3' end overlapping
@@ -526,11 +533,13 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
 
 
          if ($flag =~ /[0248]/ and ($frag_s < $bps and $frag_e > $bpe)){
-            $coverage{$transcript}{'encompass'}{$frag_s}++;
-            $flag = 9;
+            if ( ($bps-$frag_s) >= 5 or ($frag_e-$bpe) >= 5 ) { #minimal anchoring length
+              $coverage{$transcript}{'encompass'}{$frag_s}++;
+              $flag = 9;
+            }
          }
 
-         if ($flag =~ /[135679]/){
+         if ($flag =~ /[135679]/) {
             push (@{$coverage{$transcript}{'reads'}},  $coverage{$transcript}{$read_root}{1}{$start1});
             push (@{$coverage{$transcript}{'reads'}},  $coverage{$transcript}{$read_root}{2}{$start2});
          }

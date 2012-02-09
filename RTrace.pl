@@ -410,8 +410,10 @@ if (exists $runlevel{$runlevels}) {
       foreach my $ARP (@ARP) {
         my $ARP_trimed36 = $ARP;
         $ARP_trimed36 =~ s/fq$/trimed36\.fq/;
-        my $cmd = "$bin/fastx_trimmer -l 36 -Q33 -i $ARP -o $ARP_trimed36";
-        RunCommand($cmd,$noexecute);
+        unless ( -e "$ARP_trimed36" ){
+          my $cmd = "$bin/fastx_trimmer -l 36 -Q33 -i $ARP -o $ARP_trimed36";
+          RunCommand($cmd,$noexecute);
+        }
       }
 
       #second mapping
@@ -427,7 +429,7 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute);
         } else {
 
-          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads --trim-mismatch-score=0 --trim-indel-score=0 -s $gmap_splicesites --npaths=10 $ARP_trimed36[0] $ARP_trimed36[1] >accept_hits.sam";
+          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads --trim-mismatch-score=0 --trim-indel-score=0 -s $gmap_splicesites --npaths=10 $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
           RunCommand($cmd,$noexecute);
           $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
