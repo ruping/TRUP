@@ -32,7 +32,7 @@ GetOptions (
 
 my %ARP;  #hash to remember the anomalous read pairs
 
-
+unless ($SM){
 open UM, "$unmap_file";
 while ( <UM> ) {
    chomp;
@@ -56,7 +56,7 @@ while ( <UM> ) {
 }
 close UM;
 print STDERR "unmapped file loaded\n";
-
+}
 
 open ARP, "$arp_file";
 while ( <ARP> ) {

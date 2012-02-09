@@ -13,6 +13,7 @@ my $readlen    = 95;
 my $trimedlen  = 80;
 my $seg_len    = 27;
 my $ins_mean   = 0;
+my $ins_mean_true = 0;
 my $ins_mean_AB= 0;
 my $ins_sd     = 20;
 my %runlevel;
@@ -57,9 +58,12 @@ GetOptions(
 helpm() if ($help);
 
 
-### Paths parameters------------------------------------------------------
+### Annotation paths------------------------------------------------------
 my $bowtie_index = "$anno/ruping_hg18_index/hg18";
 my $gene_annotation = "$anno/Homo_sapiens\.NCBI36\.54\.chr\.gtf\.gff";
+my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg18";
+my $gmap_index = "$anno/gmap\_index/";
+my $gmap_splicesites = "$gmap_index/hg18/hg18.splicesites.iit";
 #-------------------------------------------------------------------------
 
 
@@ -241,6 +245,8 @@ if ($ins_mean == 0 or $ins_mean_AB == 0) {
     $ins_mean = $frag_mean - 2*$real_len;
   }
 
+  $ins_mean_true = $ins_mean;
+
   print STDERR "insert mean: $ins_mean\tinsert mean AB (0 if AB is not set): $ins_mean_AB\tinsert_sd: $ins_sd\n";
 
   unless ($force) {
@@ -329,7 +335,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/03_STATS/$lanename\.expr")  {
-    my $cmd = "$bin/Rseq_bam_reads2expr --region $anno/UCSC_Ensembl_Genes_hg18 --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
+    my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
     RunCommand($cmd,$noexecute);
   }
 
@@ -364,7 +370,7 @@ if (exists $runlevel{$runlevels}) {
 
 
   #unmapped by tophat ##################################
-  unless (-e "$lanepath/02_MAPPING/unmapped_left\.fq"){
+  unless (-e "$lanepath/02_MAPPING/unmapped_left\.fq") {
     if (-e "$lanepath/02_MAPPING/unmapped_left\.fq\.z") {
       my $cmd = "gunzip $lanepath/02_MAPPING/unmapped_left\.fq\.z";
       RunCommand($cmd,$noexecute);
@@ -374,21 +380,11 @@ if (exists $runlevel{$runlevels}) {
     my $cmd = "rm $lanepath/02_MAPPING/unmapped_left\.fq\.z -f";
     RunCommand($cmd,$noexecute);
   }
-
-  unless (-e "$lanepath/02_MAPPING/unmapped_right\.fq"){
-    if (-e "$lanepath/02_MAPPING/unmapped_right\.fq\.z") {
-      my $cmd = "gunzip $lanepath/02_MAPPING/unmapped_right\.fq\.z";
-      RunCommand($cmd,$noexecute);
-    }
-  }
-  if (-e "$lanepath/02_MAPPING/unmapped_right\.fq" and -e "$lanepath/02_MAPPING/unmapped_right\.fq\.z") {
-    my $cmd = "rm $lanepath/02_MAPPING/unmapped_right\.fq\.z -f";
-    RunCommand($cmd,$noexecute);
-  }
   #unmapped by tophat ###################################
 
+
   #get the ARP
-  unless (-e "$lanepath/01_READS/$lanename\.ARP\.fq") {
+  unless ( -e "$lanepath/01_READS/$lanename\.ARP\.fq" ) {
     my @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq");
     if (scalar(@ARP) != 2) {
       my @reads;
@@ -407,42 +403,44 @@ if (exists $runlevel{$runlevels}) {
     @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq");
     @ARP = mateorder(@ARP);
 
-    #in such case, do a second mapping based on trimed read
-    if ( $SM ) {
+    #in such case, do a second mapping based on trimed read, currently trim to 36bp
+    if (($trimedlen >= 70 and $ins_mean <= 20) || $SM ) {
+
       #trimming
       foreach my $ARP (@ARP) {
-        my $ARP_trimed50 = $ARP;
-        $ARP_trimed50 =~ s/fq$/trimed50\.fq/;
-        my $cmd = "$bin/fastx_trimmer -l 50 -Q33 -i $ARP -o $ARP_trimed50";
+        my $ARP_trimed36 = $ARP;
+        $ARP_trimed36 =~ s/fq$/trimed36\.fq/;
+        my $cmd = "$bin/fastx_trimmer -l 36 -Q33 -i $ARP -o $ARP_trimed36";
         RunCommand($cmd,$noexecute);
       }
 
       #second mapping
-      my @ARP_trimed50 = bsd_glob("$lanepath/01_READS/$lanename*ARP*trimed50\.fq");
-      @ARP_trimed50 = mateorder(@ARP_trimed50);
+      my @ARP_trimed36 = bsd_glob("$lanepath/01_READS/$lanename*ARP*trimed36\.fq");
+      @ARP_trimed36 = mateorder(@ARP_trimed36);
       unless (-e "$lanepath/02_MAPPING/SecondMapping/") {
         my $cmd = "mkdir -p $lanepath/02_MAPPING/SecondMapping/";
         RunCommand($cmd,$noexecute);
       }
-      unless ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam" ) {
-        my $real_ins_mean = $ins_mean;
-        $real_ins_mean  = $ins_mean_AB if ($AB);
-        $real_ins_mean += 2*($trimedlen-50);
-        my $cmd = "tophat --output-dir $lanepath/02_MAPPING/SecondMapping/ --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length 25 --no-sort-bam -G $gene_annotation $bowtie_index $ARP_trimed50[0] $ARP_trimed50[1]";
-        RunCommand($cmd,$noexecute);
-      }
-      unless ( -e "$lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.stats" )  {
-        my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam --writer $lanepath/02_MAPPING/SecondMapping/accepted_hits\.unique\.bam --arp $lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.arp >$lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.stats";
-        RunCommand($cmd,$noexecute);
-      }
-      unless ( -e "$lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq" ){
-        if (-e "$lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq\.z") {
-          my $cmd = "gunzip $lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq\.z";
+      unless ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam" ) { #second mapping using gsnap
+        if ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam" ) { #no bam but sam, need to compress it
+          my $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
+          RunCommand($cmd,$noexecute);
+        } else {
+
+          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads --trim-mismatch-score=0 --trim-indel-score=0 -s $gmap_splicesites --npaths=10 $ARP_trimed36[0] $ARP_trimed36[1] >accept_hits.sam";
+          RunCommand($cmd,$noexecute);
+          $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
         }
       }
-      if (-e "$lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq" and -e "$lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq\.z") {
-        my $cmd = "rm $lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq\.z -f";
+
+      if ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam" and -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam"){
+         my $cmd = "rm $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -f";
+         RunCommand($cmd,$noexecute);
+      }
+
+      unless ( -e "$lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.stats" )  {
+        my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam --writer $lanepath/02_MAPPING/SecondMapping/accepted_hits\.unique\.bam --arp $lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.arp >$lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.stats";
         RunCommand($cmd,$noexecute);
       }
 
@@ -457,7 +455,7 @@ if (exists $runlevel{$runlevels}) {
         }
         @reads = mateorder(@reads);
 
-        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.arp --unmap $lanepath/02_MAPPING/SecondMapping/unmapped_left\.fq --readfile1 $reads[0] --readfile2 $reads[1] --SM";
+        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/02_MAPPING/SecondMapping/$lanename\.secondmapping\.arp --readfile1 $reads[0] --readfile2 $reads[1] --SM";
         $cmd .= " --AB" if ($AB);
         RunCommand($cmd,$noexecute);
       }
@@ -483,11 +481,11 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/04_ASSEMBLY/Graph2") {
-    my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -ins_length $ins_mean -cov_cutoff 3 -exp_cov auto -read_trkg yes -scaffolding no -min_contig_lgth 100";
+    my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -ins_length $ins_mean -cov_cutoff auto -exp_cov auto -read_trkg yes -scaffolding no -min_contig_lgth 100";
     RunCommand($cmd,$noexecute);
   }
 
-  unless (-e "$lanepath/04_ASSEMBLY/transcripts.fa"){
+  unless (-e "$lanepath/04_ASSEMBLY/transcripts.fa") {
     my $cmd = "oases $lanepath/04_ASSEMBLY/ -ins_length $ins_mean -ins_length_sd $ins_sd -unused_reads yes -scaffolding no ";
     RunCommand($cmd,$noexecute);
   }
