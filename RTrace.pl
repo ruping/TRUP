@@ -453,7 +453,7 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute);
         } else {
 
-          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads --trim-mismatch-score=0 --trim-indel-score=0 -s $gmap_splicesites --npaths=10 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
+          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
           RunCommand($cmd,$noexecute);
           $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
