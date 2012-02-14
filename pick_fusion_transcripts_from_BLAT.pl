@@ -181,7 +181,7 @@ foreach my $transcript (keys %combined) {
                      $flag = 3;
               }
             }
-            unless ( $QS/$transcript_length < 0.05 or ($transcript_length-$QE)/$transcript_length < 0.05 ) {  #skip some strange in-middle blat result !(risky)
+            unless ( $QS/$transcript_length < 0.03 or ($transcript_length-$QE)/$transcript_length < 0.03 ) {  #skip some strange in-middle blat result !(risky)
                  $flag = 6;
             }
             if ($flag == 0) {

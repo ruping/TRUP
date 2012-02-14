@@ -69,7 +69,7 @@ while ( <ARP> ) {
 close ARP;
 print STDERR "ARP file loaded\n";
 
-
+unless ($SM) {
 open R1P, "$read_file_1";
 while ( <R1P> ) {
   chomp;
@@ -127,6 +127,7 @@ while ( <R2P> ) {
   }
 }
 close R2P;
+}
 
 
 open R1, "$read_file_1";

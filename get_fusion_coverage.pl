@@ -77,13 +77,13 @@ while (<LOC>){
    chomp;
    my ($gene, $ens, $chr, $start, $end, $strand) = split /\t/;
    unless ($chr eq ''){
-      if ($chr !~ /^chr/){ 
+      if ($chr !~ /^chr/) {
          $chr = 'chr'.$chr;
       }
-      if ($strand == 1){
+      if ($strand == 1) {
          $strand = '+';
       }
-      if ($strand == -1){
+      if ($strand == -1) {
          $strand = '-';
       }
       $loc{$gene}{'chr'}        = $chr;
@@ -465,7 +465,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          my $start = $starts[0];
          my $end = $start+$read_length-1;
          if ($start < $bps and $end > $bpe) { #spanning
-            next if ( ($bps-$start) < 5 or ($end-$bpe) < 5 );    #requiring minimal anchoring length
+            next if ( ($bps-$start) < 8 or ($end-$bpe) < 8 );    #requiring minimal anchoring length
             $coverage{$transcript}{'spanning'}{$start}++;
             push (@{$coverage{$transcript}{reads}},  $coverage{$transcript}{$read_root}{$pair[0]}{$start});
          }
@@ -491,7 +491,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          my $flag = 0;
 
          if ($start1 < $bps and $end1 > $bpe) { # 5'end spanning
-           if ( ($bps-$start1) >= 5 or ($end1-$bpe) >= 5 ) {   #minimal anchoring length
+           if ( ($bps-$start1) >= 8 and ($end1-$bpe) >= 8 ) {   #minimal anchoring length
              $coverage{$transcript}{'spanning'}{$start1}++;
              $flag = 1;
            }
@@ -501,7 +501,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          }
 
          if ($flag == 0 and ($start2 < $bps and $end2 > $bpe)) { # 3'end spanning
-           if ( ($bps-$start2) >= 5 or ($end2-$bpe) >= 5 ) { #minimal anchoring length
+           if ( ($bps-$start2) >= 8 and ($end2-$bpe) >= 8 ) { #minimal anchoring length
              $coverage{$transcript}{'spanning'}{$start2}++;
              $flag = 3;
            }
@@ -511,7 +511,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          }
 
          elsif ($flag == 1 and ($start2 < $bps and $end2 > $bpe)) { # 5' end and 3' end both spanning
-            if ( ($bps-$start2) >= 5 or ($end2-$bpe) >= 5 ) { #minimal anchoring length
+            if ( ($bps-$start2) >= 8 and ($end2-$bpe) >= 8 ) { #minimal anchoring length
               $flag = 5;
             }
          }
@@ -521,7 +521,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
          }
 
          elsif ($flag == 2 and ($start2 < $bps and $end2 > $bpe)) { # 5' end overlapping and 3' end spanning
-            if ( ($bps-$start2) >= 5 or ($end2-$bpe) >= 5 ) { #minimal anchoring length
+            if ( ($bps-$start2) >= 8 and ($end2-$bpe) >= 8 ) { #minimal anchoring length
               $coverage{$transcript}{'spanning'}{$start2}++;
               $flag = 7;
             }
@@ -533,7 +533,7 @@ foreach my $transcript (sort { $coverage{$b}{info}->{con} <=> $coverage{$a}{info
 
 
          if ($flag =~ /[0248]/ and ($frag_s < $bps and $frag_e > $bpe)){
-            if ( ($bps-$frag_s) >= 5 or ($frag_e-$bpe) >= 5 ) { #minimal anchoring length
+            if ( ($bps-$frag_s) >= 8 and ($frag_e-$bpe) >= 8 ) { #minimal anchoring length
               $coverage{$transcript}{'encompass'}{$frag_s}++;
               $flag = 9;
             }

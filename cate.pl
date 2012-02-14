@@ -65,19 +65,25 @@ while ( <IN> ) {
 }
 close IN;
 
+my %redun;
 open IN, "$anno";
 while ( <IN> ){
   chomp;
   next if /^#/;
 
   my @cols = split /\t/;
+  next if ($cols[2] ne 'transcript' and $cols[2] ne 'mRNA'); #skip unless it is a transcript
+
+  my $id;
   $cols[8] =~ /^ID=(.+?);/;
-  my $id = $1;
-  next if $id =~ /:/;
+  $id = $1;
 
   if (exists $expr{$id}){
-    if (exists($cate{$cols[1]})){
-       print "$id\t$expr{$id}\t$cate{$cols[1]}\n";
+    if (exists($cate{$cols[1]})) {
+      if (!exists $redun{$id}) {
+         print "$id\t$expr{$id}\t$cate{$cols[1]}\n";
+         $redun{$id} = '';
+      }
     }
   }
 }

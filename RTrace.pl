@@ -61,11 +61,12 @@ helpm() if ($help);
 
 
 ### Annotation paths------------------------------------------------------
-my $bowtie_index = "$anno/ruping_hg18_index/hg18";
-my $gene_annotation = "$anno/Homo_sapiens\.NCBI36\.54\.chr\.gtf\.gff";
-my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg18";
+my $bowtie_index = "$anno/bowtie_index/hg19/hg19";
+my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
+my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
+my $refseq_gene = "$anno/RefSeq\_Genes\_hg19";
 my $gmap_index = "$anno/gmap\_index/";
-my $gmap_splicesites = "$gmap_index/hg18/hg18.splicesites.iit";
+my $gmap_splicesites = "$gmap_index/hg19/hg19.splicesites.iit";
 #-------------------------------------------------------------------------
 
 
@@ -323,8 +324,8 @@ if (exists $runlevel{$runlevels}) {
   my $fragment_length = 2*$real_len + $real_ins_mean;
 
   #do the mapping of pair - end reads
-  unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam") {
-    my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam -G $gene_annotation $bowtie_index $reads[0] $reads[1]";
+  unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
+    my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index /scratch/ngsvin2/RNA-seq/MPI-NF/ANNOTATION/bowtie_index/hg19_trans/hg19_konw_ensemble_trans $bowtie_index $reads[0] $reads[1]";
     RunCommand($cmd,$noexecute);
   }
 
@@ -358,8 +359,13 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute);
   }
 
-  unless (-e "$lanepath/03_STATS/$lanename\.expr")  {
+  unless (-e "$lanepath/03_STATS/$lanename\.expr") {
     my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
+    RunCommand($cmd,$noexecute);
+  }
+
+  unless (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr") {
+    my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.RefSeq\.expr";
     RunCommand($cmd,$noexecute);
   }
 
@@ -453,7 +459,7 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute);
         } else {
 
-          my $cmd = "gsnap -d hg18 -D $gmap_index --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
+          my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
           RunCommand($cmd,$noexecute);
           $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
@@ -546,7 +552,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.blat"){
-    my $cmd = "blat $anno/Homo_sapiens\.NCBI36\.43\.dna\.2bit $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration.genome\.blat";
+    my $cmd = "blat $anno/hg19\_UCSC\.2bit $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration.genome\.blat";
     RunCommand($cmd,$noexecute);
   }
 
@@ -572,13 +578,13 @@ if (exists $runlevel{$runlevels}) {
     }
     @reads = mateorder(@reads);
 
-    my $cmd = "bowtie -v 2 -k 10 -m 10 -p $threads $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq\.index $reads[0],$reads[1] $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie";
+    my $cmd = "bowtie -v 1 -k 10 -m 10 -p $threads $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq\.index $reads[0],$reads[1] $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie";
     RunCommand($cmd,$noexecute);
   }
 
   #get fusion coverage
   unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov"){
-    my $cmd = "perl $bin/get_fusion_coverage.pl --type pair --mappingfile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie --readlength $trimedlen --geneanno $gene_annotation --ensrefname $anno/Ensembl_Ref_Name\.tsv --locname $anno/Name2Location\.txt --refgene $anno/refgenes --repeatmasker $anno/Hs\.UCSC_repeats\.gff --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+    my $cmd = "perl $bin/get_fusion_coverage.pl --type pair --mappingfile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie --readlength $trimedlen --geneanno $gene_annotation --ensrefname $anno/Ensembl\_Ref\_Name\.tsv --locname $anno/Name2Location\.hg19 --refgene $anno/refgenes\.hg19 --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     RunCommand($cmd,$noexecute);
   }
 

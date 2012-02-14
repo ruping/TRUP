@@ -73,8 +73,7 @@ HTML(mapping.stats.summary, innerBorder = 2, file= target)
 
 #quality distribution of reads
 HTML("<br> Read base quality distributions:", file = target)
-qual.plot1 = "base_qualities_1.png"
-qual.plot2 = "base_qualities_2.png"
+qual.plot = "base_qualities.png"
 mate1.qc = paste(lane,"_1.fq.qc",sep="")
 mate2.qc = paste(lane,"_2.fq.qc",sep="")
 reads.qual.mate1 = read.table(paste(reads.dir, mate1.qc, sep="/"), header=T)
@@ -84,24 +83,42 @@ cols.qual = brewer.pal(3, "Set1")[1:2]
 quality.profile1 = cbind(reads.qual.mate1$mean, reads.qual.mate1$med)
 quality.profile2 = cbind(reads.qual.mate2$mean, reads.qual.mate2$med)
 
-png(file = paste(dir.html, qual.plot1, sep ="/"), width = 800, height = 600)
+png(file = paste(dir.html, qual.plot, sep ="/"), width = 1200, height = 400)
+layout(matrix(1:2,1,2))
 matplot(quality.profile1, type = "l" , col = cols.qual , lty = 1, lwd = 2,
         main = "Quality values (mate 1)", ylab = "Phred Quality Score", xlab = "position")
 legend(x = "topright", col = cols.qual,legend = c("mean","median"), pch = 19)
-dev.off()
 
-png(file = paste(dir.html, qual.plot2, sep ="/"), width = 800, height = 600)
 matplot(quality.profile2, type = "l" , col = cols.qual , lty = 1, lwd = 2,
         main = "Quality values (mate 2)", ylab = "Phred Quality Score", xlab = "position")
 legend(x = "topright", col = cols.qual,legend = c("mean","median"), pch = 19)
 dev.off()
 
-HTMLInsertGraph(Caption = "profile of average and median quality values (mate 1)",
-                GraphFileName = qual.plot1, Width = 800,file = target)
-HTMLInsertGraph(Caption = "profile of average and median quality values (mate 2)",
-                GraphFileName = qual.plot2, Width = 800,file = target)
+HTMLInsertGraph(Caption = "profile of average and median quality values",
+                GraphFileName = qual.plot, Width = 1200,file = target)
 
 
+HTML("<br> Read base composition distributions:", file = target)
+compos.plot = "base_composition.png"
+png(file = paste(dir.html, compos.plot, sep ="/"), width = 1200, height = 400)
+layout(matrix(1:2,1,2))
+plot(reads.qual.mate1$column, reads.qual.mate1$A_Count/reads.qual.mate1$count,type="l",ylim=c(0,0.5),col="#008B8B",lwd=2,main="base composition (mate 1)", xlab="base", ylab="fraction")
+lines(reads.qual.mate1$column, reads.qual.mate1$C_Count/reads.qual.mate1$count,col="#CD8500",lwd=2)
+lines(reads.qual.mate1$column, reads.qual.mate1$G_Count/reads.qual.mate1$count,col="#B03060",lwd=2)
+lines(reads.qual.mate1$column, reads.qual.mate1$T_Count/reads.qual.mate1$count,col="#436EEE",lwd=2)
+lines(reads.qual.mate1$column, reads.qual.mate1$N_Count/reads.qual.mate1$count,col="#030303",lwd=2)
+legend("topright",legend=c("A","C","G","T","N"),col=c("#008B8B","#CD8500","#B03060","#436EEE","#030303"),bty="n",lwd=2)
+
+plot(reads.qual.mate2$column, reads.qual.mate2$A_Count/reads.qual.mate2$count,type="l",ylim=c(0,0.5),col="#008B8B",lwd=2,main="base composition (mate 2)", xlab="base", ylab="fraction")
+lines(reads.qual.mate2$column, reads.qual.mate2$C_Count/reads.qual.mate2$count,col="#CD8500",lwd=2)
+lines(reads.qual.mate2$column, reads.qual.mate2$G_Count/reads.qual.mate2$count,col="#B03060",lwd=2)
+lines(reads.qual.mate2$column, reads.qual.mate2$T_Count/reads.qual.mate2$count,col="#436EEE",lwd=2)
+lines(reads.qual.mate2$column, reads.qual.mate2$N_Count/reads.qual.mate2$count,col="#030303",lwd=2)
+legend("topright",legend=c("A","C","G","T","N"),col=c("#008B8B","#CD8500","#B03060","#436EEE","#030303"),bty="n",lwd=2)
+dev.off()
+
+HTMLInsertGraph(Caption = "base composition plot",
+                GraphFileName = compos.plot, Width = 1200,file = target)
 
 
 #insert size distributions
@@ -119,9 +136,9 @@ HTMLInsertGraph(Caption = "predicted fragment size based on the mapping",
 
 #chromosome distribution of uniquely mapped reads
 HTML("<br> Uniquely Mappable Reads (UMR) on Chromosomes:", file = target)
-transcriptome.length.hg18 = paste(anno, "transcriptome_length_HG18", sep="/")
-tmp1 <- pipe(paste("cut -f 2", transcriptome.length.hg18, sep=" "))
-tmp2 <- pipe(paste("cut -f 1", transcriptome.length.hg18, sep=" "))
+transcriptome.length.hg19 = paste(anno, "transcriptome_length_HG19", sep="/")
+tmp1 <- pipe(paste("cut -f 2", transcriptome.length.hg19, sep=" "))
+tmp2 <- pipe(paste("cut -f 1", transcriptome.length.hg19, sep=" "))
 transcriptome.length <- as.list(scan(tmp1,comment.char = "#"))
 names(transcriptome.length) = scan(tmp2,comment.char = "#", what="")
 close(tmp1)
@@ -193,6 +210,8 @@ HTMLInsertGraph(Caption = "positions vs tags",
 
 #read coverage distribution
 readcov.plot = "readcov.png"
+expr.file = paste(lane, "RefSeq.expr", sep=".")
+expr <- read.table(paste(stats.dir, expr.file, sep="/"))
 sel.cov.range <- quantile(log2(expr$V7[which(expr[,7] >= 1)]), c(0,1))
 ntrans = length(expr$V7[which(expr[,7] >= 1)])
 x.cov <- seq(0, sel.cov.range[2], by = 1)
@@ -200,14 +219,34 @@ cov.index = findInterval( x.cov, sort(log2(expr$V7[which(expr[,7] >= 1)])), righ
 cov.above = ntrans - cov.index
 y.above = cov.above/ntrans
 png(file = paste(dir.html, readcov.plot, sep ="/"), width = 600, height = 500)
-plot(sel.cov.range, c(0,1), type = "n", xlab = "log(Number of Reads covered for each expressed transcript)", ylab = "Fraction of all expressed transcripts", main=paste("Read coverage on expressed transcripts N=", ntrans, sep=""))
+plot(sel.cov.range, c(0,1), type = "n", xlab = "log(Number of Reads covered for each expressed RefSeq genes)", ylab = "Fraction of all expressed RefSeq genes", main=paste("Read coverage on expressed RefSeq Genes N=", ntrans, sep=""))
 points(x.cov, y.above, type = "l", lty = 1, lwd = 3 ,col = rgb(1,0,0,alpha=0.5))
 points(density(log2(expr$V7[which(expr[,7] >= 1)]), n=300), type = "l", lty = 1, lwd = 3, col= rgb(0,0,1,alpha=0.5))
 legend("topright", legend = c("cumulative fraction", "density"), col = c(rgb(1,0,0,alpha=0.5),rgb(0,0,1,alpha=0.5)), pch = 19, bty="n")
 dev.off()
-HTMLInsertGraph(Caption = "read coverage of each expressed transcript (with at least one read)",
+HTMLInsertGraph(Caption = "read coverage of each expressed RefSeq genes (with at least one read)",
                 GraphFileName = readcov.plot, Width = 600,file = target)
 
+
+#% refgenes contributing
+trans = expr$V7[which(expr[,7] >= 1)]
+trans.sort = sort(trans, decreasing=T)
+ntrans = length(expr$V7[which(expr[,7] >= 1)])
+perc = (seq(0,100))*0.01
+index.perc = round(ntrans*perc)
+cum.perc = rep(0,101)
+for (i in 1:101) {
+  current = sum(trans.sort[1:index.perc[i]])/sum(trans.sort)
+  cum.perc[i] = current
+}
+cum.perc = cum.perc*100
+perc = perc*100
+percov.plot = "percov.png"
+png(file = paste(dir.html, percov.plot, sep ="/"), width = 600, height = 500)
+plot(perc, cum.perc, xlab = "% RefSeq genes contributing", ylab = "% of total counts of all RefSeq genes" ,type = "l", lwd = 4, col=rgb(0,0,1,alpha=0.7))
+dev.off()
+HTMLInsertGraph(Caption = "Cumulative percentage of total read count, starting with the RefSeq gene with the highest read count",
+                GraphFileName = percov.plot, Width = 600,file = target)
 
 
 #locus_bias
@@ -217,8 +256,8 @@ lbias <- read.table(paste(stats.dir, lbias.file, sep="/"))
 lbias.plot = "lbias.png"
 png(file = paste(dir.html, lbias.plot, sep ="/"), width = 800, height = 400)
 par(mfrow=c(1,2))
-plot(lbias[,1],log(lbias[,2]), pch=3, col="red", xlab="downstream the start of a transcript", ylab="log(total counts)", ylim=c(8,13))
-plot(-lbias[,1], log(lbias[,4]),pch=4, col="blue", xlab="upstream the end of a transcript", ylab="", ylim=c(8,13))
+plot(lbias[,1],log(lbias[,2]), pch=3, col="red", xlab="downstream the start of a transcript", ylab="log(total counts)", ylim=c(8,15))
+plot(-lbias[,1], log(lbias[,4]),pch=4, col="blue", xlab="upstream the end of a transcript", ylab="", ylim=c(8,15))
 dev.off()
 HTMLInsertGraph(Caption = "locus bias plot",
                 GraphFileName = lbias.plot, Width = 800,file = target)

@@ -12,14 +12,14 @@ open $OUTFILE, "> $filenameOut";
 while(<$FILEA>) {
 	print $OUTFILE $_;
 	$_ = <$FILEA>;
-	print $OUTFILE $_; 
+	print $OUTFILE $_;
 	$_ = <$FILEA>;
-	print $OUTFILE $_; 
+	print $OUTFILE $_;
 	$_ = <$FILEA>;
-	print $OUTFILE $_; 
+	print $OUTFILE $_;
 
 	$_ = <$FILEB>;
-	print $OUTFILE $_; 
+	print $OUTFILE $_;
 	$_ = <$FILEB>;
 	print $OUTFILE $_;
 	$_ = <$FILEB>;
