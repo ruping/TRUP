@@ -9,9 +9,9 @@ use FindBin qw($RealBin);
 
 my $noexecute  = 0;
 my $runlevels  = 0;
-my $readlen    = 95;
-my $trimedlen  = 80;
-my $seg_len    = 27;
+my $readlen    = 0;
+my $trimedlen  = 0;
+my $seg_len    = 25;
 my $ins_mean   = 0;
 my $ins_mean_true = 0;
 my $ins_mean_AB= 0;
@@ -56,9 +56,8 @@ GetOptions(
            "help|h"       => \$help,
           );
 
-#if help, print help
+#print help
 helpm() if ($help);
-
 
 ### Annotation paths------------------------------------------------------
 my $bowtie_index = "$anno/bowtie_index/hg19/hg19";
@@ -97,7 +96,7 @@ else{
 ###runlevel0.5: preparation the lane and read path enviroment
 ###
 
-my @lanefile = bsd_glob("$root/$lanename*fq");
+my @lanefile = bsd_glob("$root/$lanename*fq\.gz");  #gzipped file
 my $lanepath = "$root/$lanename";
 
 printtime();
@@ -111,8 +110,8 @@ unless (-e "$lanepath/01_READS") {
 foreach my $read_file (@lanefile) {
   my $cmd = "mv $read_file $lanepath/01_READS/";
   RunCommand($cmd,$noexecute);
-}
 
+}
 
 ###
 ###runlevel1: trim the reads and insert size detection using spiked in reads
@@ -125,34 +124,44 @@ if (exists $runlevel{$runlevels}) {
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
   if ($QC) {  #quality check using fastx-tool-kit
-     my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq");
-     unless (-e "$qc_files[0]\.qc") {
-       my $cmd = "$bin/fastx_quality_stats -Q33 -i $qc_files[0] -o $qc_files[0]\.qc";
+     my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+     (my $qc_out1 = $qc_files[0]) =~ s/\.gz$/\.qc/;
+     (my $qc_out2 = $qc_files[1]) =~ s/\.gz$/\.qc/;
+     unless (-e "$qc_out1") {
+       my $cmd = "gzip -d -c $qc_files[0] | $bin/fastx_quality_stats -Q33 -o $qc_out1";
        RunCommand($cmd,$noexecute);
      }
-     unless (-e "$qc_files[1]\.qc") {
-       my $cmd = "$bin/fastx_quality_stats -Q33 -i $qc_files[1] -o $qc_files[1]\.qc";
+     unless (-e "$qc_out2") {
+       my $cmd = "gzip -d -c $qc_files[1] | $bin/fastx_quality_stats -Q33 -o $qc_out2";
        RunCommand($cmd,$noexecute);
      }
      print STDERR "quality check finished, please check the quality file manually.\n";
      exit;
   }
 
+  if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
+     my @original_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+     my $first_second_line = `gzip -d -c $original_read_files[0] | head -2 | grep -v "^@"`;
+     $readlen = length($first_second_line) - 1;
+     $trimedlen = $readlen;
+     print STDERR "read length and trimed length are not set, will take the original read length ($readlen bp) for both (no trimming).\n";
+  }
+
   my @read_files;
   if ( $trimedlen != $readlen ) {  #trimming
-    my @trimed_read_files = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq");
+    my @trimed_read_files = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz");
     if ( scalar(@trimed_read_files) == 0 ) {
-      my @ori_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq");
-      foreach my $read_file (@ori_read_files){
+      my @ori_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+      foreach my $read_file (@ori_read_files) {
         my $read_out = $read_file;
-        $read_out =~ s/fq$/trimed\.fq/;
+        $read_out =~ s/fq\.gz$/trimed\.fq\.gz/;
         if ($read_file =~ /_1\./) {
           $read_files[0] = $read_out;
         }
         else {
           $read_files[1] = $read_out;
         }
-        my $cmd = "$bin/fastx_trimmer -l $trimedlen -Q33 -i $read_file -o $read_out";
+        my $cmd = "gzip -d -c $read_file | $bin/fastx_trimmer -l $trimedlen -z -Q33 -o $read_out";
         RunCommand($cmd,$noexecute);
       }
     }
@@ -162,34 +171,47 @@ if (exists $runlevel{$runlevels}) {
     }
   }
   else {
-    @read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq");
+    @read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
     @read_files = mateorder(@read_files);
   }
 
+  ##### AB trimming, which is not fully tested################
   if ($AB) {  # do the AB treating
      print STDERR "AB is defined\n";
-     my @AB_read_files = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq");
+     my @AB_read_files = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq\.gz");
+     my @AB_read_files_ori = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq");
 
-     if ( scalar(@AB_read_files) == 0 ) {
+     if ( scalar(@AB_read_files) == 0 and scalar(@AB_read_files_ori) == 0) {
        my ($read_1, $read_2, $AB_1, $AB_2);
        foreach my $read_file (@read_files){
          if ($read_file =~ /_1\./) {
            $read_1 = $read_file;
            $AB_1 = $read_1;
-           $AB_1 =~ s/fq$/AB\.fq/;
-           $AB_read_files[0] = $AB_1;
+           $AB_1 =~ s/fq\.gz$/AB\.fq/;
+           $AB_read_files_ori[0] = $AB_1;
          } else {
            $read_2 = $read_file;
            $AB_2 = $read_2;
-           $AB_2 =~ s/fq$/AB\.fq/;
-           $AB_read_files[1] = $AB_2;
+           $AB_2 =~ s/fq\.gz$/AB\.fq/;
+           $AB_read_files_ori[1] = $AB_2;
          }
        }
        my $cmd = "perl $bin/AB_reads.pl $read_1 $read_2 >$AB_1 2>$AB_2";
        RunCommand($cmd,$noexecute);
      }
+     if ( scalar(@AB_read_files) == 0 and scalar(@AB_read_files_ori) == 2) {
+       foreach my $AB_read_files_ori (@AB_read_files_ori) {
+          my $cmd = "gzip $AB_read_files_ori";
+          RunCommand($cmd,$noexecute);
+       }
+     }
+     @AB_read_files = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq\.gz");
+     if ( scalar(@AB_read_files) != 2) {
+       print STDERR, "AB read files were wrongly generated, please remove remnant files in 01_READS.\n";
+     }
      @read_files = @AB_read_files;
-  } #AB
+  } #AB##############################################################
+
 
   unless (-e "$lanepath/00_TEST") {
     my $cmd = "mkdir -p $lanepath/00_TEST";
@@ -200,7 +222,7 @@ if (exists $runlevel{$runlevels}) {
   if (scalar(@spiked_in) == 0) {
     foreach my $read_file (@read_files) {
       my $spiked_in = $read_file;
-      $spiked_in =~ s/fq$/spikedin\.fq/;
+      $spiked_in =~ s/fq\.gz$/spikedin\.fq/;
       push(@spiked_in, $spiked_in);
     }
     my $cmd = "perl $bin/select_reads_with_no_n.pl $read_files[0] $read_files[1] 200000 >$spiked_in[0] 2>$spiked_in[1]";
@@ -234,13 +256,13 @@ if ( -e "$lanepath/01_READS/$lanename\_1\.fq\.qc" ) { #decide the quality shift
      open QC, "<$lanepath/01_READS/$lanename\_1\.fq\.qc";
      my $qual_min = -1;
      my $qual_max = -1;
-     while ( <QC> ){
+     while ( <QC> ) {
         chomp;
         next if ($_ !~ /^\d+/);
         my @cols = split /\t/;
         $qual_min = $cols[2] if ($cols[2] < $qual_min or $qual_min = -1);
         $qual_max = $cols[3] if ($cols[3] > $qual_max or $qual_max = -1);
-      }
+     }
      close QC;
      print STDERR "qual_min: $qual_min; qual_max: $qual_max; ";
      $qual_zero = $qual_min+33;
@@ -604,6 +626,10 @@ if (exists $runlevel{$runlevels}) {
 
 }
 
+
+####################LOG
+close LOG;
+####################LOG
 
 ###
 ### sub-region

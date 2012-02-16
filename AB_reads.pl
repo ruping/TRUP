@@ -1,4 +1,7 @@
 #!/usr/bin/perl
+
+#accept compressed read files in .gz format
+
 use strict;
 use File::Basename;
 
@@ -6,8 +9,8 @@ my $mate1 = shift;
 my $mate2 = shift;
 my $half = 0;
 
-open M1, "$mate1";
-open M2, "$mate2";
+open M1, "gzip -d -c $mate1 |";
+open M2, "gzip -d -c $mate2 |";
 
 my $q_line = 1;
 

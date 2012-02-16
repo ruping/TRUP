@@ -5,10 +5,10 @@ my $read_file2 = shift;
 my $sn = shift;
 my $cn = 0;
 
-open IN1, "$read_file1";
-open IN2, "$read_file2";
+open IN1, "gzip -d -c $read_file1 |";
+open IN2, "gzip -d -c $read_file2 |";
 
-while ( <IN1> ){
+while ( <IN1> ) {
   my $name1 = $_;
   my $read1 = <IN1>;
   my $name2 = <IN2>;
