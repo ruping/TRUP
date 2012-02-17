@@ -4,8 +4,8 @@ $filenameA = $ARGV[0];
 $filenameB = $ARGV[1];
 $filenameOut = $ARGV[2];
 
-open $FILEA, "< $filenameA";
-open $FILEB, "< $filenameB";
+open $FILEA, "gzip -d -c $filenameA |";
+open $FILEB, "gzip -d -c $filenameB |";
 
 open $OUTFILE, "> $filenameOut";
 

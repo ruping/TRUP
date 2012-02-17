@@ -33,29 +33,28 @@ GetOptions (
 my %ARP;  #hash to remember the anomalous read pairs
 
 unless ($SM){
-open UM, "$unmap_file";
-while ( <UM> ) {
-   chomp;
-   my $frag_name;
-   if ($_ =~ /^@(.+?)\s+/) {
+  open UM, "gzip -d -c $unmap_file |";
+  while ( <UM> ) {
+    chomp;
+    my $frag_name;
+    if ($_ =~ /^@(.+?)\s+/) {
       $frag_name = $1;
-   }
-   elsif ($_ =~ /^@(\S+)$/) {
+    } elsif ($_ =~ /^@(\S+)$/) {
       $frag_name = $1;
-   }
-   $frag_name =~ s/\/[12].*?$//;  #replace the end
+    }
+    $frag_name =~ s/\/[12].*?$//; #replace the end
 
-   if ($AB) {
-     $frag_name =~ s/^(.+)[AB]$/\1/;
-   }
-   $ARP{$frag_name} = '';
+    if ($AB) {
+      $frag_name =~ s/^(.+)[AB]$/\1/;
+    }
+    $ARP{$frag_name} = '';
 
-   $_ = <UM>;
-   $_ = <UM>;
-   $_ = <UM>;
-}
-close UM;
-print STDERR "unmapped file loaded\n";
+    $_ = <UM>;
+    $_ = <UM>;
+    $_ = <UM>;
+  }
+  close UM;
+  print STDERR "unmapped file loaded\n";
 }
 
 open ARP, "$arp_file";
@@ -69,76 +68,76 @@ while ( <ARP> ) {
 close ARP;
 print STDERR "ARP file loaded\n";
 
+
 unless ($SM) {
-open R1P, "$read_file_1";
-while ( <R1P> ) {
-  chomp;
-  if ($_ =~ /^@(.+?)[\/\s]/) {
-     my $frag_name = $1;
-     if (exists $ARP{$frag_name}) {
+  open R1P, "gzip -d -c $read_file_1 |";
+  while ( <R1P> ) {
+    chomp;
+    if ($_ =~ /^@(.+?)[\/\s]/) {
+      my $frag_name = $1;
+      if (exists $ARP{$frag_name}) {
 
-        $_ = <R1P>; #sequence
+        $_ = <R1P>;             #sequence
         chomp;
         my $n = 0;
-        while ($_ =~ /N/g){
+        while ($_ =~ /N/g) {
           $n++;
         }
-        if ($n >= $nc){
+        if ($n >= $nc) {
           delete ($ARP{$frag_name}); #delete this frag
         }
 
         $_ = <R1P>;
-        $_ = <R1P>; #quality
-     }
-     else {
+        $_ = <R1P>;             #quality
+      } else {
         $_ = <R1P>;
         $_ = <R1P>;
         $_ = <R1P>;
-     }
+      }
+    }
   }
-}
-close R1P;
+  close R1P;
 
-open R2P, "$read_file_2";
-while ( <R2P> ) {
-  chomp;
-  if ($_ =~ /^@(.+?)[\/\s]/){
-     my $frag_name = $1;
-     if (exists $ARP{$frag_name}) {
+  open R2P, "gzip -d -c $read_file_2 |";
+  while ( <R2P> ) {
+    chomp;
+    if ($_ =~ /^@(.+?)[\/\s]/) {
+      my $frag_name = $1;
+      if (exists $ARP{$frag_name}) {
 
-        $_ = <R2P>; #sequence
+        $_ = <R2P>;             #sequence
         chomp;
         my $n = 0;
-        while ($_ =~ /N/g){
+        while ($_ =~ /N/g) {
           $n++;
         }
-        if ($n >= $nc){
+        if ($n >= $nc) {
           delete ($ARP{$frag_name}); #delete this frag
         }
 
         $_ = <R2P>;
-        $_ = <R2P>; #quality
-     }
-     else {
+        $_ = <R2P>;             #quality
+      } else {
         $_ = <R2P>;
         $_ = <R2P>;
         $_ = <R2P>;
-     }
+      }
+    }
   }
-}
-close R2P;
+  close R2P;
 }
 
 
-open R1, "$read_file_1";
+open R1, "gzip -d -c $read_file_1 |";
 my $a_R1 = $read_file_1;
-if($SM){
- $a_R1 =~ s/fq$/ARP\.secondmapping\.fq/;
+if($SM) {
+ $a_R1 =~ s/fq\.gz$/ARP\.secondmapping\.fq/;
 }
-else{
- $a_R1 =~ s/fq$/ARP\.fq/;
+else {
+ $a_R1 =~ s/fq\.gz$/ARP\.fq/;
 }
 open AR1, ">$a_R1";
+
 while ( <R1> ) {
   chomp;
   if ($_ =~ /^@(.+?)[\/\s]/) {
@@ -163,15 +162,16 @@ close R1;
 close AR1;
 
 
-open R2, "$read_file_2";
+open R2, "gzip -d -c $read_file_2 |";
 my $a_R2 = $read_file_2;
 if($SM){
- $a_R2 =~ s/fq$/ARP\.secondmapping\.fq/;
+ $a_R2 =~ s/fq\.gz$/ARP\.secondmapping\.fq/;
 }
 else{
- $a_R2 =~ s/fq$/ARP\.fq/;
+ $a_R2 =~ s/fq\.gz$/ARP\.fq/;
 }
 open AR2, ">$a_R2";
+
 while ( <R2> ){
   chomp;
   if ($_ =~ /^@(.+?)[\/\s]/){

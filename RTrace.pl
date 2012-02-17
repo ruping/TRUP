@@ -110,7 +110,14 @@ unless (-e "$lanepath/01_READS") {
 foreach my $read_file (@lanefile) {
   my $cmd = "mv $read_file $lanepath/01_READS/";
   RunCommand($cmd,$noexecute);
+}
 
+if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
+     my @original_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+     my $first_second_line = `gzip -d -c $original_read_files[0] | head -2 | grep -v "^@"`;
+     $readlen = length($first_second_line) - 1;
+     $trimedlen = $readlen;
+     print STDERR "read length and trimed length are not set, will take the original read length ($readlen bp) for both (no trimming).\n";
 }
 
 ###
@@ -137,14 +144,6 @@ if (exists $runlevel{$runlevels}) {
      }
      print STDERR "quality check finished, please check the quality file manually.\n";
      exit;
-  }
-
-  if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
-     my @original_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
-     my $first_second_line = `gzip -d -c $original_read_files[0] | head -2 | grep -v "^@"`;
-     $readlen = length($first_second_line) - 1;
-     $trimedlen = $readlen;
-     print STDERR "read length and trimed length are not set, will take the original read length ($readlen bp) for both (no trimming).\n";
   }
 
   my @read_files;
@@ -207,7 +206,7 @@ if (exists $runlevel{$runlevels}) {
      }
      @AB_read_files = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq\.gz");
      if ( scalar(@AB_read_files) != 2) {
-       print STDERR, "AB read files were wrongly generated, please remove remnant files in 01_READS.\n";
+       print STDERR "AB read files were wrongly generated, please remove remnant files in 01_READS.\n";
      }
      @read_files = @AB_read_files;
   } #AB##############################################################
@@ -327,13 +326,13 @@ if (exists $runlevel{$runlevels}) {
 
   my @reads;
   if ($AB) {
-    @reads = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq");       #AB reads
+    @reads = bsd_glob("$lanepath/01_READS/$lanename*AB\.fq\.gz");       #AB reads
   }
   elsif ($trimedlen != $readlen) {
-    @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq");   #trimmed reads
+    @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz");   #trimmed reads
   }
   else {
-    @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq");    #original reads
+    @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");    #original reads
   }
   @reads = mateorder(@reads);
 
@@ -364,7 +363,7 @@ if (exists $runlevel{$runlevels}) {
 
   my $mapping_stats_line_number = `wc -l $lanepath/03_STATS/$lanename.mapping.stats`;
   if ($mapping_stats_line_number == 12){
-    my $total_reads = `wc -l $lanepath/01_READS/$lanename\_1.fq`;
+    my $total_reads = `gzip -d -c $lanepath/01_READS/$lanename\_1.fq.gz | wc -l`;
     $total_reads /= 4;
     open STATS, ">>$lanepath/03_STATS/$lanename\.mapping\.stats" || die "can not open $lanepath/03_STATS/$lanename\.mapping\.stats\n";
     print STATS "total_frag: $total_reads\n";
@@ -420,39 +419,37 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
+  #get the ARP from unmapped by tophat ############
+  unless ( -e "$lanepath/01_READS/$lanename\.ARP\.fq\.gz" ) {
 
-  #unmapped by tophat ##################################
-  unless (-e "$lanepath/02_MAPPING/unmapped_left\.fq") {
-    if (-e "$lanepath/02_MAPPING/unmapped_left\.fq\.z") {
-      my $cmd = "gunzip $lanepath/02_MAPPING/unmapped_left\.fq\.z";
-      RunCommand($cmd,$noexecute);
-    }
-  }
-  if (-e "$lanepath/02_MAPPING/unmapped_left\.fq" and -e "$lanepath/02_MAPPING/unmapped_left\.fq\.z") {
-    my $cmd = "rm $lanepath/02_MAPPING/unmapped_left\.fq\.z -f";
-    RunCommand($cmd,$noexecute);
-  }
-  #unmapped by tophat ###################################
+    my @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq\.gz");
 
-
-  #get the ARP
-  unless ( -e "$lanepath/01_READS/$lanename\.ARP\.fq" ) {
-    my @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq");
     if (scalar(@ARP) != 2) {
       my @reads;
       if ($trimedlen != $readlen) {
-        @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq"); #trimmed reads
+        @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
       } else {
-        @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq"); #original reads
+        @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz"); #original reads
       }
       @reads = mateorder(@reads);
 
-      my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/03_STATS/$lanename\.arp --unmap $lanepath/02_MAPPING/unmapped_left\.fq --readfile1 $reads[0] --readfile2 $reads[1]";
+      unless (-e "$lanepath/02_MAPPING/unmapped_left\.fq\.z"){
+        print STDERR "unmapped read file does not exist!!!\n";
+        exit 22;
+      }
+
+      my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/03_STATS/$lanename\.arp --unmap $lanepath/02_MAPPING/unmapped_left\.fq\.z --readfile1 $reads[0] --readfile2 $reads[1]";
       $cmd .= " --AB" if ($AB);
       RunCommand($cmd,$noexecute);
+
+      my @ori_ARP_file = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq");
+      foreach my $ori_ARP_file (@ori_ARP_file){
+         my $cmd = "gzip $ori_ARP_file";
+         RunCommand($cmd,$noexecute);
+      }
     }
 
-    @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq");
+    @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.fq\.gz");
     @ARP = mateorder(@ARP);
 
     #in such case, do a second mapping based on trimed read, currently trim to 36bp
@@ -461,15 +458,15 @@ if (exists $runlevel{$runlevels}) {
       #trimming
       foreach my $ARP (@ARP) {
         my $ARP_trimed36 = $ARP;
-        $ARP_trimed36 =~ s/fq$/trimed36\.fq/;
+        $ARP_trimed36 =~ s/fq\.gz$/trimed36\.fq\.gz/;
         unless ( -e "$ARP_trimed36" ){
-          my $cmd = "$bin/fastx_trimmer -l 36 -Q33 -i $ARP -o $ARP_trimed36";
+          my $cmd = "gzip -d -c $ARP | $bin/fastx_trimmer -l 36 -Q33 -z -o $ARP_trimed36";
           RunCommand($cmd,$noexecute);
         }
       }
 
       #second mapping
-      my @ARP_trimed36 = bsd_glob("$lanepath/01_READS/$lanename*ARP*trimed36\.fq");
+      my @ARP_trimed36 = bsd_glob("$lanepath/01_READS/$lanename*ARP*trimed36\.fq\.gz");
       @ARP_trimed36 = mateorder(@ARP_trimed36);
       unless (-e "$lanepath/02_MAPPING/SecondMapping/") {
         my $cmd = "mkdir -p $lanepath/02_MAPPING/SecondMapping/";
@@ -481,7 +478,7 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute);
         } else {
 
-          my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
+          my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
           RunCommand($cmd,$noexecute);
           $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
@@ -499,13 +496,13 @@ if (exists $runlevel{$runlevels}) {
       }
 
       #now get the real arp after second mapping
-      my @ARP_sm = bsd_glob("$lanepath/01_READS/$lanename*ARP\.secondmapping\.fq");
+      my @ARP_sm = bsd_glob("$lanepath/01_READS/$lanename*ARP\.secondmapping\.fq\.gz");
       if (scalar(@ARP_sm) != 2) {
         my @reads;
         if ($trimedlen != $readlen) {
-          @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq"); #trimmed reads
+          @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz"); #original reads
         }
         @reads = mateorder(@reads);
 
@@ -514,12 +511,20 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute);
       }
 
-      @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.secondmapping\.fq");
+      my @ori_ARP_SM_file = bsd_glob("$lanepath/01_READS/$lanename*ARP\.secondmapping\.fq");
+      foreach my $ori_ARP_SM_file (@ori_ARP_SM_file) {
+         my $cmd = "gzip $ori_ARP_SM_file";
+         RunCommand($cmd,$noexecute);
+      }
+
+      @ARP = bsd_glob("$lanepath/01_READS/$lanename*ARP\.secondmapping\.fq\.gz");
       @ARP = mateorder(@ARP);
     }
 
     # shuffle ARP reads to a single file
     my $cmd = "perl $bin/shuffleSequences_fastq.pl $ARP[0] $ARP[1] $lanepath/01_READS/$lanename\.ARP\.fq";
+    RunCommand($cmd,$noexecute);
+    $cmd = "gzip $lanepath/01_READS/$lanename\.ARP\.fq";
     RunCommand($cmd,$noexecute);
   }
 
@@ -530,7 +535,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/04_ASSEMBLY/Roadmaps") {
-    my $cmd = "velveth $lanepath/04_ASSEMBLY/ 21 -fastq -shortPaired $lanepath/01_READS/$lanename\.ARP\.fq";
+    my $cmd = "velveth $lanepath/04_ASSEMBLY/ 21 -fasta.gz -shortPaired $lanepath/01_READS/$lanename\.ARP\.fq\.gz";
     RunCommand($cmd,$noexecute);
   }
 
@@ -626,10 +631,6 @@ if (exists $runlevel{$runlevels}) {
 
 }
 
-
-####################LOG
-close LOG;
-####################LOG
 
 ###
 ### sub-region
