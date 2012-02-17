@@ -599,13 +599,13 @@ if (exists $runlevel{$runlevels}) {
 
     my @reads;
     if ($trimedlen != $readlen) {
-      @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq"); #trimmed reads
+      @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
     } else {
-      @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq");  #original reads
+      @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");  #original reads
     }
     @reads = mateorder(@reads);
 
-    my $cmd = "bowtie -v 1 -k 10 -m 10 -p $threads $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq\.index $reads[0],$reads[1] $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie";
+    my $cmd = "gzip -d -c $reads[0] $reads[1] | bowtie -v 1 -k 10 -m 10 -p $threads $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq\.index \- $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie";
     RunCommand($cmd,$noexecute);
   }
 
