@@ -535,7 +535,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/04_ASSEMBLY/Roadmaps") {
-    my $cmd = "velveth $lanepath/04_ASSEMBLY/ 21 -fasta.gz -shortPaired $lanepath/01_READS/$lanename\.ARP\.fq\.gz";
+    my $cmd = "velveth $lanepath/04_ASSEMBLY/ 21 -fastq.gz -shortPaired $lanepath/01_READS/$lanename\.ARP\.fq\.gz";
     RunCommand($cmd,$noexecute);
   }
 
