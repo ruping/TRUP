@@ -381,6 +381,11 @@ if (exists $runlevel{$runlevels}) {
     my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.unique\.bam -f";
     RunCommand($cmd,$noexecute);
   }
+  if (-e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" and -e "$lanepath/02_MAPPING/accepted_hits\.bam") {
+    my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.bam -f";
+    RunCommand($cmd,$noexecute);
+  }
+
 
   unless (-e "$lanepath/03_STATS/$lanename\.expr") {
     my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
