@@ -362,6 +362,8 @@ if (exists $runlevel{$runlevels}) {
   }
 
   my $mapping_stats_line_number = `wc -l $lanepath/03_STATS/$lanename.mapping.stats`;
+  $mapping_stats_line_number =~ s/^(\d+).*$/\1/;
+  chomp($mapping_stats_line_number);
   if ($mapping_stats_line_number == 12){
     my $total_reads = `gzip -d -c $lanepath/01_READS/$lanename\_1.fq.gz | wc -l`;
     $total_reads /= 4;
