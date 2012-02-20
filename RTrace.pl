@@ -24,6 +24,7 @@ my $AB;      #cut reads in AB (it is not necessary)
 my $QC;      #quality check
 my $SM;      #second mapping
 my $force;   #force
+my $bigWig;  #wiggle file
 my $root = "$RealBin/../PIPELINE";
 my $anno = "$RealBin/../ANNOTATION";
 my $bin  = "$RealBin/";
@@ -50,6 +51,7 @@ GetOptions(
            "AB"           => \$AB,
            "QC"           => \$QC,
            "SM"           => \$SM,
+           "WIG"          => \$bigWig,
            "force"        => \$force,
            "root=s"       => \$root,
            "anno=s"       => \$anno,
@@ -386,6 +388,24 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute);
   }
 
+  if ($bigWig) { #generate wiggle file
+    unless (-e "$lanepath/03_STATS/$lanename\.bw"){
+      if (-e "$lanepath/03_STATS/$lanename\.bedgraph") {
+         my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$lanename\.bedgraph $anno/chrom_sizes.hg19 $lanepath/03_STATS/$lanename\.bw";
+         RunCommand($cmd,$noexecute);
+      }
+      else {
+         my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam -bg -split -g $anno/chrom_sizes.hg19 >$lanepath/03_STATS/$lanename\.bedgraph";
+         RunCommand($cmd,$noexecute);
+         $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$lanename\.bedgraph $anno/chrom_sizes.hg19 $lanepath/03_STATS/$lanename\.bw";
+         RunCommand($cmd,$noexecute);
+      }
+      if (-e "$lanepath/03_STATS/$lanename\.bedgraph" and -e "$lanepath/03_STATS/$lanename\.bw") {
+         my $cmd = "rm $lanepath/03_STATS/$lanename\.bedgraph -f";
+         RunCommand($cmd,$noexecute);
+      }
+    }
+  }
 
   unless (-e "$lanepath/03_STATS/$lanename\.expr") {
     my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
