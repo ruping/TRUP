@@ -362,6 +362,8 @@ if (exists $runlevel{$runlevels}) {
   }
 
   my $mapping_stats_line_number = `wc -l $lanepath/03_STATS/$lanename.mapping.stats`;
+  $mapping_stats_line_number =~ s/^(\d+).*$/\1/;
+  chomp($mapping_stats_line_number);
   if ($mapping_stats_line_number == 12){
     my $total_reads = `gzip -d -c $lanepath/01_READS/$lanename\_1.fq.gz | wc -l`;
     $total_reads /= 4;
@@ -379,6 +381,11 @@ if (exists $runlevel{$runlevels}) {
     my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.unique\.bam -f";
     RunCommand($cmd,$noexecute);
   }
+  if (-e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" and -e "$lanepath/02_MAPPING/accepted_hits\.bam") {
+    my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.bam -f";
+    RunCommand($cmd,$noexecute);
+  }
+
 
   unless (-e "$lanepath/03_STATS/$lanename\.expr") {
     my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
