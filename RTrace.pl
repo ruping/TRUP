@@ -388,6 +388,7 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute);
   }
 
+<<<<<<< HEAD
   if ($bigWig) { #generate wiggle file
     unless (-e "$lanepath/03_STATS/$lanename\.bw"){
       if (-e "$lanepath/03_STATS/$lanename\.bedgraph") {
@@ -406,6 +407,8 @@ if (exists $runlevel{$runlevels}) {
       }
     }
   }
+=======
+>>>>>>> 8c2702437de7a33e759d77eb16a6c98b23cd3b8d
 
   unless (-e "$lanepath/03_STATS/$lanename\.expr") {
     my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
