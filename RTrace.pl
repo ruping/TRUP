@@ -499,7 +499,7 @@ if (exists $runlevel{$runlevels}) {
         my $cmd = "mkdir -p $lanepath/02_MAPPING/SecondMapping/";
         RunCommand($cmd,$noexecute);
       }
-      unless ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam" ) { #second mapping using gsnap
+      unless ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.unique\.bam" ) { #second mapping using gsnap
         if ( -e "$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam" ) { #no bam but sam, need to compress it
           my $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);
