@@ -298,12 +298,13 @@ if ($ins_mean == 0 or $ins_mean_AB == 0) {
   print STDERR "insert mean: $ins_mean\tinsert mean AB (0 if AB is not set): $ins_mean_AB\tinsert_sd: $ins_sd\n";
 
   unless ($force) {
-    if ($ins_mean <= -20) {
-      print STDERR "two mates is overlapping too much, please trim more\n";
+    my $ins_th = round($real_len*0.25);
+    if ($ins_mean <= -$ins_th) {
+      print STDERR "two mates is overlapping too much, please trim more.\n";
       exit 22;
-    } elsif ($ins_mean > -20 && $ins_mean < 1) {
+    } elsif ($ins_mean > -$ins_th && $ins_mean < 1) {
       $ins_mean = 1;
-      print STDERR "insert mean is set to 1 for processing purpose\n";
+      print STDERR "insert mean is set to 1 for processing purpose.\n";
     } else {
       print STDERR "insert mean is ok.\n";
     }
