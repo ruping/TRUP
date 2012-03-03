@@ -299,10 +299,10 @@ if ($ins_mean == 0 or $ins_mean_AB == 0) {
 
   unless ($force) {
     my $ins_th = round($real_len*0.25);
-    if ($ins_mean <= -$ins_th) {
+    if ($ins_mean < -$ins_th) {
       print STDERR "two mates is overlapping too much, please trim more.\n";
       exit 22;
-    } elsif ($ins_mean > -$ins_th && $ins_mean < 1) {
+    } elsif ($ins_mean >= -$ins_th && $ins_mean < 1) {
       $ins_mean = 1;
       print STDERR "insert mean is set to 1 for processing purpose.\n";
     } else {
