@@ -132,20 +132,20 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  if ($QC) {  #quality check using fastx-tool-kit
-     my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
-     (my $qc_out1 = $qc_files[0]) =~ s/\.gz$/\.qc/;
-     (my $qc_out2 = $qc_files[1]) =~ s/\.gz$/\.qc/;
-     unless (-e "$qc_out1") {
-       my $cmd = "gzip -d -c $qc_files[0] | $bin/fastx_quality_stats -Q33 -o $qc_out1";
-       RunCommand($cmd,$noexecute);
-     }
-     unless (-e "$qc_out2") {
-       my $cmd = "gzip -d -c $qc_files[1] | $bin/fastx_quality_stats -Q33 -o $qc_out2";
-       RunCommand($cmd,$noexecute);
-     }
-     print STDERR "quality check finished, please check the quality file manually.\n";
-     exit;
+  my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+  (my $qc_out1 = $qc_files[0]) =~ s/\.gz$/\.qc/;
+  (my $qc_out2 = $qc_files[1]) =~ s/\.gz$/\.qc/;
+  unless (-e "$qc_out1") {
+    my $cmd = "gzip -d -c $qc_files[0] | $bin/fastx_quality_stats -Q33 -o $qc_out1";
+    RunCommand($cmd,$noexecute);
+  }
+  unless (-e "$qc_out2") {
+    my $cmd = "gzip -d -c $qc_files[1] | $bin/fastx_quality_stats -Q33 -o $qc_out2";
+    RunCommand($cmd,$noexecute);
+  }
+  if ($QC) {
+    print STDERR "quality check finished, please check the quality file manually.\n";
+    exit;
   }
 
   my @read_files;
@@ -197,7 +197,7 @@ if (exists $runlevel{$runlevels}) {
            $AB_read_files_ori[1] = $AB_2;
          }
        }
-       my $cmd = "perl $bin/AB_reads.pl $read_1 $read_2 >$AB_1 2>$AB_2";
+       my $cmd = "perl $bin/AB_reads.pl $read_1 $read_2 0 >$AB_1 2>$AB_2";
        RunCommand($cmd,$noexecute);
      }
      if ( scalar(@AB_read_files) == 0 and scalar(@AB_read_files_ori) == 2) {
@@ -271,8 +271,10 @@ if ( -e "$lanepath/01_READS/$lanename\_1\.fq\.qc" ) { #decide the quality shift
      print STDERR "qual_zero: $qual_zero; qual_shift: $qual_move.\n";
 }
 else {
+  unless ($force) {
     print STDERR "please do quality check first using option --QC.\n";
     exit;
+  }
 }
 
 if ($ins_mean == 0 or $ins_mean_AB == 0) {

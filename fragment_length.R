@@ -11,7 +11,7 @@ if(length(args)==0){
 
 setwd(path)
 frag = paste(lane, "fragmentlength", sep=".")
-d<-read.table(frag)
+d<-read.delim(frag)
 mean = mean(d[,2])
 sd = sd(d[,2])
 cat(c(mean,sd,"\n"))

@@ -58,13 +58,13 @@ while ( <TRANSCRIPT> ){
     else{
 	s/\n//g;
         s/\s//g;
-        $transcript{$trans_name} += length($_); 
+        $transcript{$trans_name} += length($_);
         $trans_seq{$trans_name} .= "$_\n";
     }
 }
 close TRANSCRIPT;
 
-#print Dumper(\%transcript);
+#print STDERR Dumper(\%transcript);
 
 open BLAT, "$blat_result";
 my %BLAT;

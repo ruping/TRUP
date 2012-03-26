@@ -7,7 +7,7 @@ use File::Basename;
 
 my $mate1 = shift;
 my $mate2 = shift;
-my $half = 0;
+my $half = shift;
 
 open M1, "gzip -d -c $mate1 |";
 open M2, "gzip -d -c $mate2 |";
@@ -51,10 +51,10 @@ while ( <M1> ){
    if ($q_line == 2) {
       $half = length($_)/2 if ($half == 0);
       $reads{'read1A'} = substr($_, 0, $half);
-      $reads{'read1B'} = substr($_, -$half);
+      $reads{'read1B'} = substr($_, $half, $half);
       $_ = <M2>;
       chomp;
-      $reads{'read2A'} = substr($_, -$half);
+      $reads{'read2A'} = substr($_, $half, $half);
       $reads{'read2B'} = substr($_, 0, $half);
       $q_line++;
       next;
@@ -99,10 +99,10 @@ while ( <M1> ){
    }
    if ($q_line == 4) {
       $reads{'qual1A'} = substr($_, 0, $half);
-      $reads{'qual1B'} = substr($_, -$half);
+      $reads{'qual1B'} = substr($_, $half, $half);
       $_ = <M2>;
       chomp;
-      $reads{'qual2A'} = substr($_, -$half);
+      $reads{'qual2A'} = substr($_, $half, $half);
       $reads{'qual2B'} = substr($_, 0, $half);
       print "$reads{'title1A'}\n$reads{'read1A'}\n$reads{'third1A'}\n$reads{'qual1A'}\n";
       print "$reads{'title1B'}\n$reads{'read1B'}\n$reads{'third1B'}\n$reads{'qual1B'}\n";
