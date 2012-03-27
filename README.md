@@ -41,11 +41,13 @@ Usage
 
 TRUP can be run with UNIX command-line interface.
 
-Assuming that the two gzipped fastq-files are called as SAMPLE\_1.fq.gz and SAMPLE\_2.fq.gz (where ``\_1'' and ``\_2'' means mate 1 and mate 2 reads, respectively), the path to the directory of the pipeline is called ``PD'' and the path to tha annotation files are called ``AD'', one can run the pipeline in the following way:
+Assuming that the two gzipped fastq-files are called as SAMPLE_1.fq.gz and SAMPLE_2.fq.gz (where "\_1" and "\_2" means mate 1 and mate 2 reads, respectively), the path to the directory of the pipeline is called "PD" and the path to tha annotation files are called "AD", one can run the pipeline in the following way:
 
 Run-level (Quality check, mapping of spiked-in read pairs and tell you the insert size etc.):
 
 	perl RTrace.pl --runlevel 1 --lanename SAMPLE --root PD --anno AD
+
+If trimming is needed, add the following two options, ``--readlen RL --trimedlen TL``, where "RL" is the original read length, "TL" is the read length after trimming. If one you want to stop after the quality check, add ``--QC`` in the command call.\\
 
 
 
