@@ -9,7 +9,6 @@ Learn More
 Dependences
 ---
 (i)   Samtools
-
 (ii)  TopHat (version > 1.4)
 
 (iii) GSNAP (version > 2012-01-11)
