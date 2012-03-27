@@ -9,10 +9,15 @@ Learn More
 Dependences
 ---
 (i)   Samtools
+
 (ii)  TopHat (version > 1.4)
+
 (iii) GSNAP (version > 2012-01-11)
+
 (iv)  Velvet (https://github.com/dzerbino/velvet)
+
 (v)   Oases (https://github.com/dzerbino/oases).
+
 (vi)  R libraries: feilds, KernSmooth, lattice, RColorBrewer and R2HTML.
 
 
@@ -51,4 +56,4 @@ Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Ger
 
 Email: ruping@molgen.mpg.de
 
-Project Website: https://github.com/ruping/Breakpointer
+Project Website: https://github.com/ruping/TRUP
