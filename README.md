@@ -49,6 +49,30 @@ Assuming that the two gzipped fastq-files are called as SAMPLE_1.fq.gz and SAMPL
 
 If trimming is needed, add the following two options, ``--readlen RL --trimedlen TL``, where "RL" is the original read length, "TL" is the read length after trimming. If one you want to stop after the quality check, add ``--QC`` in the command call.
 
+**Run-level 2** (mapping with Tophat, generating reports):
+
+	perl RTrace.pl --runlevel 2 --lanename SAMPLE --$root PD --anno AD --readlen RL --trimedlen TL --seglen SL --threads TH
+
+where "SL" is the segment length used for Tophat, default is 25. "TH" is the number of computing threads. If the reads were trimmed in the Run-lever 1, one should keep the options ``--readlen RL --trimedlen TL``. One can add ``--$WIG`` to generate bigWiggle file for coverage visualization purpose.
+
+**Run-level 3** (select ARP: abnormal read pairs based on second mapping using GSNAP, ARP are fed to denovo assembly):
+
+	perl RTrace.pl --runlevel 3 --lanename SAMPLE --root PD --anno AD --threads TH --SM
+
+where ``--SM`` means second mapping using GSNAP.
+
+**Run-level 4** (Dectecting fusion events using the assembled transcripts):
+
+	perl RTrace.pl --runlevel 4 --lanename SAMPLE --root PD --anno AD --threads TH
+
+If the reads were trimmed in the Run-lever 1, one should keep the options ``--$readlen RL --trimedlen TL``.
+
+
+The four Run-levels metioned above can also be combined in the same command line, as following,
+
+	perl RTrace.pl --runlevel 1-4 --lanename SAMPLE --root PD --anno AD --readlen RL --trimedlen TL --seglen SL --threads TH --SM
+
+One can also call combinations of different Run-levels, such as ``--$runlevel 1,2`` or ``--runlevel 2,3,4``. But in these combined ways, one should specify all necessary options in the command line.
 
 
 Options
