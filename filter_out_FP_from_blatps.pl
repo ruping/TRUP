@@ -47,11 +47,11 @@ while ( <IN2> ){
     my ($transcript, $length, $message1, $message2, $orientation, $breakpoint) = split /\t/;
 
     $length{$transcript} = $length;
-    
+
     $breakpoint =~ /^(\d+)\.\.(\d+)$/;
-    
+
     my $distance = abs($1-$2);
-    @{$breakpoint{$transcript}} = sort {$a<=$b} ($1,$2);
+    @{$breakpoint{$transcript}} = sort {$a<=>$b} ($1,$2);
 
     #-----------------------------------+/-
     $message1 =~ /^(.+?)\(.+?\)$/;
@@ -61,8 +61,8 @@ while ( <IN2> ){
     my $symbol_combined = $symbol1.'_'.$symbol2;
     $symbol{$symbol_combined} = 1;
     #-----------------------------------+/-
-        
-    if ($distance < 6){
+
+    if ($distance < 10) {
        $title{$transcript} = $transcript.'|'.$length.'|'.$message1.'+'.$message2.'|'.$orientation.'|'.$breakpoint;
     }
 }
@@ -77,7 +77,7 @@ foreach my $transcript (keys %title){
     $message2 =~ /^(.+?)\(.+?\)$/;
     my $symbol2 = $1;
     my $symbol_combined = $symbol2.'_'.$symbol1;
-    
+
     my $ron;
     if (exists $symbol{$symbol_combined}){
       $ron = 'st_both';
@@ -85,7 +85,7 @@ foreach my $transcript (keys %title){
     else {
       $ron = 'st_sing';
     }
-    
+
     $title{$transcript} .= '|'.$ron;
 }
 
@@ -101,8 +101,8 @@ while ( <IN3> ){
    my $mis = $cols[1];
    my $strand = $cols[8];
    my $transcript = $cols[9];
-  
-   $transcript =~ /^Locus_\d+_Transcript_\d+\/\d+_Confidence_(.*)$/;
+
+   $transcript =~ /^Locus_\d+_Transcript_\d+\/\d+_Confidence_([^_]+)/;
    my $confidence = $1;
    my $length = $cols[10];
    my $qs = $cols[11];
@@ -113,7 +113,7 @@ while ( <IN3> ){
 
    my $blat_len = $qe-$qs+1;
    my $ratio = $blat_len/$length;
-   unless ($mis/$match >= 0.03 or $mis >= 10){
+   unless ($mis/$match >= 0.03 or $mis >= 10) {
      my %tmp_hash = ('ratio'=>$ratio, 'qs'=>$qs, 'qe'=>$qe, 'ta'=>$ta, 'ts'=>$ts, 'te'=>$te, 'strand'=>$strand);
      push (@{$blat{$transcript}}, \%tmp_hash);
      $trans_confidence{$transcript} = $confidence;
@@ -126,43 +126,40 @@ close IN3;
 foreach my $transcript (sort { $trans_confidence{$b} <=> $trans_confidence{$a} } keys %trans_confidence){
   my @ratio = sort { $b->{ratio} <=> $a->{ratio} } @{$blat{$transcript}};
 
-  if ($ratio[0]->{ratio} >=0.99){
+  if ($ratio[0]->{ratio} >=0.99) {  #skip if all mapped
      next;
   }
 
-  if (scalar(@ratio) != 2){
+  if (scalar(@ratio) != 2) {
      next;
   }
-  
+
   #filter out some strange blat
   my $blat_start = $ratio[0]->{qs} < $ratio[1]->{qs}? $ratio[0]->{qs} : $ratio[1]->{qs};
   my $blat_end   = $ratio[0]->{qs} < $ratio[1]->{qs}? $ratio[1]->{qe} : $ratio[0]->{qe};
   my $blat_dis   = $blat_end - $blat_start;
   next if ($blat_dis/$length{$transcript} < 0.9);
-  
+
   #filter out the blat covering the breakpoint
-  if ($ratio[0]->{qs} < $breakpoint{$transcript}[0] and $ratio[0]->{qe} > $breakpoint{$transcript}[1]){
-     
+  if ($ratio[0]->{qs} < $breakpoint{$transcript}[0] and $ratio[0]->{qe} > $breakpoint{$transcript}[1]) {
+
      my $dis1 = $breakpoint{$transcript}[0] - $ratio[0]->{qs};
      my $dis2 = $ratio[0]->{qe} - $breakpoint{$transcript}[1];
-     
+
      next if ($dis1 > 10 and $dis2 > 10 and $ratio[0]->{ratio} >= 0.9);
      next if ($dis1 > 20 and $dis2 > 20);
-     
   }
 
   if ($ratio[1]->{qs} < $breakpoint{$transcript}[0] and $ratio[1]->{qe} > $breakpoint{$transcript}[1]){
-     
+
      my $dis1 = $breakpoint{$transcript}[0] - $ratio[1]->{qs};
      my $dis2 = $ratio[1]->{qe} - $breakpoint{$transcript}[1];
-     
+
      next if ($dis1 > 10 and $dis2 > 10 and $ratio[1]->{ratio} >= 0.9);
      next if ($dis1 > 20 and $dis2 > 20);
   }
-  
-  
-  
-  if ($title{$transcript} ne ''){
+
+  if ($title{$transcript} ne '') {
 
       my $title = $title{$transcript};
 
@@ -179,20 +176,20 @@ foreach my $transcript (sort { $trans_confidence{$b} <=> $trans_confidence{$a} }
       my $ts2  = $ratio[1]->{'ts'};
       my $te2  = $ratio[1]->{'te'};
       my $strand2  = $ratio[1]->{'strand'};
-      
+
       my $dis_overlap;
       $dis_overlap = abs($qe1-$qs2) if ($qs1 < $qs2);
       $dis_overlap = abs($qe2-$qs1) if ($qs1 > $qs2);
       next if ($dis_overlap > 17);   #further filter out those overlapping of far apart stuff
-     
+
       my $addinfo = '|'.$qs1.'-'.$qe1.'('.$strand1.')'.$chr1.':'.$ts1.'-'.$te1.'|'.$qs2.'-'.$qe2.'('.$strand2.')'.$chr2.':'.$ts2.'-'.$te2;
-      $title .= $addinfo;      
+      $title .= $addinfo;
 
       my $chr2 = $ratio[0]->{'ta'};
       my $seq = $fusion_bfseq{$transcript};
-      print ">$title\n$seq"; 
+      print ">$title\n$seq";
   }
-  
+
 }
 
 exit;
