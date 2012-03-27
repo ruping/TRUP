@@ -6,7 +6,7 @@ Learn More
 ...
 
 
-Dependences
+Dependencies
 ---
 +   Samtools
 +   TopHat (version > 1.4)
