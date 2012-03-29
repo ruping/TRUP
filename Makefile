@@ -16,7 +16,7 @@ all: Rseq_bam_stats Rseq_bam_reads2expr perl_scripts R_scripts other_tools
 .PHONY: all
 
 Rseq_bam_stats:
-	@mkdir $(PREFIX)/$(BIN)
+	@mkdir -p $(PREFIX)/$(BIN)
 	@echo "* compiling" $(SOURCE_STA)
 	@$(CXX) $(SRC)/$(SOURCE_STA) -o $(PREFIX)/$(BIN)/$(STA) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ 
 
@@ -37,6 +37,11 @@ R_scripts:
 other_tools:
 	@echo "* copying x86_64 linux binaries of other tools"
 	@cp $(TOOLSB)/* $(PREFIX)/$(BIN)/
+	@echo "* done."
+
+RTrace:
+	@echo "* copying RTrace.pl"
+	@cp $(SRC)/RTrace.pl $(PREFIX)/$(BIN)/
 	@echo "* done."
 
 clean:

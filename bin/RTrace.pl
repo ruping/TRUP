@@ -95,13 +95,22 @@ else {
   helpm();
 }
 
-
 ###
 ###runlevel0.5: preparation the lane and read path enviroment
 ###
 
-my @lanefile = bsd_glob("$root/$lanename*fq\.gz");  #gzipped file
-my $lanepath = "$root/$lanename";
+my @lanefile = bsd_glob("$root/$lanename*fastq\.gz");
+if (scalar(@lanefile) > 0){
+  foreach my $file (@lanefile){
+    (my $newfile = $file) =~ s/fastq\.gz/fq\.gz/;
+    my $cmd = "mv $file $newfile";
+    RunCommand($cmd,$noexecute);
+  }
+}
+@lanefile = ();
+@lanefile = bsd_glob("$root/$lanename*fq\.gz");
+
+my $lanepath  = "$root/$lanename";
 
 printtime();
 print STDERR "####### preparing directories #######\n\n";
@@ -111,9 +120,11 @@ unless (-e "$lanepath/01_READS") {
   RunCommand($cmd,$noexecute);
 }
 
-foreach my $read_file (@lanefile) {
-  my $cmd = "mv $read_file $lanepath/01_READS/";
-  RunCommand($cmd,$noexecute);
+if (scalar(@lanefile) > 0){
+  foreach my $read_file (@lanefile) {
+    my $cmd = "mv $read_file $lanepath/01_READS/";
+    RunCommand($cmd,$noexecute);
+  }
 }
 
 if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
