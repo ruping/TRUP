@@ -249,6 +249,16 @@ HTMLInsertGraph(Caption = "Cumulative percentage of total read count, starting w
                 GraphFileName = percov.plot, Width = 600,file = target)
 
 
+#covered fraction distribution
+frac.hist = hist(expr$V6[which(expr[,6] > 0)], breaks=50, plot=F)
+frachist.plot = "frachist.png"
+png(file = paste(dir.html, frachist.plot, sep ="/"), width = 600, height = 500)
+plot(frac.hist$mids, frac.hist$counts, log="y", pch=20, col="blue", xlab= "fraction of positions with starting reads", ylab="count of refseq genes")
+dev.off()
+HTMLInsertGraph(Caption = "Fraction of all the positions with starting reads of Refseq genes",
+                GraphFileName = frachist.plot, Width = 600,file = target)
+
+
 #locus_bias
 HTML("<br> Read distribution along transcripts (start site+1000; stop site-1000)", file = target)
 lbias.file = paste(lane, "lbias", sep=".")

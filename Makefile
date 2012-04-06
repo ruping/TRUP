@@ -44,6 +44,11 @@ RTrace:
 	@cp $(SRC)/RTrace.pl $(PREFIX)/$(BIN)/
 	@echo "* done."
 
+html:
+	@echo "* copying html report script"
+	@cp $(SRC)/html_report.R $(PREFIX)/$(BIN)/
+	@echo "* done."
+
 clean:
 	@echo "Cleaning up everthing."
 	@rm -rf $(PREFIX)/$(BIN)/
