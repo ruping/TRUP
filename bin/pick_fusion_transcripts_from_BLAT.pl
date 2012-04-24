@@ -182,7 +182,9 @@ foreach my $transcript (keys %combined) {
               }
             }
             unless ( $QS/$transcript_length < 0.03 or ($transcript_length-$QE)/$transcript_length < 0.03 ) {  #skip some strange in-middle blat result !(risky)
+              unless ($transcript_length >= 500 and  ($QS <= 50 or ($transcript_length-$QE) <= 50)) {
                  $flag = 6;
+              }
             }
             if ($flag == 0) {
                push (@tmp2, $refseq);

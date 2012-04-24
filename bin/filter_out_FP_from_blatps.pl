@@ -130,9 +130,17 @@ foreach my $transcript (sort { $trans_confidence{$b} <=> $trans_confidence{$a} }
      next;
   }
 
-  if (scalar(@ratio) != 2) {
-     next;
+  if ( scalar(@ratio) != 2 ) {
+
+    unless ( scalar(@ratio) == 3 ){
+      next;
+    }
+
+    pop(@ratio);
+
   }
+
+
 
   #filter out some strange blat
   my $blat_start = $ratio[0]->{qs} < $ratio[1]->{qs}? $ratio[0]->{qs} : $ratio[1]->{qs};

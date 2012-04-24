@@ -138,17 +138,19 @@ else {
 }
 open AR1, ">$a_R1";
 
-while ( <R1> ) {
+while ( <R1> ) {                  #name
   chomp;
-  if ($_ =~ /^@(.+?)[\/\s]/) {
+  if ($_ =~ /^@(.+?)[\/\s](.+)$/) {
      my $frag_name = $1;
      if (exists $ARP{$frag_name}) {
+        $_ =~ s/(\/[12])\w+$/\1/;
         print AR1 "$_\n";
-        $_ = <R1>;
+        $_ = <R1>;                #sequence
         print AR1 "$_";
-        $_ = <R1>;
+        $_ = <R1>;                #third line
+        $_ =~ s/(\/[12])\w+$/\1/;
         print AR1 "$_";
-        $_ = <R1>;
+        $_ = <R1>;                #quality
         print AR1 "$_";
      }
      else {
@@ -172,17 +174,19 @@ else{
 }
 open AR2, ">$a_R2";
 
-while ( <R2> ){
+while ( <R2> ){                   #name
   chomp;
   if ($_ =~ /^@(.+?)[\/\s]/){
      my $frag_name = $1;
      if (exists $ARP{$frag_name}) {
+        $_ =~ s/(\/[12])\w+$/\1/;
         print AR2 "$_\n";
-        $_ = <R2>;
+        $_ = <R2>;                #sequence
         print AR2 "$_";
-        $_ = <R2>;
+        $_ = <R2>;                #thrid line
+        $_ =~ s/(\/[12])\w+$/\1/;
         print AR2 "$_";
-        $_ = <R2>;
+        $_ = <R2>;                #quality
         print AR2 "$_";
      }
      else {

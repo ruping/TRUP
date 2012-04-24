@@ -49,6 +49,21 @@ html:
 	@cp $(SRC)/html_report.R $(PREFIX)/$(BIN)/
 	@echo "* done."
 
+pickARP:
+	@echo "* copying pick_ARP.pl"
+	@cp $(SRC)/pick_ARP.pl $(PREFIX)/$(BIN)/
+	@echo "* done."
+
+pickFusion:
+	@echo "* copying pick_fusion_transcripts_from_BLAT.pl"
+	@cp $(SRC)/pick_fusion_transcripts_from_BLAT.pl $(PREFIX)/$(BIN)/
+	@echo "* done."
+
+filter:
+	@echo "* copying filter_out_FP_from_blatps.pl"
+	@cp $(SRC)/filter_out_FP_from_blatps.pl $(PREFIX)/$(BIN)/
+	@echo "* done."
+
 clean:
 	@echo "Cleaning up everthing."
 	@rm -rf $(PREFIX)/$(BIN)/

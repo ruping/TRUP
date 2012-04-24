@@ -250,13 +250,21 @@ HTMLInsertGraph(Caption = "Cumulative percentage of total read count, starting w
 
 
 #covered fraction distribution
+frac = expr$V6[which(expr[,6] > 0)]
+fscale = seq(0,1,0.01)
+fperc = rep(0,101)
+for (i in 1:101){
+  fperc[i] = length(which(frac >= fscale[i]))/length(which(frac > 0))
+}
 frac.hist = hist(expr$V6[which(expr[,6] > 0)], breaks=50, plot=F)
 frachist.plot = "frachist.png"
-png(file = paste(dir.html, frachist.plot, sep ="/"), width = 600, height = 500)
-plot(frac.hist$mids, frac.hist$counts, log="y", pch=20, col="blue", xlab= "fraction of positions with starting reads", ylab="count of refseq genes")
+png(file = paste(dir.html, frachist.plot, sep ="/"), width = 1000, height = 500)
+layout(matrix(1:2,1,2))
+plot(frac.hist$mids, frac.hist$counts, log="y", xlim=c(0,1), pch=20, col="blue", xlab= "fraction of positions with starting reads", ylab="count of refseq genes", main="fraction histogram 1")
+plot(fscale, fperc, xlim=c(0,1), ylim=c(0,1), xlab=">= fraction of positions with starting reads", ylab="fraction of refseq genes", main="fraction histogram 2", pch=20, col="darkgreen")
 dev.off()
 HTMLInsertGraph(Caption = "Fraction of all the positions with starting reads of Refseq genes",
-                GraphFileName = frachist.plot, Width = 600,file = target)
+                GraphFileName = frachist.plot, Width = 1000,file = target)
 
 
 #locus_bias
