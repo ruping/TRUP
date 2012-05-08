@@ -65,6 +65,7 @@ helpm() if ($help);
 
 ### Annotation paths------------------------------------------------------
 my $bowtie_index = "$anno/bowtie_index/hg19/hg19";
+my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_konw_ensemble_trans";
 my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
 my $refseq_gene = "$anno/RefSeq\_Genes\_hg19";
@@ -94,6 +95,27 @@ else {
   print STDERR "no runlevel has been set, exit.\n";
   helpm();
 }
+
+
+if ($root eq "$RealBin/../PIPELINE") {
+  if (-e "$RealBin/../PIPELINE") {
+    print STDERR "no root dir given, analysis will be run under $root.\n";
+  }
+  else {
+    print STDERR "no root dir given, $root does not exist, please do -h or --help to check how to set root dir.\n";
+    helpm();
+  }
+}
+
+if ($anno eq "$RealBin/../ANNOTATION") {
+  if (-e "$RealBin/../ANNOTATION") {
+    print STDERR "no annotation dir given, analysis will be run under $anno.\n";
+  } else {
+    print STDERR "no annotation dir given, $anno does not exist, please do -h or --help to check how to set annotation dir.\n";
+    helpm();
+  }
+}
+
 
 ###
 ###runlevel0.5: preparation the lane and read path enviroment
@@ -364,7 +386,7 @@ if (exists $runlevel{$runlevels}) {
 
   #do the mapping of pair - end reads
   unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
-    my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index /scratch/ngsvin2/RNA-seq/MPI-NF/ANNOTATION/bowtie_index/hg19_trans/hg19_konw_ensemble_trans $bowtie_index $reads[0] $reads[1]";
+    my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat_trans_index $bowtie_index $reads[0] $reads[1]";
     RunCommand($cmd,$noexecute);
   }
 
@@ -521,7 +543,7 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute);
         } else {
 
-          my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
+          my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --max-mismatches=2 --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
           RunCommand($cmd,$noexecute);
           $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
           RunCommand($cmd,$noexecute);

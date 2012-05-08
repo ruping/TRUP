@@ -174,9 +174,9 @@ HTMLInsertGraph(Caption = "base coverage in transcriptome (exon union)",
 #start position distribution
 HTML("<br> Unique read start positions on Chromosomes:", file = target)
 chrpos.plot = "chrpos.png"
-par(cex.lab=2,cex.axis=2)
 t.chr.position<-t(as.matrix(chrmap.sort2[,3:4]))
 png(file = paste(dir.html, chrpos.plot, sep ="/"), width = 800, height = 400)
+par(cex.lab=2,cex.axis=2)
 barplot(t.chr.position, names.arg=chrmap.sort2[,1], col=cols2, beside=T, las=3, ylab="Count of start positions")
 legend(x="topright",legend=c("total start positions","start positions with more than 2 reads"),col=cols2,pch=15, bty="n",cex=2)
 dev.off()
