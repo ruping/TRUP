@@ -141,8 +141,17 @@ foreach my $transcript (keys %combined) {
 	    for (my $i=0; $i<=$#tmp; $i++) {
                my $QS_b = $combined{$transcript}{$tmp[$i]}->{qs};
                my $QE_b = $combined{$transcript}{$tmp[$i]}->{qe};
-               if ($QS >= $QS_b and $QE <= $QE_b){ #included
+
+               if (($QS > $QS_b and $QE <= $QE_b) or ($QS >= $QS_b and $QE < $QE_b)) { #included
                    $flag = 1;
+               }
+
+               if ($QS == $QS_b and $QE == $QE_b) { #decide which
+                 my @who = sort {$a cmp $b or $a <=> $b} ($refseq, $tmp[$i]);
+                 if ( $who[0] eq $refseq ) {
+                   $tmp[$i] = $refseq; #reset the refseq
+                   $flag = 3;
+                 }
                }
 
                if (($QS < $QS_b and $QE >= $QE_b) or ($QS <= $QS_b and $QE > $QE_b)) { #includ the pervious
@@ -164,8 +173,14 @@ foreach my $transcript (keys %combined) {
         my $QE = $combined{$transcript}{$refseq}->{qe};
         my $Alen = $combined{$transcript}{$refseq}->{alen};
         if (! defined $indicator2) {
-            push (@tmp2, $refseq);
-            $indicator2 = 'SUN';
+            if ( $QS/$transcript_length < 0.03 or ($transcript_length-$QE)/$transcript_length < 0.03 ) {  #skip some strange in-middle blat result !(risky)
+                push (@tmp2, $refseq);
+                $indicator2 = 'SUN';
+            }
+            elsif ($transcript_length >= 500 and  ($QS <= 50 or ($transcript_length-$QE) <= 50)) {
+                push (@tmp2, $refseq);
+                $indicator2 = 'SUN';
+            }
         }
         else {  #check whether non-overlap or overlap to a limited extend
             my $flag = 0;
