@@ -26,6 +26,9 @@ my $SM;      #second mapping
 my $BT;      #using Blast instead of BLAT for runlevel-4
 my $force;   #force
 my $bigWig;  #wiggle file
+my $gtf_guide_assembly;  #for cufflinks
+my $frag_bias_correct;   #for cufflinks
+my $upper_quantile_norm; #for cufflinks
 my $root = "$RealBin/../PIPELINE";
 my $anno = "$RealBin/../ANNOTATION";
 my $bin  = "$RealBin/";
@@ -54,6 +57,9 @@ GetOptions(
            "SM"           => \$SM,
            "BT"           => \$BT,
            "WIG"          => \$bigWig,
+           "gtf-guide"    => \$gtf_guide_assembly,
+           "frag-bias"    => \$frag_bias_correct,
+           "upper-qt"     => \$upper_quantile_norm,
            "force"        => \$force,
            "root=s"       => \$root,
            "anno=s"       => \$anno,
@@ -67,6 +73,7 @@ helpm() if ($help);
 my $bowtie_index = "$anno/bowtie_index/hg19/hg19";
 my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_konw_ensemble_trans";
 my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
+my $gene_annotation_gtf = "$anno/hg19\.ensembl\-for\-tophat\.gtf";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
 my $refseq_gene = "$anno/RefSeq\_Genes\_hg19";
 my $gmap_index = "$anno/gmap\_index/";
@@ -605,12 +612,14 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/04_ASSEMBLY/Graph2") {
-    my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -ins_length $ins_mean -cov_cutoff auto -exp_cov auto -read_trkg yes -scaffolding no -min_contig_lgth 100";
+    my $frag_len = 2*$trimedlen + $ins_mean;
+    my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -ins_length $frag_len -exp_cov auto -read_trkg yes -scaffolding no";
     RunCommand($cmd,$noexecute);
   }
 
   unless (-e "$lanepath/04_ASSEMBLY/transcripts.fa") {
-    my $cmd = "oases $lanepath/04_ASSEMBLY/ -ins_length $ins_mean -ins_length_sd $ins_sd -unused_reads yes -scaffolding no ";
+    my $frag_len = 2*$trimedlen + $ins_mean;
+    my $cmd = "oases $lanepath/04_ASSEMBLY/ -ins_length $frag_len -ins_length_sd $ins_sd -unused_reads yes -scaffolding no ";
     RunCommand($cmd,$noexecute);
   }
 
@@ -720,6 +729,53 @@ if (exists $runlevel{$runlevels}) {
 
 }
 
+###
+###runlevel5: run cufflinks for gene expression or genomic guided assembly
+###
+
+$runlevels = 5;
+if (exists $runlevel{$runlevels}) {
+
+  printtime();
+  print STDERR "####### runlevel $runlevels now #######\n\n";
+
+  unless (-e "$lanepath/06_CUFFLINKS") {
+    my $cmd = "mkdir -p $lanepath/06_CUFFLINKS";
+    RunCommand($cmd,$noexecute);
+  }
+
+  unless (-e "$lanepath/05_CUFFLINKS/genes\.fpkm\_tracking"){
+
+    my $cufflinks_options = "";
+    if ( $gtf_guide_assembly ){
+      $cufflinks_options .= "--GTF-guide $gene_annotation_gtf";
+    }
+    else {
+      $cufflinks_options .= "--GTF $gene_annotation_gtf";
+    }
+    if ( $frag_bias_correct ){
+      $cufflinks_options .= "--frag-bias-correct";
+    }
+    if ( $upper_quantile_norm ){
+      $cufflinks_options .= "--upper-quartile-norm";
+    }
+
+    my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+    if (-e $mapping_bam){
+      my $cmd = "cufflinks -o $lanepath/06_CUFFLINKS -p $threads $cufflinks_options --quiet $mapping_bam";
+      RunCommand($cmd,$noexecute);
+    }
+    else {
+      print STDERR "$mapping_bam does not exist, please do the mapping first.\n";
+      exit;
+    }
+  }
+
+  printtime();
+  print STDERR "####### runlevel $runlevels done #######\n\n";
+
+}
+
 
 ###
 ### sub-region
@@ -734,18 +790,23 @@ sub RunCommand {
 }
 
 sub helpm {
-  print STDERR "usage: $0 [options]\n\nOptions:\n\t--runlevel\tthe steps of runlevel, from 1-4, either rl1-rl2 or rl, see below\n";
+  print STDERR "usage: $0 [options]\n\nOptions:\n\t--runlevel\tthe steps of runlevel, from 1-5, either rl1-rl2 or rl, see below\n";
   print STDERR "\t\t\t1: trim reads and decide insert size using spiked in reads\n";
   print STDERR "\t\t\t2: do the mapping and generate the statistics\n";
   print STDERR "\t\t\t3: select anormalous read pairs and do the assembly\n";
   print STDERR "\t\t\t4: get fusion candidates and visualize the result\n";
+  print STDERR "\t\t\t5: running cufflinks for gene/isoform quantification\n";
   print STDERR "\t--lanename\tthe name of the lane needed to be processed (must set for all runlevels)\n";
   print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
   print STDERR "\t--readlen\tthe sequenced read length (default 95)\n";
   print STDERR "\t--AB\t\tsplit reads up to generate non-overlapping paired-end reads.\n";
   print STDERR "\t--QC\t\tdo the quality check of reads, will stop the pipeline once it is finished.\n";
-  print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads (using tophat)\n";
-  print STDERR "\t--BT\t\tset if use BLAST in run-level 4.\n";
+  print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads reported by TopHat, for run-level 3\n";
+  print STDERR "\t--BT\t\tset if use BLAST in run-level 4 (default: use BLAT).\n";
+  print STDERR "\t--WIG\t\tgenerate a big wiggle file in run-level 2.\n";
+  print STDERR "\t--gtf-guide\tuse gtf guided assembly method in run-level 5 (default: FALSE).\n";
+  print STDERR "\t--frag-bias\tcorrect fragmentation bias in run-level 5 (default: FALSE).\n";
+  print STDERR "\t--upper-qt\tupper-quantile normalization in run-level 5 (default: FALSE).\n";
   print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
   print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
   print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
