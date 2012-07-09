@@ -613,7 +613,7 @@ if (exists $runlevel{$runlevels}) {
 
   unless (-e "$lanepath/04_ASSEMBLY/Graph2") {
     my $frag_len = 2*$trimedlen + $ins_mean;
-    my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -ins_length $frag_len -exp_cov auto -read_trkg yes -scaffolding no";
+    my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -ins_length $frag_len -ins_length_sd $ins_sd -exp_cov auto -read_trkg yes -scaffolding no";
     RunCommand($cmd,$noexecute);
   }
 
@@ -810,7 +810,7 @@ sub helpm {
   print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
   print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
   print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
-  print STDERR "\t--seglen\tthe segment length for tophat mapping (default 27)\n";
+  print STDERR "\t--seglen\tthe segment length for tophat mapping (default 25)\n";
   print STDERR "\t--insertmean\tthe mean insert size of read mates (not required, can be decided automatically)\n";
   print STDERR "\t--insertsd\tthe SD of insert size of read mates (not required, can be decided automatically)\n";
   print STDERR "\t--threads\tthe number of threads used for the mapping (default 1)\n";
