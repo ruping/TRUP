@@ -339,7 +339,18 @@ int main (int argc, char *argv[]) {
       } //cate == 5
 
       else if (fragment[bam.Name].cate == 6) { // mate 1 is unique
-        if (mate == 1) {cerr << "mate1 unique inconsistency, exit\n"; cerr << "the problem read is: " << bam.Name << endl; exit(0);} 
+        if (mate == 1) {
+          if (bam.CigarData.size() == 1){
+            cerr << "mate1 unique inconsistency, exit\n"; cerr << "problem reads: " << bam.Name << endl; cerr << "cigar: " << bam.CigarData.size() << endl; exit(0);
+          }
+          else { //print out the current alignment
+            writer.SaveAlignment(bam);                          // write
+            if ( arp != "" ) {
+              arp_f << bam.Name << endl;
+            }
+            continue;
+          }
+        } 
         if (unique == 1) { // both ends are unique VERY GOOD
            ++BAMSTATS.num_Reads;
            ++BAMSTATS.num_Mapped;
@@ -363,7 +374,7 @@ int main (int argc, char *argv[]) {
 
         } // both ends are unique
         else { // the mate 2 is multi, try to figure out the "primary" record
-          if ( bam.IsPrimaryAlignment() == true ){ // if this is a primary result
+          if ( bam.IsPrimaryAlignment() == true ) { // if this is a primary result
             ++BAMSTATS.num_Reads;
             ++BAMSTATS.num_Mapped;
             ++BAMSTATS.num_UniqueHalf;
@@ -384,7 +395,18 @@ int main (int argc, char *argv[]) {
         }
       } // cate == 6         
       else if (fragment[bam.Name].cate == 7) { // mate 2 is unique
-        if (mate == 2) {cerr << "mate2 unique inconsistency, exit\n"; exit(0);}
+        if (mate == 2) {
+          if (bam.CigarData.size() == 1){
+            cerr << "mate2 unique inconsistency, exit\n"; cerr << "problem reads: " << bam.Name << endl; cerr << "cigar: " << bam.CigarData.size() << endl; exit(0);
+          }
+          else { //print out the current alignment
+            writer.SaveAlignment(bam);                          // write
+            if ( arp != "" ) {
+              arp_f << bam.Name << endl;
+            }
+            continue;
+          }
+        }
         if (unique == 1) { // both ends are unique VERY GOOD
           ++BAMSTATS.num_Reads;
           ++BAMSTATS.num_Mapped;
