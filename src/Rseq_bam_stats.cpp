@@ -339,7 +339,7 @@ int main (int argc, char *argv[]) {
       } //cate == 5
 
       else if (fragment[bam.Name].cate == 6) { // mate 1 is unique
-        if (mate == 1) {cerr << "mate1 unique inconsistency, exit\n"; exit(0);} 
+        if (mate == 1) {cerr << "mate1 unique inconsistency, exit\n"; cerr << "the problem read is: " << bam.Name << endl; exit(0);} 
         if (unique == 1) { // both ends are unique VERY GOOD
            ++BAMSTATS.num_Reads;
            ++BAMSTATS.num_Mapped;
