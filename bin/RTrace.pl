@@ -75,7 +75,9 @@ my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_konw_ensemble_trans
 my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
 my $gene_annotation_gtf = "$anno/hg19\.ensembl\-for\-tophat\.gtf";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
+my $ensemble_gene_bednew = "$anno/hg19\.ensembl\.gene\.sorted\.bed";
 my $refseq_gene = "$anno/RefSeq\_Genes\_hg19";
+my $refseq_gene_gtf = "$anno/refGene_hg19.gtf";
 my $gmap_index = "$anno/gmap\_index/";
 my $gmap_splicesites = "$gmap_index/hg19/hg19.splicesites.iit";
 #-------------------------------------------------------------------------
@@ -462,6 +464,11 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute);
   }
 
+  unless (-e "$lanepath/03_STATS/$lanename\.Ensembl\.expr") {
+    my $cmd = "coverageBed -abam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam -b $ensemble_gene_bednew -split | sort -k 1,1 -k 2,2n >$lanepath/03_STATS/$lanename\.Ensembl\.expr";
+    RunCommand($cmd,$noexecute);
+  }
+
   unless (-e "$lanepath/03_STATS/$lanename\.cate") {
     my $cmd = "perl $bin/cate.pl $lanepath/03_STATS/$lanename\.expr $gene_annotation >$lanepath/03_STATS/$lanename\.cate";
     RunCommand($cmd,$noexecute);
@@ -744,14 +751,14 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute);
   }
 
-  unless (-e "$lanepath/05_CUFFLINKS/genes\.fpkm\_tracking"){
+  unless (-e "$lanepath/06_CUFFLINKS/transcripts\.gtf"){
 
     my $cufflinks_options = "";
     if ( $gtf_guide_assembly ){
-      $cufflinks_options .= "--GTF-guide $gene_annotation_gtf";
+      $cufflinks_options .= "--GTF-guide $refseq_gene_gtf";
     }
     else {
-      $cufflinks_options .= "--GTF $gene_annotation_gtf";
+      $cufflinks_options .= "--GTF $refseq_gene_gtf";
     }
     if ( $frag_bias_correct ){
       $cufflinks_options .= "--frag-bias-correct";
@@ -771,6 +778,12 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
+  unless (-e "$lanepath/06_CUFFLINKS/$lanename\.transcripts\.gtf\.tmap"){
+    my $cmd = "cuffcompare -o $lanepath/06_CUFFLINKS/$lanename -r $refseq_gene_gtf $lanepath/06_CUFFLINKS/transcripts\.gtf";
+    RunCommand($cmd,$noexecute);
+  }
+
+
   printtime();
   print STDERR "####### runlevel $runlevels done #######\n\n";
 
@@ -783,7 +796,8 @@ if (exists $runlevel{$runlevels}) {
 
 sub RunCommand {
   my ($command,$noexecute) = @_ ;
-  print STDERR "$command\n";
+  printtime();
+  print STDERR "$command\n\n";
   unless ($noexecute) {
     system($command);
   }
