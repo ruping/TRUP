@@ -186,13 +186,13 @@ HTMLInsertGraph(Caption = "unique start positions on chromosomes",
 
 #RPKM distribution (Reads Per Kilobase per Million of mapped reads)
 HTML("<br> RPKM distribution (Reads Per Kilobase per Million of mapped reads)", file = target)
-expr.file = paste(lane, "expr", sep=".")
+expr.file = paste(lane, "ensembl_gene.expr", sep=".")
 expr <- read.table(paste(stats.dir, expr.file, sep="/"))
 RPKM.plot = "RPKM.png"
 png(file = paste(dir.html, RPKM.plot, sep ="/"), width = 600, height = 400)
 hist(log2(expr$V5[which(expr$V5>0)]*10^9/(mapping.stats[4,2]*2-mapping.stats[8,2])), breaks=200, col="lightblue", xlab="log2(RPKM)", main="")
 dev.off()
-HTMLInsertGraph(Caption = "RPKM distribution",
+HTMLInsertGraph(Caption = "RPKM distribution over Ensembl genes",
                 GraphFileName = RPKM.plot, Width = 600,file = target)
 
 #position ~ RPKM
@@ -202,7 +202,7 @@ png(file = paste(dir.html, postag.plot, sep ="/"), width = 600, height = 500)
 smkey(log2(expr$V5[which(expr$V5>0)]*10^9/(mapping.stats[4,2]*2-mapping.stats[8,2])),expr$V6[which(expr$V5>0)],xlab="log2(RPKM)",ylab="fraction of covered positions", main="positions vs tags")
 abline(v=log2(mean(expr$V5[which(expr$V5>0)]*10^9/(mapping.stats[4,2]*2-mapping.stats[8,2]))), lwd = 2, col="red")
 abline(h=mean(expr$V6[which(expr$V5>0)]), lwd=2, col="black")
-legend("topleft", legend=c("mean RPKM of expressed transcripts", "mean covered fraction of expressed transcripts"), col=c("red","black"), pch="-", lwd=2, text.col="white", bty="n")
+legend("topleft", legend=c("mean RPKM of expressed ensembl gene", "mean covered fraction of expressed ensembl gene"), col=c("red","black"), pch="-", lwd=2, text.col="white", bty="n")
 dev.off()
 HTMLInsertGraph(Caption = "positions vs tags",
                 GraphFileName = postag.plot, Width = 600,file = target)
@@ -212,16 +212,16 @@ HTMLInsertGraph(Caption = "positions vs tags",
 readcov.plot = "readcov.png"
 expr.file = paste(lane, "RefSeq.expr", sep=".")
 expr <- read.table(paste(stats.dir, expr.file, sep="/"))
-sel.cov.range <- quantile(log2(expr$V7[which(expr[,7] >= 1)]), c(0,1))
-ntrans = length(expr$V7[which(expr[,7] >= 1)])
+sel.cov.range <- quantile(log2(expr$V8[which(expr[,8] >= 1)]), c(0,1))
+ntrans = length(expr$V8[which(expr[,8] >= 1)])
 x.cov <- seq(0, sel.cov.range[2], by = 1)
-cov.index = findInterval( x.cov, sort(log2(expr$V7[which(expr[,7] >= 1)])), rightmost.closed = TRUE)
+cov.index = findInterval( x.cov, sort(log2(expr$V8[which(expr[,8] >= 1)])), rightmost.closed = TRUE)
 cov.above = ntrans - cov.index
 y.above = cov.above/ntrans
 png(file = paste(dir.html, readcov.plot, sep ="/"), width = 600, height = 500)
 plot(sel.cov.range, c(0,1), type = "n", xlab = "log(Number of Reads covered for each expressed RefSeq genes)", ylab = "Fraction of all expressed RefSeq genes", main=paste("Read coverage on expressed RefSeq Genes N=", ntrans, sep=""))
 points(x.cov, y.above, type = "l", lty = 1, lwd = 3 ,col = rgb(1,0,0,alpha=0.5))
-points(density(log2(expr$V7[which(expr[,7] >= 1)]), n=300), type = "l", lty = 1, lwd = 3, col= rgb(0,0,1,alpha=0.5))
+points(density(log2(expr$V8[which(expr[,8] >= 1)]), n=300), type = "l", lty = 1, lwd = 3, col= rgb(0,0,1,alpha=0.5))
 legend("topright", legend = c("cumulative fraction", "density"), col = c(rgb(1,0,0,alpha=0.5),rgb(0,0,1,alpha=0.5)), pch = 19, bty="n")
 dev.off()
 HTMLInsertGraph(Caption = "read coverage of each expressed RefSeq genes (with at least one read)",
@@ -229,9 +229,9 @@ HTMLInsertGraph(Caption = "read coverage of each expressed RefSeq genes (with at
 
 
 #% refgenes contributing
-trans = expr$V7[which(expr[,7] >= 1)]
+trans = expr$V8[which(expr[,8] >= 1)]
 trans.sort = sort(trans, decreasing=T)
-ntrans = length(expr$V7[which(expr[,7] >= 1)])
+ntrans = length(expr$V8[which(expr[,8] >= 1)])
 perc = (seq(0,100))*0.01
 index.perc = round(ntrans*perc)
 cum.perc = rep(0,101)

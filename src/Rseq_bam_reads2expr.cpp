@@ -60,6 +60,8 @@ struct lb {  // for locus bias
   unsigned int he;
 };
 
+unsigned int read_length = 0;
+
 inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, vector<int> &blockEnds, unsigned int &alignmentEnd);
 inline void splitstring(const string &str, vector<string> &elements, const string &delimiter);
 inline void eatline(const string &str, deque <struct region> &region_ref);
@@ -187,6 +189,10 @@ int main ( int argc, char *argv[] ) {
         if (unique != 1) {                         // skipe uniquelly mapped reads
           continue;
         }
+      }
+
+      if (read_length == 0){
+        read_length = bam.Length;
       }
 
       //cout << bam.Name << endl;
@@ -398,7 +404,7 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
 	 //tmp.chr = "chrM";
        continue;
      case 2:  // start
-       tmp.start = atoi((*iter).c_str());
+       tmp.start = atoi((*iter).c_str()) + 1;
        continue;
      case 3:  // end
        tmp.end = atoi((*iter).c_str());
@@ -490,42 +496,63 @@ inline void gene_processing(struct region &gene, vector <struct lb> &locusb) {
   splitstring(gene.blockStarts, exonS, ",");
   unsigned int total_length = 0;
   vector <string>::iterator lit = exonL.begin();
-  for (; lit != exonL.end(); lit++){
+  for (; lit != exonL.end(); lit++) {
     total_length += atoi((*lit).c_str());
   }
   vector <float> exonPos2tags(total_length,0.);
   vector <unsigned int> exonPos2hit(total_length,0);
+  vector <unsigned int> exonPos2depth(total_length,0);
+
+  unsigned int current_exon_start = 0;
 
   for (unsigned int i = 0; i < gene.blockCount; i++) { // exon i
 
     unsigned int exon_length = atoi(exonL[i].c_str());
-    for (unsigned int j = 0; j < exon_length; j++){    // each position of exon i
+    
+    for (unsigned int j = 0; j < exon_length; j++) {    // each position of exon i
       unsigned int pos = atoi(exonS[i].c_str()) + j;
  
-      if ( gene.tags.count(pos)>0 ) {
+      if ( gene.tags.count(pos) > 0 ) {  // current position having tags
 	totalT += (gene.tags)[pos];
         totalP += 1;
         exonT[i] += (gene.tags)[pos];
         exonPos2tags[idx] += (gene.tags)[pos];
         exonPos2hit[idx] = 1;
+
+        // for base depth
+        
+        for (unsigned int k = idx; k < (current_exon_start + exon_length) && k < (idx + read_length); k++){
+           exonPos2depth[k] += 1;
+        }
+        
       }
       idx++;
     } // j
-    
+    current_exon_start += exon_length;
     exonT[i] /= exon_length;
-
   } // i
 
   if (idx > 0) {
+
      gene.score = totalT/idx;
      float poscore = totalP/idx;
+
      vector <float>::iterator eit = exonT.begin();
      string exontags;
      for (; eit != exonT.end(); eit++ ){
        if ((eit+1) != exonT.end()) exontags += float2str(*eit)+",";
        else exontags += float2str(*eit);
      }
-     cout << gene.chr << "\t" << gene.start << "\t" << gene.end << "\t" << gene.ensemble_id << "\t" << gene.score << "\t" << poscore << "\t" << totalT << "\t" << idx << "\t" << gene.strand << "\t" << gene.blockCount << "\t" << gene.blockSizes << "\t" << gene.blockStarts << "\t" << exontags << endl;
+
+     float depthNonempty = 0.;
+     vector <unsigned int>::iterator depit = exonPos2depth.begin();
+     for (; depit != exonPos2depth.end(); depit++){
+       if ( (*depit) > 0 )
+         depthNonempty += 1; 
+     }
+     float depthScore = depthNonempty/idx;
+
+     cout << gene.chr << "\t" << gene.start << "\t" << gene.end << "\t" << gene.ensemble_id << "\t" << gene.score << "\t" << poscore << "\t" << depthScore << "\t" << totalT << "\t" << idx << "\t" << gene.strand << "\t" << gene.blockCount << "\t" << gene.blockSizes << "\t" << gene.blockStarts << "\t" << exontags << endl;
 
      //here for locus bias
      unsigned int maxL = 1000;

@@ -75,7 +75,7 @@ my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_konw_ensemble_trans
 my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
 my $gene_annotation_gtf = "$anno/hg19\.ensembl\-for\-tophat\.gtf";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
-my $ensemble_gene_bednew = "$anno/hg19\.ensembl\.gene\.sorted\.bed";
+my $ensemble_gene_bednew = "$anno/hg19\.ensembl\.gene\.sorted\.bed12";
 my $refseq_gene = "$anno/RefSeq\_Genes\_hg19";
 my $refseq_gene_gtf = "$anno/refGene_hg19.gtf";
 my $gmap_index = "$anno/gmap\_index/";
@@ -454,19 +454,43 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
-  unless (-e "$lanepath/03_STATS/$lanename\.expr") {
-    my $cmd = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
-    RunCommand($cmd,$noexecute);
+  unless (-e "$lanepath/03_STATS/$lanename\.expr.sorted") {
+    unless (-e "$lanepath/03_STATS/$lanename\.expr") {
+      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
+      RunCommand($cmd1,$noexecute);
+    }
+    my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$lanename\.expr >$lanepath/03_STATS/$lanename\.expr.sorted";
+    RunCommand($cmd2,$noexecute);
+    if (-e "$lanepath/03_STATS/$lanename\.expr.sorted" and "$lanepath/03_STATS/$lanename\.expr"){
+      my $cmd3 = "rm $lanepath/03_STATS/$lanename\.expr -rf";
+      RunCommand($cmd3,$noexecute);
+    }
   }
 
-  unless (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr") {
-    my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.RefSeq\.expr";
-    RunCommand($cmd,$noexecute);
+  unless (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted") {
+    unless (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr") {
+      my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.RefSeq\.expr";
+      RunCommand($cmd,$noexecute);
+    }
+    my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$lanename\.RefSeq\.expr >$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted";
+    RunCommand($cmd2,$noexecute);
+    if (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted" and "$lanepath/03_STATS/$lanename\.RefSeq\.expr"){
+      my $cmd3 = "rm $lanepath/03_STATS/$lanename\.RefSeq\.expr -rf";
+      RunCommand($cmd3,$noexecute);
+    }
   }
 
-  unless (-e "$lanepath/03_STATS/$lanename\.Ensembl\.expr") {
-    my $cmd = "coverageBed -abam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam -b $ensemble_gene_bednew -split | sort -k 1,1 -k 2,2n >$lanepath/03_STATS/$lanename\.Ensembl\.expr";
-    RunCommand($cmd,$noexecute);
+  unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted") {
+    unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr") {
+      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene_bednew --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr";
+      RunCommand($cmd1,$noexecute);
+    }
+    my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr >$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted";
+    RunCommand($cmd2,$noexecute);
+    if (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted" and "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr") {
+      my $cmd3 = "rm $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr -rf";
+      RunCommand($cmd3,$noexecute);
+    }
   }
 
   unless (-e "$lanepath/03_STATS/$lanename\.cate") {
