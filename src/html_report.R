@@ -186,7 +186,7 @@ HTMLInsertGraph(Caption = "unique start positions on chromosomes",
 
 #RPKM distribution (Reads Per Kilobase per Million of mapped reads)
 HTML("<br> RPKM distribution (Reads Per Kilobase per Million of mapped reads)", file = target)
-expr.file = paste(lane, "ensembl_gene.expr", sep=".")
+expr.file = paste(lane, "ensembl_gene.expr.sorted", sep=".")
 expr <- read.table(paste(stats.dir, expr.file, sep="/"))
 RPKM.plot = "RPKM.png"
 png(file = paste(dir.html, RPKM.plot, sep ="/"), width = 600, height = 400)
@@ -210,7 +210,7 @@ HTMLInsertGraph(Caption = "positions vs tags",
 
 #read coverage distribution
 readcov.plot = "readcov.png"
-expr.file = paste(lane, "RefSeq.expr", sep=".")
+expr.file = paste(lane, "RefSeq.expr.sorted", sep=".")
 expr <- read.table(paste(stats.dir, expr.file, sep="/"))
 sel.cov.range <- quantile(log2(expr$V8[which(expr[,8] >= 1)]), c(0,1))
 ntrans = length(expr$V8[which(expr[,8] >= 1)])

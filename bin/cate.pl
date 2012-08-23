@@ -60,7 +60,7 @@ while ( <IN> ) {
    chomp;
    my @cols = split /\t/;
    my $id = $cols[3];
-   my $count = $cols[6];
+   my $count = $cols[7];
    $expr{$id} = $count;
 }
 close IN;
