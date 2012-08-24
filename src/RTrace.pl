@@ -494,7 +494,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/03_STATS/$lanename\.cate") {
-    my $cmd = "perl $bin/cate.pl $lanepath/03_STATS/$lanename\.expr\.sorted $gene_annotation >$lanepath/03_STATS/$lanename\.cate";
+    my $cmd = "perl $bin/cate.pl $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr\.sorted $gene_annotation >$lanepath/03_STATS/$lanename\.cate";
     RunCommand($cmd,$noexecute);
   }
 

@@ -293,16 +293,16 @@ cate = read.table(paste(stats.dir, cate.file, sep="/"))
 #                GraphFileName = cate.plot, Width = 800,file = target)
 
 
-HTML("<br> Boxplot of log2-scale coverage for transcripts in each category. Red dot: mean / Black dot : median.", file = target)
+HTML("<br> Boxplot of log2-scale coverage for ensembl genes in each category. Red dot: mean / Black dot : median.", file = target)
 trc.plot = "trc.png"
 png(file = paste(dir.html, trc.plot, sep ="/"), width = 600, height = 800)
 trc<-data.frame(x=cate$V2, y=cate$V3)
-bwplot(y~(x+1), scales=list(x=list(log = 2)), data=trc, xlab="transcript coverage", panel=function(x,y,...) {
+bwplot(y~(x+1), scales=list(x=list(log = 2)), data=trc, xlab="gene coverage", panel=function(x,y,...) {
   panel.bwplot(x, y, ...)
   panel.points(x=log2(unlist(as.list(by(trc$x,trc$y,function(z) mean(z))))+1), y=1:12, col="red",pch=19)
 })
 dev.off()
-HTMLInsertGraph(Caption = "coverage sum of transcripts belonging to different categories",
+HTMLInsertGraph(Caption = "coverage sum of genes belonging to different categories",
                 GraphFileName = trc.plot, Width = 600,file = target)
 
 

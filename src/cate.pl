@@ -72,13 +72,14 @@ while ( <IN> ){
   next if /^#/;
 
   my @cols = split /\t/;
-  next if ($cols[2] ne 'transcript' and $cols[2] ne 'mRNA'); #skip unless it is a transcript
+  #next if ($cols[2] ne 'transcript' and $cols[2] ne 'mRNA'); #skip unless it is a transcript
+  next if ($cols[2] ne 'gene'); #skip unless it is a gene
 
   my $id;
   $cols[8] =~ /^ID=(.+?);/;
   $id = $1;
 
-  if (exists $expr{$id}){
+  if (exists $expr{$id}) {
     if (exists($cate{$cols[1]})) {
       if (!exists $redun{$id}) {
          print "$id\t$expr{$id}\t$cate{$cols[1]}\n";
