@@ -432,7 +432,7 @@ if (exists $runlevel{$runlevels}) {
   }
   if (-e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" and -e "$lanepath/02_MAPPING/accepted_hits\.bam") {
     my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.bam -f";
-    RunCommand($cmd,$noexecute);
+    #RunCommand($cmd,$noexecute);
   }
 
   if ($bigWig) { #generate wiggle file
