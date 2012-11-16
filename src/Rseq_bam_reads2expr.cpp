@@ -283,8 +283,8 @@ int main ( int argc, char *argv[] ) {
         if (iter->end >= alignmentStart && iter->start <= alignmentEnd) {  //overlapping, should take action
 
           vector <int>::iterator cigit = blockStarts.begin();
-          for (; cigit != blockStarts.end(); cigit++){
-            unsigned int current_start = *cigit+alignmentStart;
+          for (; cigit != blockStarts.end(); cigit++) {
+            unsigned int current_start = *cigit + alignmentStart;
             int current_pos = current_start - (iter->start);
             //cout << iter->chr << "\t" << iter->start << "\t" << iter->end << "\t" << current_start << endl;
             if ( (iter->tags).count(current_pos) > 0 ) {
@@ -293,6 +293,7 @@ int main ( int argc, char *argv[] ) {
             else
               (iter->tags).insert( pair<int, float>(current_pos, incre) );  
           }
+
         }  // overlapping take action!
 
         if ( (iter+1) != regions.end() )

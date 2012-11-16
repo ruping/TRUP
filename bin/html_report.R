@@ -46,8 +46,8 @@ row.infos =  c("N read-pairs sequenced ",
               )
 
 row.values = c(pN(mapping.stats[13,2]),
-               pN(mapping.stats[1,2]),
-               pN(mapping.stats[13,2]-mapping.stats[1,2]),
+               pN(mapping.stats[2,2]),
+               pN(mapping.stats[13,2]-mapping.stats[2,2]),
                pN(mapping.stats[4,2]),
                pN(mapping.stats[8,2]),
                pN(mapping.stats[9,2]),
@@ -57,8 +57,8 @@ row.values = c(pN(mapping.stats[13,2]),
               )
 
 row.fracs  = c(pP(mapping.stats[13,2]/mapping.stats[13,2]),
-               pP(mapping.stats[1,2]/mapping.stats[13,2]),
-               pP((mapping.stats[13,2]-mapping.stats[1,2])/mapping.stats[13,2]),
+               pP(mapping.stats[2,2]/mapping.stats[13,2]),
+               pP((mapping.stats[13,2]-mapping.stats[2,2])/mapping.stats[13,2]),
                pP(mapping.stats[4,2]/mapping.stats[13,2]),
                pP(mapping.stats[8,2]/mapping.stats[13,2]),
                pP(mapping.stats[9,2]/mapping.stats[13,2]),

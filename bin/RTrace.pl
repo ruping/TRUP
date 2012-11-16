@@ -11,6 +11,7 @@ my $noexecute  = 0;
 my $runlevels  = 0;
 my $readlen    = 0;
 my $trimedlen  = 0;
+my $mapper     = "tophat";
 my $seg_len    = 25;
 my $ins_mean   = 0;
 my $ins_mean_true = 0;
@@ -49,6 +50,7 @@ GetOptions(
            "readlen=i"    => \$readlen,
            "trimedlen=i"  => \$trimedlen,
            "seglen=i"     => \$seg_len,
+           "mapper=s"     => \$mapper,
            "insertmean=i" => \$ins_mean,
            "insertsd=i"   => \$ins_sd,
            "threads=i"    => \$threads,
@@ -394,10 +396,34 @@ if (exists $runlevel{$runlevels}) {
   my $fragment_length = 2*$real_len + $real_ins_mean;
 
   #do the mapping of pair - end reads
-  unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
-    my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat_trans_index $bowtie_index $reads[0] $reads[1]";
-    RunCommand($cmd,$noexecute);
+  if ($mapper eq 'tophat'){
+     unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
+       my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat_trans_index $bowtie_index $reads[0] $reads[1]";
+       RunCommand($cmd,$noexecute);
+     }
   }
+
+  elsif ($mapper eq 'gsnap'){
+
+     unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.sam") {
+        my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=5 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $reads[0] $reads[1] >$lanepath/02_MAPPING/accepted_hits\.sam";
+        RunCommand($cmd,$noexecute);
+     }
+
+     if (-e "$lanepath/02_MAPPING/accepted_hits\.sam" and (! -e "$lanepath/02_MAPPING/accepted_hits\.bam" and ! -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam")){
+        my $cmd = "samtools view -Sb -@ $threads $lanepath/02_MAPPING/accepted_hits\.sam -o $lanepath/02_MAPPING/accepted_hits\.bam";
+        RunCommand($cmd,$noexecute);
+     }
+
+     if (-e "$lanepath/02_MAPPING/accepted_hits\.sam" and (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam")){
+        my $cmd  = "rm $lanepath/02_MAPPING/accepted_hits\.sam -f";
+        RunCommand($cmd,$noexecute);
+     }
+
+     #goto GSNAP_TEST;
+
+  }
+
 
   #do the statistics
   unless (-e "$lanepath/03_STATS") {
@@ -409,6 +435,7 @@ if (exists $runlevel{$runlevels}) {
     my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam --writer $lanepath/02_MAPPING/accepted_hits\.unique\.bam --arp $lanepath/03_STATS/$lanename\.arp >$lanepath/03_STATS/$lanename\.mapping\.stats";
     RunCommand($cmd,$noexecute);
   }
+
 
   my $mapping_stats_line_number = `wc -l $lanepath/03_STATS/$lanename.mapping.stats`;
   $mapping_stats_line_number =~ s/^(\d+).*$/\1/;
@@ -422,7 +449,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam")  {
-    my $cmd = "samtools sort $lanepath/02_MAPPING/accepted_hits\.unique\.bam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted";
+    my $cmd = "samtools sort -@ $threads $lanepath/02_MAPPING/accepted_hits\.unique\.bam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted";
     RunCommand($cmd,$noexecute);
   }
 
@@ -454,6 +481,7 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
+  #ensembl transcripts######################################################
   unless (-e "$lanepath/03_STATS/$lanename\.expr.sorted") {
     unless (-e "$lanepath/03_STATS/$lanename\.expr") {
       my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$lanename\.pos\.gff --chrmap $lanepath/03_STATS/$lanename\.chrmap --lbias $lanepath/03_STATS/$lanename\.lbias >$lanepath/03_STATS/$lanename\.expr";
@@ -467,6 +495,7 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
+  #refseq gene##############################################################
   unless (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted") {
     unless (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr") {
       my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.RefSeq\.expr";
@@ -480,6 +509,7 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
+  #ensembl gene#############################################################
   unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted") {
     unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr") {
       my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene_bednew --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr";
@@ -492,6 +522,43 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd3,$noexecute);
     }
   }
+
+  #for RPKM normalization of ensembl genes##################################
+  unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.rpkm"){
+    my $N_mapped_reads = 0;
+    my $mapped = 0;
+    my $singleton = 0;
+    open MAPPING_STATS, "$lanepath/03_STATS/$lanename.mapping.stats" || die "can not open $lanepath/03_STATS/$lanename.mapping.stats";
+    while ( <MAPPING_STATS> ) {
+      chomp;
+      if ($_ =~ /^Mapped\:\s+(\d+)$/) {
+        $mapped = $1;
+      }
+      if ($_ =~ /^singletons\:\s+(\d+)$/) {
+        $singleton = $1;
+      }
+    }
+    print STDERR "mapped pairs equal to zero!!!\n" if ($mapped == 0);
+    print STDERR "singletons equal to zero!!!\n" if ($singleton == 0);
+    $N_mapped_reads = 2*$mapped - $singleton;
+    exit if ($N_mapped_reads == 0);
+    close MAPPING_STATS;
+
+    open ENSEMBL_GENE_EXPR, "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted" || die "can not open $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted";
+    open ENSEMBL_RPKM, ">$lanepath/03_STATS/$lanename\.ensembl\_gene\.rpkm";
+    while ( <ENSEMBL_GENE_EXPR> ) {
+      chomp;
+      my @cols = split /\t/;
+      my $ensembl_name = $cols[3];
+      my $counts_dblength = $cols[4];
+      my $counts = $cols[7];
+      my $rpkm = sprintf("%.3f", $counts_dblength * 1e9/$N_mapped_reads);
+      print ENSEMBL_RPKM "$ensembl_name\t$counts\t$rpkm\n";
+    }
+    close ENSEMBL_GENE_EXPR;
+    close ENSEMBL_RPKM;
+  }
+
 
   unless (-e "$lanepath/03_STATS/$lanename\.cate") {
     my $cmd = "perl $bin/cate.pl $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr\.sorted $gene_annotation >$lanepath/03_STATS/$lanename\.cate";
@@ -511,6 +578,8 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels done #######\n\n";
 }
+
+GSNAP_TEST:
 
 ###
 ###runlevel3: select anormouls read pairs and do the assembly
@@ -837,6 +906,7 @@ sub helpm {
   print STDERR "\t--lanename\tthe name of the lane needed to be processed (must set for all runlevels)\n";
   print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
   print STDERR "\t--readlen\tthe sequenced read length (default 95)\n";
+  print STDERR "\t--mapper\tthe mapper used in runlevel2, now support <tophat> and <gsnap>.\n";
   print STDERR "\t--AB\t\tsplit reads up to generate non-overlapping paired-end reads.\n";
   print STDERR "\t--QC\t\tdo the quality check of reads, will stop the pipeline once it is finished.\n";
   print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads reported by TopHat, for run-level 3\n";
