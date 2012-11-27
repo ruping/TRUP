@@ -3,7 +3,7 @@ TRUP is a pipeline designed for analyzing RNA-seq data from Tumor samples.
 
 Learn More
 ---
-...
+to be added soon.
 
 
 Dependencies
