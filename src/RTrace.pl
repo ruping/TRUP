@@ -78,6 +78,8 @@ my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
 my $gene_annotation_gtf = "$anno/hg19\.ensembl\-for\-tophat\.gtf";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
 my $ensemble_gene_bednew = "$anno/hg19\.ensembl\.gene\.sorted\.bed12";
+my $gencode_genemap = "$anno/gencode/gencode\.v14\.genemap";
+my $gencode_gene_bed = "$anno/gencode/gencode\.v14\.annotation\.gene\.bed12";
 my $refseq_gene = "$anno/RefSeq\_Genes\_hg19";
 my $refseq_gene_gtf = "$anno/refGene_hg19.gtf";
 my $gmap_index = "$anno/gmap\_index/";
@@ -523,8 +525,23 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
-  #for RPKM normalization of ensembl genes##################################
-  unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.rpkm"){
+  #gencode gene#############################################################
+  unless (-e "$lanepath/03_STATS/$lanename\.gencode\_gene\.expr.sorted") {
+    unless (-e "$lanepath/03_STATS/$lanename\.gencode\_gene\.expr") {
+      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $gencode_gene_bed --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.gencode\_gene\.expr";
+      RunCommand($cmd1,$noexecute);
+    }
+    my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$lanename\.gencode\_gene\.expr >$lanepath/03_STATS/$lanename\.gencode\_gene\.expr.sorted";
+    RunCommand($cmd2,$noexecute);
+    if (-e "$lanepath/03_STATS/$lanename\.gencode\_gene\.expr.sorted" and "$lanepath/03_STATS/$lanename\.gencode\_gene\.expr") {
+      my $cmd3 = "rm $lanepath/03_STATS/$lanename\.gencode\_gene\.expr -rf";
+      RunCommand($cmd3,$noexecute);
+    }
+  }
+
+
+  #for RPKM normalization of gencode genes##################################
+  unless (-e "$lanepath/03_STATS/$lanename\.gencode\_gene\.rpkm") {
     my $N_mapped_reads = 0;
     my $mapped = 0;
     my $singleton = 0;
@@ -544,19 +561,29 @@ if (exists $runlevel{$runlevels}) {
     exit if ($N_mapped_reads == 0);
     close MAPPING_STATS;
 
-    open ENSEMBL_GENE_EXPR, "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted" || die "can not open $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted";
-    open ENSEMBL_RPKM, ">$lanepath/03_STATS/$lanename\.ensembl\_gene\.rpkm";
-    while ( <ENSEMBL_GENE_EXPR> ) {
+    open GENCODE_GENEMAP, "$gencode_genemap";
+    my %gencode_genemap;
+    while ( <GENCODE_GENEMAP> ) {
+      chomp;
+      my ($gene_id, $gene_type, $gene_name) = split /\t/;
+      $gencode_genemap{$gene_id} = $gene_type."\t".$gene_name;
+    }
+    close GENCODE_GENEMAP;
+
+    open GENCODE_GENE_EXPR, "$lanepath/03_STATS/$lanename\.gencode\_gene\.expr.sorted" || die "can not open $lanepath/03_STATS/$lanename\.gencode\_gene\.expr.sorted";
+    open GENCODE_RPKM, ">$lanepath/03_STATS/$lanename\.gencode\_gene\.rpkm";
+    printf GENCODE_RPKM ("%s\n", join("\t", "#gene_id","count", "RPKM", "gene_type", "gene_name"));
+    while ( <GENCODE_GENE_EXPR> ) {
       chomp;
       my @cols = split /\t/;
-      my $ensembl_name = $cols[3];
+      my $gencode_name = $cols[3];
       my $counts_dblength = $cols[4];
-      my $counts = $cols[7];
+      my $counts = round($cols[7]);
       my $rpkm = sprintf("%.3f", $counts_dblength * 1e9/$N_mapped_reads);
-      print ENSEMBL_RPKM "$ensembl_name\t$counts\t$rpkm\n";
+      print GENCODE_RPKM "$gencode_name\t$counts\t$rpkm\t$gencode_genemap{$gencode_name}\n";
     }
-    close ENSEMBL_GENE_EXPR;
-    close ENSEMBL_RPKM;
+    close GENCODE_GENE_EXPR;
+    close GENCODE_RPKM;
   }
 
 
