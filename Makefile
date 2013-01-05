@@ -8,10 +8,12 @@ TOOLSB=./tools_binaries_linux_x86_64/
 BIN=/bin/
 SOURCE_STA=Rseq_bam_stats.cpp
 SOURCE_EXP=Rseq_bam_reads2expr.cpp
+SOURCE_RIR=reads_in_region.cpp
 STA=Rseq_bam_stats
 EXP=Rseq_bam_reads2expr
+RIR=reads_in_region
 
-all: Rseq_bam_stats Rseq_bam_reads2expr perl_scripts R_scripts other_tools
+all: Rseq_bam_stats Rseq_bam_reads2expr reads_in_region perl_scripts R_scripts other_tools
 
 .PHONY: all
 
@@ -23,6 +25,10 @@ Rseq_bam_stats:
 Rseq_bam_reads2expr:
 	@echo "* compiling" $(SOURCE_EXP)
 	@$(CXX) $(SRC)/$(SOURCE_EXP) -o $(PREFIX)/$(BIN)/$(EXP) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
+
+reads_in_region:
+	@echo "* compiling" $(SOURCE_RIR)
+	@$(CXX) $(SRC)/$(SOURCE_RIR) -o $(PREFIX)/$(BIN)/$(RIR) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
 
 perl_scripts:
 	@echo "* copying perl scripts"

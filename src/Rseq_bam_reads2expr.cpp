@@ -471,6 +471,7 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
       blockLengths.push_back(blockLength);
       currPosition += cigItr->Length;
       blockLength = 0;                     // a new block
+      break;
     case ('H') : break;                    // for 'H' - do nothing, move to next op
     default    :
       printf("ERROR: Invalid Cigar op type\n");   // shouldn't get here

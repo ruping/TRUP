@@ -72,7 +72,7 @@ struct Alignment {
 };
 
 
-inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, vector<int> &blockEnds, unsigned int &alignmentEnd);
+inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, vector<int> &blockEnds, unsigned int &alignmentEnd, bool &jc, bool &chimeric, bool &hoe, unsigned int &readlen);
 inline void splitstring(const string &str, vector<string> &elements, const string &delimiter);
 inline string int2str(unsigned int &i);
 inline void print_stats(struct RseqSTATS &rstats);
@@ -158,6 +158,13 @@ int main (int argc, char *argv[]) {
     arp_f.open(param->arp);
   }
 
+  // attemp to write breakpoints
+  ofstream bp_f;
+  string bp_file = param->breakpoint;
+  if ( bp_file != "" ) {
+    bp_f.open(param->breakpoint);
+  }
+
   // statistics
   struct RseqSTATS BAMSTATS = {0,0,0,0,0,0,0,0,0,0,0,0};
 
@@ -173,24 +180,49 @@ int main (int argc, char *argv[]) {
 
     BamAlignment cBAM;
 
+    unsigned int readlen = bam.Length;
     unsigned int unique = 0;
     string XS = "SRP";
     bool jc = false;
+    bool chimeric = false;
+    bool hoe = true;                               //true is head
+    unsigned int breakpoint = 0;
     string chrom = "SRP";
     string strand = "+";
     unsigned int alignmentStart = 0;
     unsigned int alignmentEnd = 0;
-    //unsigned int mapq = 0;
+    unsigned int cigarEnd;
+    vector <int> blockLengths;
+    vector <int> blockStarts;
     
     if ( bam.IsMapped() == true) {
       bam.GetTag("NH", unique);                     // uniqueness
-      bam.GetTag("XS", XS);                         // juction reads?
-      //if (XS == "+" || XS == "-") jc = true;
-      if (XS != "SRP") jc = true;
+
+      blockStarts.push_back(0);
+      ParseCigar(bam.CigarData, blockStarts, blockLengths, cigarEnd, jc, chimeric, hoe, readlen); 
+
       chrom  = refs.at(bam.RefID).RefName;          // chromosome
       if (bam.IsReverseStrand()) strand = "-";      // strand -
       alignmentStart = bam.Position+1;              // start
       alignmentEnd   = bam.GetEndPosition();        // end
+
+      if ( unique == 1 ) {                            // check breakpoint reads
+        if (chimeric == true){
+          if (hoe  == false) {
+            //bp_f << "e\t";
+            breakpoint =  alignmentStart;
+          }
+          else if (hoe == true) {
+            //bp_f << "s\t";
+            vector<int>::iterator bsiter = blockStarts.end();
+            vector<int>::iterator bliter = blockLengths.end();
+            breakpoint = alignmentStart + *(bsiter-1) + *(bliter-1);
+          }
+          if ( bp_file != "" ) {
+            bp_f << chrom << "\t" << breakpoint << "\t" << bam.Name << endl;
+          }
+        }
+      } // check breakpoint reads
     }
     unsigned int mate = 1;
     if ( bam.IsFirstMate() == false ) mate = 2;           // second mate
@@ -561,10 +593,14 @@ inline void splitstring(const string &str, vector<string> &elements, const strin
 }
 
 
-inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, vector<int> &blockLengths, unsigned int &alignmentEnd) {
+inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, vector<int> &blockLengths, unsigned int &alignmentEnd, bool &jc, bool &chimeric, bool &hoe, unsigned int &readlen) {
 
   int currPosition = 0;
   int blockLength  = 0;
+  unsigned int cliplen = (int)(readlen*0.22 + 0.5);
+  if (cliplen < 21){
+    cliplen = 21;
+  }
 
   //  Rip through the CIGAR ops and figure out if there is more
   //  than one block for this alignment
@@ -576,7 +612,17 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
     case ('I') : break;
-    case ('S') : break;
+    case ('S') :
+      if (cigItr->Length >= cliplen) {
+        if ( cigItr == cigar.begin() ) {              // first bases are skiped
+          chimeric = true;                           // here for chimeric, but should check for the length of 'S'
+          hoe = false;
+        }
+        else if ( cigItr == (cigEnd - 1) ) {
+          chimeric = true;
+        }
+      }
+      break;
     case ('D') : break;
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
@@ -586,7 +632,19 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
       blockLengths.push_back(blockLength);
       currPosition += cigItr->Length;
       blockLength = 0;
-    case ('H') : break;                             // for 'H' - do nothing, move to next op
+      jc = true;
+      break;
+    case ('H') :                             // here for chimeric
+      if (cigItr->Length >= cliplen) {
+        if ( cigItr ==  cigar.begin() ) {              // first bases are skiped
+          chimeric = true;                           // here for chimeric, but should check for the length of 'S'
+          hoe = false;
+        }
+        else if( cigItr == (cigEnd - 1) ) {
+          chimeric = true;
+        }
+      }
+      break;
     default    :
       printf("ERROR: Invalid Cigar op type\n");   // shouldn't get here
       exit(1);
@@ -599,7 +657,7 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
 }
 
 
-inline void print_stats(struct RseqSTATS &rstats){
+inline void print_stats(struct RseqSTATS &rstats) {
   cout << "Reads:      " << rstats.num_Reads      << endl;
   cout << "Mapped:     " << rstats.num_Mapped     << endl;
   cout << "Unmapped:   " << rstats.num_Unmapped   << endl;

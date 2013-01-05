@@ -10,6 +10,7 @@ struct parameters {
   char* type;
   char* writer;
   char* arp;
+  char* breakpoint;
 };
 
 struct parameters* interface(struct parameters* param,int argc, char *argv[]);
@@ -35,6 +36,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   param->type = new char;
   param->writer = new char; 
   param->arp = new char;
+  param->breakpoint = new char;
 
   const struct option long_options[] ={
     {"mapping",1,0,'m'},
@@ -42,6 +44,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
     {"type",1,0,'t'},
     {"writer",1,0,'w'},
     {"arp",1,0,'a'},
+    {"breakpoint",1,0,'b'},
     {"help",0,0,'h'},
     {0, 0, 0, 0}
   };
@@ -50,7 +53,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hm:t:p:w:a:",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hm:t:p:w:a:b:",long_options, &option_index);
 
     if (c == -1){
       break;
@@ -73,6 +76,9 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
       break;
     case 'a':
       param->arp = optarg;
+      break;
+    case 'b':
+      param->breakpoint = optarg;
       break;
     case 'h':
       help = 1;
@@ -105,6 +111,7 @@ void usage()
   fprintf(stdout, "-p --pileup  <forget it, currently it is no use> yes: allow pileup, no: skip redundant reads \n");
   fprintf(stdout, "-w --writer  the bam output name (for unique ailgnments).\n");
   fprintf(stdout, "-a --arp     filename of the arp read name (for fusion assembly use, default not write).\n");
+  fprintf(stdout, "-a --breakpoint  the file for output of potential breakpoint.\n");
   fprintf(stdout, "-t --type    (p)aired-end or (s)ingle-end.\n");
   fprintf(stdout, "\n");
 }
@@ -117,5 +124,6 @@ void delete_param(struct parameters* param)
   delete(param->pileup);
   delete(param->writer);
   delete(param->arp);
+  delete(param->breakpoint);
   delete(param);
 }

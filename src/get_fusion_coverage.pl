@@ -427,7 +427,7 @@ close AH;
 foreach my $transcript (keys %buffer1){
   foreach my $read (keys %{$buffer1{$transcript}}){
      if (exists $buffer2{$transcript}{$read}){
-         push (@{$for_encompass{$transcript}{'hits'}}, $buffer1{$transcript}{$read}, $buffer2{$transcript}{$read});         
+         push (@{$for_encompass{$transcript}{'hits'}}, $buffer1{$transcript}{$read}, $buffer2{$transcript}{$read});
          my @cols = split (/\t/, $buffer1{$transcript}{$read});
          my $mapo = join ("_", sort {$a <=> $b} ($cols[3],$cols[7]));
          $for_encompass{$transcript}{'cov'}{$mapo}++;
