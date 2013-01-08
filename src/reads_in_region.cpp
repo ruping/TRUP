@@ -337,7 +337,8 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
       currPosition += cigItr->Length;
     case ('I') : break;                    // insertion
     case ('S') :                           // soft-clipping
-      keep = true;
+      if (cigItr->Length >= 8)
+        keep = true;
       break;
     case ('D') : break;                    // deletion
       blockLength  += cigItr->Length;
@@ -350,7 +351,8 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
       blockLength = 0;                     // a new block
       break;
     case ('H') :                           // for 'H' - do nothing, move to next op
-      keep = true;
+      if (cigItr->Length >= 8)    
+        keep = true;
       break;
     default    :
       printf("ERROR: Invalid Cigar op type\n");   // shouldn't get here

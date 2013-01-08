@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use Getopt::Long;
 use Data::Dumper;
@@ -26,7 +26,8 @@ my $AB;      #cut reads in AB (it is not necessary)
 my $QC;      #quality check
 my $SM;      #second mapping
 my $BT;      #using Blast instead of BLAT for runlevel-4
-my $RA         = 0;      #regional assembly
+my $RA         = 1;      #regional assembly
+my $idra       = 0;      #for a specific breakpoint id
 my $force;   #force
 my $bigWig;  #wiggle file
 my $gtf_guide_assembly;  #for cufflinks
@@ -39,6 +40,10 @@ my $bin  = "$RealBin/";
 my $qual_zero = 33;
 my $qual_move = 0;
 my $fq_reid; #rename fastq read id (for gsnap)
+my $priordf = 10;         #for edgeR
+my $spaired = 1;          #for edgeR
+my $patient; #the patient id for edgeR DE test
+my $tissue;   #the tissue type for edgeR DE test
 
 
 if (@ARGV == 0) {
@@ -64,6 +69,7 @@ GetOptions(
            "SM"           => \$SM,
            "BT"           => \$BT,
            "RA=i"         => \$RA,
+           "idra=i"       => \$idra,
            "WIG"          => \$bigWig,
            "fqreid"       => \$fq_reid,
            "gtf-guide"    => \$gtf_guide_assembly,
@@ -73,6 +79,10 @@ GetOptions(
            "force"        => \$force,
            "root=s"       => \$root,
            "anno=s"       => \$anno,
+           "priordf=i"    => \$priordf,
+           "spaired=i"    => \$spaired,
+           "patient=s"    => \$patient,
+           "tissue=s"     => \$tissue,
            "help|h"       => \$help,
           );
 
@@ -94,7 +104,6 @@ my $refseq_gene_gtf = "$anno/refGene_hg19.gtf";
 my $gmap_index = "$anno/gmap\_index/";
 my $gmap_splicesites = "$gmap_index/hg19/hg19.splicesites.iit";
 #-------------------------------------------------------------------------
-
 
 
 if ($runlevels != 0) {
@@ -144,44 +153,48 @@ if ($anno eq "$RealBin/../ANNOTATION") {
 ###runlevel0.5: preparation the lane and read path enviroment
 ###
 
-my @lanefile = bsd_glob("$root/$lanename*fastq\.gz");
-if (scalar(@lanefile) > 0){
-  foreach my $file (@lanefile){
-    (my $newfile = $file) =~ s/fastq\.gz/fq\.gz/;
-    my $cmd = "mv $file $newfile";
+my $lanepath;
+
+if (defined $lanename) {
+
+  printtime();
+  print STDERR "####### lane name is set to $lanename #######\n\n";
+
+  my @lanefile = bsd_glob("$root/$lanename*fastq\.gz");
+  if (scalar(@lanefile) > 0) {
+    foreach my $file (@lanefile) {
+      (my $newfile = $file) =~ s/fastq\.gz/fq\.gz/;
+      my $cmd = "mv $file $newfile";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+  }
+  @lanefile = ();
+  @lanefile = bsd_glob("$root/$lanename*fq\.gz");
+
+  $lanepath = "$root/$lanename";
+
+  printtime();
+  print STDERR "####### preparing directories #######\n\n";
+
+  unless (-e "$lanepath/01_READS") {
+    my $cmd = "mkdir -p $lanepath/01_READS";
     RunCommand($cmd,$noexecute,$quiet);
   }
-}
-@lanefile = ();
-@lanefile = bsd_glob("$root/$lanename*fq\.gz");
 
-my $lanepath = "$root/$lanename";
-#my $runlog_file = "$lanepath/run.log";
-
-printtime();
-print STDERR "####### preparing directories #######\n\n";
-
-unless (-e "$lanepath/01_READS") {
-  my $cmd = "mkdir -p $lanepath/01_READS";
-  RunCommand($cmd,$noexecute,$quiet);
-}
-
-if (scalar(@lanefile) > 0){
-  foreach my $read_file (@lanefile) {
-    my $cmd = "mv $read_file $lanepath/01_READS/";
-    RunCommand($cmd,$noexecute,$quiet);
+  if (scalar(@lanefile) > 0) {
+    foreach my $read_file (@lanefile) {
+      my $cmd = "mv $read_file $lanepath/01_READS/";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
   }
-}
 
-#open RUNLOG, ">>$runlog_file";
-
-
-if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
+  if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
      my @original_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
      my $first_second_line = `gzip -d -c $original_read_files[0] | head -2 | grep -v "^@"`;
      $readlen = length($first_second_line) - 1;
      $trimedlen = $readlen;
      print STDERR "read length and trimed length are not set, will take the original read length ($readlen bp) for both (no trimming).\n";
+  }
 }
 
 ###
@@ -327,69 +340,71 @@ if (exists $runlevel{$runlevels}) {
 ###
 ###runlevel1.5: deciding fragment/insert size
 ###
-printtime();
-print STDERR "####### insert mean and sd calculation #######\n\n";
 
-if ( -e "$lanepath/01_READS/$lanename\_1\.fq\.qc" ) { #decide the quality shift
-     open QC, "<$lanepath/01_READS/$lanename\_1\.fq\.qc";
-     my $qual_min = -1;
-     my $qual_max = -1;
-     while ( <QC> ) {
-        chomp;
-        next if ($_ !~ /^\d+/);
-        my @cols = split /\t/;
-        $qual_min = $cols[2] if ($cols[2] < $qual_min or $qual_min = -1);
-        $qual_max = $cols[3] if ($cols[3] > $qual_max or $qual_max = -1);
-     }
-     close QC;
-     print STDERR "qual_min: $qual_min; qual_max: $qual_max; ";
-     $qual_zero = $qual_min+33;
-     $qual_move = -$qual_min;
-     print STDERR "qual_zero: $qual_zero; qual_shift: $qual_move.\n";
-}
-else {
-  unless ($force) {
-    print STDERR "please do quality check first using option --QC.\n";
-    exit;
-  }
-}
+if (defined $lanename) {
 
-if ($ins_mean == 0 or $ins_mean_AB == 0) {
+  printtime();
+  print STDERR "####### insert mean and sd calculation #######\n\n";
 
-  my $fraginfo = `R --no-save --slave \'--args path=\"$lanepath/00_TEST/\" lane=\"$lanename\.spikedin\"\' < $bin/fragment_length.R`;
-  $fraginfo =~ /^(.+)\s(.+)/;
-  my $frag_mean = $1; $frag_mean = round($frag_mean);
-  my $insert_sd   = $2; $insert_sd =~ s/\n//; $insert_sd = round($insert_sd);
-
-  my $real_len = $trimedlen;
-  $real_len = $trimedlen/2 if ($AB);
-
-  $ins_sd = $insert_sd;
-  if ($AB) {
-    $ins_mean_AB = $frag_mean - 2*$real_len;
-    $ins_mean = $ins_mean_AB - $real_len;
+  if ( -e "$lanepath/01_READS/$lanename\_1\.fq\.qc" ) { #decide the quality shift
+    open QC, "<$lanepath/01_READS/$lanename\_1\.fq\.qc";
+    my $qual_min = -1;
+    my $qual_max = -1;
+    while ( <QC> ) {
+      chomp;
+      next if ($_ !~ /^\d+/);
+      my @cols = split /\t/;
+      $qual_min = $cols[2] if ($cols[2] < $qual_min or $qual_min = -1);
+      $qual_max = $cols[3] if ($cols[3] > $qual_max or $qual_max = -1);
+    }
+    close QC;
+    print STDERR "qual_min: $qual_min; qual_max: $qual_max; ";
+    $qual_zero = $qual_min+33;
+    $qual_move = -$qual_min;
+    print STDERR "qual_zero: $qual_zero; qual_shift: $qual_move.\n";
   } else {
-    $ins_mean = $frag_mean - 2*$real_len;
+    unless ($force) {
+      print STDERR "please do quality check first using option --QC.\n";
+      exit;
+    }
   }
 
-  $ins_mean_true = $ins_mean;
+  if ($ins_mean == 0 or $ins_mean_AB == 0) {
 
-  print STDERR "insert mean: $ins_mean\tinsert mean AB (0 if AB is not set): $ins_mean_AB\tinsert_sd: $ins_sd\n";
+    my $fraginfo = `R --no-save --slave \'--args path=\"$lanepath/00_TEST/\" lane=\"$lanename\.spikedin\"\' < $bin/fragment_length.R`;
+    $fraginfo =~ /^(.+)\s(.+)/;
+    my $frag_mean = $1; $frag_mean = round($frag_mean);
+    my $insert_sd   = $2; $insert_sd =~ s/\n//; $insert_sd = round($insert_sd);
 
-  unless ($force) {
-    my $ins_th = round($real_len*0.25);
-    if ($ins_mean < -$ins_th) {
-      print STDERR "two mates is overlapping too much, please trim more.\n";
-      exit 22;
-    } elsif ($ins_mean >= -$ins_th && $ins_mean < 1) {
-      $ins_mean = 1;
-      print STDERR "insert mean is set to 1 for processing purpose.\n";
+    my $real_len = $trimedlen;
+    $real_len = $trimedlen/2 if ($AB);
+
+    $ins_sd = $insert_sd;
+    if ($AB) {
+      $ins_mean_AB = $frag_mean - 2*$real_len;
+      $ins_mean = $ins_mean_AB - $real_len;
     } else {
-      print STDERR "insert mean is ok.\n";
+      $ins_mean = $frag_mean - 2*$real_len;
+    }
+
+    $ins_mean_true = $ins_mean;
+
+    print STDERR "insert mean: $ins_mean\tinsert mean AB (0 if AB is not set): $ins_mean_AB\tinsert_sd: $ins_sd\n";
+
+    unless ($force) {
+      my $ins_th = round($real_len*0.25);
+      if ($ins_mean < -$ins_th) {
+        print STDERR "two mates is overlapping too much, please trim more.\n";
+        exit 22;
+      } elsif ($ins_mean >= -$ins_th && $ins_mean < 1) {
+        $ins_mean = 1;
+        print STDERR "insert mean is set to 1 for processing purpose.\n";
+      } else {
+        print STDERR "insert mean is ok.\n";
+      }
     }
   }
 }
-
 
 ###
 ###runlevel2: do the mapping and generate the statistics
@@ -451,8 +466,6 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute,$quiet);
      }
 
-     #goto GSNAP_TEST;
-
   }
 
 
@@ -462,14 +475,14 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  unless (-e "$lanepath/03_STATS/$lanename\.mapping\.stats")  {
+  unless (-e "$lanepath/03_STATS/$lanename\.mapping\.stats") {
     my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam --writer $lanepath/02_MAPPING/accepted_hits\.unique\.bam --arp $lanepath/03_STATS/$lanename\.arp --breakpoint $lanepath/03_STATS/$lanename\.breakpoints >$lanepath/03_STATS/$lanename\.mapping\.stats";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
 
   my $mapping_stats_line_number = `wc -l $lanepath/03_STATS/$lanename.mapping.stats`;
-  $mapping_stats_line_number =~ s/^(\d+).*$/\1/;
+  $mapping_stats_line_number =~ s/^(\d+).*$/$1/;
   chomp($mapping_stats_line_number);
   if ($mapping_stats_line_number == 12){
     my $total_reads = `gzip -d -c $lanepath/01_READS/$lanename\_1.fq.gz | wc -l`;
@@ -534,14 +547,14 @@ if (exists $runlevel{$runlevels}) {
     }
     my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$lanename\.RefSeq\.expr >$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted";
     RunCommand($cmd2,$noexecute,$quiet);
-    if (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted" and "$lanepath/03_STATS/$lanename\.RefSeq\.expr"){
+    if (-e "$lanepath/03_STATS/$lanename\.RefSeq\.expr.sorted" and "$lanepath/03_STATS/$lanename\.RefSeq\.expr") {
       my $cmd3 = "rm $lanepath/03_STATS/$lanename\.RefSeq\.expr -rf";
       RunCommand($cmd3,$noexecute,$quiet);
     }
   }
 
   #ensembl gene#############################################################
-  unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted") {
+  unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr\.sorted") {
     unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr") {
       my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene_bednew --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr";
       RunCommand($cmd1,$noexecute,$quiet);
@@ -552,6 +565,19 @@ if (exists $runlevel{$runlevels}) {
       my $cmd3 = "rm $lanepath/03_STATS/$lanename\.ensembl\_gene\.expr -rf";
       RunCommand($cmd3,$noexecute,$quiet);
     }
+  }
+
+  unless (-e "$lanepath/03_STATS/$lanename\.ensembl\_gene\.count") {
+    open ENSEMBL_GENE, "$lanepath/03_STATS/$lanename\.ensembl\_gene\.expr.sorted";
+    open ENSEMBL_GENE_COUNT, ">$lanepath/03_STATS/$lanename\.ensembl\_gene\.count";
+    while ( <ENSEMBL_GENE> ) {
+      chomp;
+      my @cols = split /\t/;
+      my $current_count = round($cols[7]);
+      print ENSEMBL_GENE_COUNT "$cols[3]\t$current_count\n";
+    }
+    close ENSEMBL_GENE;
+    close ENSEMBL_GENE_COUNT;
   }
 
   #gencode gene#############################################################
@@ -635,7 +661,6 @@ if (exists $runlevel{$runlevels}) {
   print STDERR "####### runlevel $runlevels done #######\n\n";
 }
 
-GSNAP_TEST:
 
 ###
 ###runlevel3: select anormouls read pairs and do the assembly
@@ -763,6 +788,10 @@ if (exists $runlevel{$runlevels}) {
         my %printed_speed;
         foreach my $bp_id (sort {$a<=>$b} keys %ra_reads1_jumpers) {
 
+          if ($idra != 0 and $bp_id != $idra) {
+             next;
+          }
+
           my $cmd = "mkdir -p $lanepath/04_ASSEMBLY/$bp_id"; #create dir
           RunCommand($cmd,$noexecute,1);
 
@@ -801,7 +830,7 @@ if (exists $runlevel{$runlevels}) {
 
           if (-e "$lanepath/04_ASSEMBLY/transcripts.fa") {
             my $cmd = "rm $lanepath/04_ASSEMBLY/$bp_id/ -rf";
-            RunCommand($cmd,$noexecute,1);
+            RunCommand($cmd,$noexecute,1) unless $idra != 0;
           }
 
           $speed_count++;
@@ -1085,6 +1114,7 @@ if (exists $runlevel{$runlevels}) {
 
 }
 
+
 ###
 ###runlevel5: run cufflinks for gene expression or genomic guided assembly
 ###
@@ -1132,6 +1162,30 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
+  if (-e "$lanepath/06_CUFFLINKS/transcripts\.gtf") { #collect the gtf list
+     my $current_gtf = "$lanepath/06_CUFFLINKS/transcripts\.gtf";
+     my $gtf_list = "$root/GTF\_list\.txt";
+
+     if (! -e "$gtf_list") {
+        open GTF_LIST, ">>$gtf_list";
+        printf GTF_LIST "$current_gtf\n";
+        close GTF_LIST;
+     } else {
+        my $writeornot = 1;
+        open GTF_IN, "$gtf_list";
+        while ( <GTF_IN> ) {
+          chomp;
+          $writeornot = 0 if ($_ eq $current_gtf);
+        }
+        close GTF_IN;
+        if ($writeornot == 1){
+          open GTF_OUT, ">>$gtf_list";
+          printf GTF_OUT "$current_gtf\n";
+          close GTF_OUT;
+        }
+     } #existing gtf list file
+  } #gtf file is generated
+
   unless (-e "$lanepath/06_CUFFLINKS/$lanename\.transcripts\.gtf\.tmap") {
     my $cmd = "cuffcompare -o $lanepath/06_CUFFLINKS/$lanename -r $refseq_gene_gtf $lanepath/06_CUFFLINKS/transcripts\.gtf";
     RunCommand($cmd,$noexecute,$quiet);
@@ -1141,6 +1195,148 @@ if (exists $runlevel{$runlevels}) {
   print STDERR "####### runlevel $runlevels done #######\n\n";
 
 }
+
+
+DE_ANALYSIS:
+
+
+###
+###runlevel6: run cuffdiff for diffrential gene/isoform expression analysis
+###
+
+$runlevels = 6;
+if (exists $runlevel{$runlevels}) {
+
+  printtime();
+  print STDERR "####### runlevel $runlevels now #######\n\n";
+
+  my $cuffmerge_output = "$root/cuffmerge";
+  my $cuffdiff_output = "$root/cuffdiff";
+  my $gtf_list = "$root/GTF\_list\.txt";
+
+  unless (-e "$gtf_list") {
+    print STDERR "Error: $gtf_list file does not exist!!! Please rerun RTrace.pl for each sample for runlevel 5 (cufflinks).\n\n";
+    exit 22;
+  }
+
+  #cuffmerge####################################
+  unless (-e $cuffmerge_output) {
+    my $cmd = "mkdir -p $cuffmerge_output";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-e "$cuffmerge_output/merged\.gtf") {
+    my $cmd = "cuffmerge -o $cuffmerge_output --ref-gtf $gene_annotation_gtf --num-threads $threads --ref-sequence $genome_fasta $gtf_list";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  #cuffdiff#####################################
+  unless (-e $cuffdiff_output) {
+    my $cmd = "mkdir -p $cuffdiff_output";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-e "$cuffdiff_output/splicing\.diff") {
+    my %bam_files_cd;
+    open TARGETS, "$root/edgeR/targets" || die "Error: could not open $root/edgeR/targets for the information of bam files for cuffdiff.\n please rerun the pipeline for each samples with --patient and --tissue arguments set.\n";
+    while ( <TARGETS> ){
+       chomp;
+       next if /^label/;
+       my ($cu_sample, $cu_expr_count, $tissue, $patient) = split /\t/;
+       my $cu_bam_file = "$root/$cu_sample/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+       push (@{$bam_files_cd{$tissue}}, $cu_bam_file);
+    }
+    close TARGETS;
+
+    my $bam_files1;
+    my $bam_files2;
+    my @tissue_names = sort {$a cmp $b} keys %bam_files_cd;  #usually normal > cancer
+    if (scalar(@tissue_names) != 2) {
+      print STDERR "Error: the number of tissue types does not equal to 2, currently not supported.\n\n";
+      exit 22;
+    } else {
+      $bam_files1 = join(",", @{$bam_files_cd{$tissue_names[0]}});
+      $bam_files2 = join(",", @{$bam_files_cd{$tissue_names[1]}});
+    }
+
+    my $cmd = "cuffdiff --output-dir $cuffdiff_output --num-threads $threads --labels $tissue_names[0]\,$tissue_names[1] $cuffmerge_output/merged\.gtf $bam_files1 $bam_files2";
+    RunCommand($cmd,$noexecute,$quiet);
+  } #run cuffdiff
+
+  printtime();
+  print STDERR "####### runlevel $runlevels done #######\n\n";
+}
+
+
+
+##write target file --- for edgeR (and cuffdiff) ########################
+if ($patient and $tissue){
+  my $count_file = "$lanepath/03_STATS/$lanename\.ensembl\_gene\.count";
+  unless (-e "$root/edgeR") {
+    my $cmd = "mkdir -p $root/edgeR";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+  if (! -e "$root/edgeR/targets") {
+    open TARGETS_OUT, ">>$root/edgeR/targets";
+    printf TARGETS_OUT "%s\n", join("\t", 'label', 'files', 'tissue', 'patient');
+    printf TARGETS_OUT "%s\n", join("\t", $lanename, $count_file, $tissue, $patient);
+    close TARGETS_OUT;
+  } else {
+    my $writeornot = 1;
+    open TARGETS_IN, "$root/edgeR/targets";
+    while ( <TARGETS_IN> ){
+       chomp;
+       my @cols = split /\t/;
+       $writeornot = 0 if ($cols[0] eq $lanename);
+    }
+    close TARGETS_IN;
+    if ($writeornot == 1){
+      open TARGETS_OUT, ">>$root/edgeR/targets";
+      printf TARGETS_OUT "%s\n", join("\t", $lanename, $count_file, $tissue, $patient);
+      close TARGETS_OUT;
+    }
+  } #existing targets file
+} elsif ($patient or $tissue) {
+  print STDERR "please specify both --patient and --tissue information\n";
+  exit 22;
+}
+
+
+###
+###runlevel7: run edgeR for diffrential gene expression analysis
+###
+
+$runlevels = 7;
+if (exists $runlevel{$runlevels}) {
+
+  printtime();
+  print STDERR "####### runlevel $runlevels now #######\n\n";
+
+  my $edgeR_output = "$root/edgeR";
+
+  if (! -e $edgeR_output) {
+     print STDERR "Error: $edgeR_output dir does not exist!!! Please rerun RTrace.pl for each sample with --patient and --tissue set.\n\n";
+     exit 22;
+  } elsif (! -e "$edgeR_output/targets") {
+     print STDERR "Error: $edgeR_output/targets file does not exist!!! Please rerun RTrace.pl for each sample with --patient and --tissue set.\n\n";
+     exit 22;
+  }
+
+  unless (-e "$edgeR_output/topDE.txt") {
+    my $cmd = "R2151 CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$priordf spaired=$spaired\' $bin/edgeR_test.R $edgeR_output/R\_html\.out";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-e "$edgeR_output/DE\_table\.txt") {
+    my $cmd = "perl $bin/get_DEtable.pl $edgeR_output topDE\.txt ifDE\.txt $spaired >$edgeR_output/DE\_table\.txt";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  printtime();
+  print STDERR "####### runlevel $runlevels done #######\n\n";
+
+}
+
 
 
 ###
@@ -1159,12 +1355,14 @@ sub RunCommand {
 }
 
 sub helpm {
-  print STDERR "usage: $0 [options]\n\nOptions:\n\t--runlevel\tthe steps of runlevel, from 1-5, either rl1-rl2 or rl, see below\n";
+  print STDERR "usage: $0 [options]\n\nOptions:\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl, see below\n";
   print STDERR "\t\t\t1: trim reads and decide insert size using spiked in reads\n";
   print STDERR "\t\t\t2: do the mapping and generate the statistics\n";
-  print STDERR "\t\t\t3: select anormalous read pairs and do the assembly\n";
+  print STDERR "\t\t\t3: select anormalous/breakpoint-surrouding reads and preform the assembly\n";
   print STDERR "\t\t\t4: get fusion candidates and visualize the result\n";
-  print STDERR "\t\t\t5: running cufflinks for gene/isoform quantification\n";
+  print STDERR "\t\t\t5: run cufflinks for gene/isoform quantification\n";
+  print STDERR "\t\t\t6: run cuffdiff for diffrential gene/isoform expression analysis\n";
+  print STDERR "\t\t\t7: run edgeR for diffrential gene expression analysis\n";
   print STDERR "\t--lanename\tthe name of the lane needed to be processed (must set for all runlevels)\n";
   print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
   print STDERR "\t--quiet\t\tdo not print the command line calls and time information\n";
@@ -1188,6 +1386,10 @@ sub helpm {
   print STDERR "\t--insertmean\tthe mean insert size of read mates (not required, can be decided automatically)\n";
   print STDERR "\t--insertsd\tthe SD of insert size of read mates (not required, can be decided automatically)\n";
   print STDERR "\t--threads\tthe number of threads used for the mapping (default 1)\n";
+  print STDERR "\t--priordf\tthe prior.df parameter in edgeR, which determines the amount of smoothing of tagwise dispersions towards the common dispersion.\n\t\t\tThe larger the value for prior.df, the more smoothing. A prior.df of 1 gives the common likelihood the weight of one observation. \n\t\t\tDefault is 10. Set it smaller for large sample size (i.e., set to 1 for more than 20 replicates).\n";
+  print STDERR "\t--spaired\twhether the experiment is a paired normal-disease design, 1 means yes (default), 0 for no.\n";
+  print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR\n";
+  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file\n";
   print STDERR "\t--help\t\tprint this help message\n\n\n";
   exit 0;
 }

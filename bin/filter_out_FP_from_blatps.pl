@@ -146,7 +146,7 @@ foreach my $transcript (sort { $trans_confidence{$b} <=> $trans_confidence{$a} }
   my $blat_start = $ratio[0]->{qs} < $ratio[1]->{qs}? $ratio[0]->{qs} : $ratio[1]->{qs};
   my $blat_end   = $ratio[0]->{qs} < $ratio[1]->{qs}? $ratio[1]->{qe} : $ratio[0]->{qe};
   my $blat_dis   = $blat_end - $blat_start;
-  next if ($blat_dis/$length{$transcript} < 0.9);
+  next if ($blat_dis/$length{$transcript} < 0.85);
 
   #filter out the blat covering the breakpoint
   if ($ratio[0]->{qs} < $breakpoint{$transcript}[0] and $ratio[0]->{qe} > $breakpoint{$transcript}[1]) {

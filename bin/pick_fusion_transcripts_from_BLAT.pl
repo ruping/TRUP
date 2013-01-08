@@ -95,11 +95,11 @@ foreach my $transcript (keys %BLAT){
         my $TE_c   = 0;
         my $indicator;
 	foreach my $blat (@{$BLAT{$transcript}{$refseq}}){
-	   my $Alen = $blat->{alen};
-           my $QS   = $blat->{qs};
-           my $QE   = $blat->{qe};
-           my $TS   = $blat->{ts};
-           my $TE   = $blat->{te};
+	   my $Alen = $blat->{'alen'};
+           my $QS   = $blat->{'qs'};
+           my $QE   = $blat->{'qe'};
+           my $TS   = $blat->{'ts'};
+           my $TE   = $blat->{'te'};
            if (!defined $indicator){$Alen_c = $Alen; $QS_c = $QS; $QE_c = $QE; $TS_c = $TS; $TE_c = $TE; $indicator = 'SUN';}
            else {  #compare two position,there might be some risk!!!
 	       if ($QE > $QE_c) {
@@ -128,10 +128,11 @@ foreach my $transcript (keys %combined) {
 
     my @tmp;
     my $indicator;
-    foreach my $refseq (keys %{$combined{$transcript}}) {
-        my $QS = $combined{$transcript}{$refseq}->{qs};
-        my $QE = $combined{$transcript}{$refseq}->{qe};
-        my $Alen = $combined{$transcript}{$refseq}->{alen};
+    foreach my $refseq (sort {my $qsa = $combined{$transcript}{$a}->{'qs'}; my $qsb = $combined{$transcript}{$b}->{'qs'}; $qsa <=> $qsb} keys %{$combined{$transcript}}) {
+
+        my $QS = $combined{$transcript}{$refseq}->{'qs'};
+        my $QE = $combined{$transcript}{$refseq}->{'qe'};
+        my $Alen = $combined{$transcript}{$refseq}->{'alen'};
         if (! defined $indicator){
 	    push (@tmp, $refseq);
             $indicator = 'SUN';
@@ -139,19 +140,23 @@ foreach my $transcript (keys %combined) {
         else {  #compare with the previous refseq to generate a non-including refseq lists
             my $flag = 0;
 	    for (my $i=0; $i<=$#tmp; $i++) {
-               my $QS_b = $combined{$transcript}{$tmp[$i]}->{qs};
-               my $QE_b = $combined{$transcript}{$tmp[$i]}->{qe};
+               my $QS_b = $combined{$transcript}{$tmp[$i]}->{'qs'};
+               my $QE_b = $combined{$transcript}{$tmp[$i]}->{'qe'};
 
                if (($QS > $QS_b and $QE <= $QE_b) or ($QS >= $QS_b and $QE < $QE_b)) { #included
                    $flag = 1;
                }
 
                if ($QS == $QS_b and $QE == $QE_b) { #decide which
-                 my @who = sort {$a cmp $b or $a <=> $b} ($refseq, $tmp[$i]);
-                 if ( $who[0] eq $refseq ) {
+                 $refseq =~ /ref\|(.+?)\|/;
+                 my $new_refname = $1;
+                 $tmp[$i] =~ /ref\|(.+?)\|/;
+                 my $old_refname = $1;
+                 my @who = sort {$a cmp $b or $a <=> $b} ($old_refname, $new_refname);
+                 if ( $who[0] eq $new_refname ) {
                    $tmp[$i] = $refseq; #reset the refseq
-                   $flag = 3;
                  }
+                 $flag = 3;
                }
 
                if (($QS < $QS_b and $QE >= $QE_b) or ($QS <= $QS_b and $QE > $QE_b)) { #includ the pervious
@@ -159,19 +164,21 @@ foreach my $transcript (keys %combined) {
                    $flag = 4;
                }
             }
-            if ($flag == 0){
+            if ($flag == 0) {
                push (@tmp, $refseq);
             }
         }
     } #for each refseq
 
+    #print STDERR "$transcript\t$transcript_length\t@tmp\n";
+
     #now in @tmp we have the non-including refseq lists
     my @tmp2;
     my $indicator2;
     foreach my $refseq (@tmp) {
-        my $QS = $combined{$transcript}{$refseq}->{qs};
-        my $QE = $combined{$transcript}{$refseq}->{qe};
-        my $Alen = $combined{$transcript}{$refseq}->{alen};
+        my $QS = $combined{$transcript}{$refseq}->{'qs'};
+        my $QE = $combined{$transcript}{$refseq}->{'qe'};
+        my $Alen = $combined{$transcript}{$refseq}->{'alen'};
         if (! defined $indicator2) {
             if ( $QS/$transcript_length < 0.03 or ($transcript_length-$QE)/$transcript_length < 0.03 ) {  #skip some strange in-middle blat result !(risky)
                 push (@tmp2, $refseq);
@@ -181,12 +188,20 @@ foreach my $transcript (keys %combined) {
                 push (@tmp2, $refseq);
                 $indicator2 = 'SUN';
             }
+            elsif (($transcript_length > 200 and $transcript_length < 500) and ($QS/$transcript_length < 0.08 or ($transcript_length-$QE)/$transcript_length < 0.08)) {
+                push (@tmp2, $refseq);
+                $indicator2 = 'SUN';
+            }
+            elsif ($transcript_length <= 200 and ($QS/$transcript_length < 0.15 or ($transcript_length-$QE)/$transcript_length < 0.15)) {
+                push (@tmp2, $refseq);
+                $indicator2 = 'SUN';
+            }
         }
         else {  #check whether non-overlap or overlap to a limited extend
             my $flag = 0;
             for (my $i=0; $i<=$#tmp2; $i++) {
-              my $QS_b = $combined{$transcript}{$tmp[$i]}->{qs};
-              my $QE_b = $combined{$transcript}{$tmp[$i]}->{qe};
+              my $QS_b = $combined{$transcript}{$tmp[$i]}->{'qs'};
+              my $QE_b = $combined{$transcript}{$tmp[$i]}->{'qe'};
 
               if (($QS < $QE_b and $QE >= $QE_b and $QE_b - $QS > 6) or ($QS_b < $QE and $QS <= $QS_b and $QE - $QS_b > 6)) { #overlapping
                      $flag = 2;
@@ -198,7 +213,11 @@ foreach my $transcript (keys %combined) {
             }
             unless ( $QS/$transcript_length < 0.03 or ($transcript_length-$QE)/$transcript_length < 0.03 ) {  #skip some strange in-middle blat result !(risky)
               unless ($transcript_length >= 500 and  ($QS <= 50 or ($transcript_length-$QE) <= 50)) {
-                 $flag = 6;
+                unless (($transcript_length > 200 and $transcript_length < 500) and ($QS/$transcript_length < 0.08 or ($transcript_length-$QE)/$transcript_length < 0.08)) {
+                  unless ($transcript_length <= 200 and ($QS/$transcript_length < 0.15 or ($transcript_length-$QE)/$transcript_length < 0.15)) {
+                    $flag = 6;
+                  }
+                }
               }
             }
             if ($flag == 0) {
@@ -212,7 +231,7 @@ foreach my $transcript (keys %combined) {
         $filtered{$transcript}{$refseq} = $combined{$transcript}{$refseq};
         my $gene_name = $refseq{$refseq};
         my $orientation;
-        if ($combined{$transcript}{$refseq}->{te} > $combined{$transcript}{$refseq}->{ts}){
+        if ($combined{$transcript}{$refseq}->{'te'} > $combined{$transcript}{$refseq}->{'ts'}){
            $orientation = "->";
         }
         else{
@@ -223,6 +242,8 @@ foreach my $transcript (keys %combined) {
      }
 
 }
+
+#print STDERR Dumper(\%BLAT_gn);
 
 
 open OUT, ">$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration.seq";
@@ -235,10 +256,10 @@ foreach my $transcript(keys %BLAT_gn) {
     print OUT ">$transcript\n$trans_seq{$transcript}";
 
 
-    my @refseq = sort { $filtered{$transcript}{$a}->{qs} <=> $filtered{$transcript}{$b}->{qs} } keys %{$filtered{$transcript}};
+    my @refseq = sort { $filtered{$transcript}{$a}->{'qs'} <=> $filtered{$transcript}{$b}->{'qs'} } keys %{$filtered{$transcript}};
 
-    my $bp_s = $filtered{$transcript}{$refseq[0]}->{qe};
-    my $bp_e = $filtered{$transcript}{$refseq[$#refseq]}->{qs};
+    my $bp_s = $filtered{$transcript}{$refseq[0]}->{'qe'};
+    my $bp_e = $filtered{$transcript}{$refseq[$#refseq]}->{'qs'};
     my $breakpoint = $bp_s.'..'.$bp_e;
 
     my @ref = map {(my $x = $_) =~ s/^gi\|.+?\|ref\|(.+?)\.\d+\|/\1/; $x;} @refseq;
