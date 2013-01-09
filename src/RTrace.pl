@@ -22,7 +22,7 @@ my %runlevel;
 my $lanename;
 my $threads    = 1;
 my $help;
-my $AB;      #cut reads in AB (it is not necessary)
+my $AB;      #cut reads in AB (for koeln)
 my $QC;      #quality check
 my $SM;      #second mapping
 my $BT;      #using Blast instead of BLAT for runlevel-4
