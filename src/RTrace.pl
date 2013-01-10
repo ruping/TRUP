@@ -44,6 +44,7 @@ my $priordf = 10;         #for edgeR
 my $spaired = 1;          #for edgeR
 my $patient; #the patient id for edgeR DE test
 my $tissue;   #the tissue type for edgeR DE test
+my $gf = "png"; #the format used in html report
 
 
 if (@ARGV == 0) {
@@ -69,6 +70,7 @@ GetOptions(
            "SM"           => \$SM,
            "BT"           => \$BT,
            "RA=i"         => \$RA,
+           "gf=s"         => \$gf,
            "idra=i"       => \$idra,
            "WIG"          => \$bigWig,
            "fqreid"       => \$fq_reid,
@@ -189,8 +191,8 @@ if (defined $lanename) {
   }
 
   if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
-     my @original_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
-     my $first_second_line = `gzip -d -c $original_read_files[0] | head -2 | grep -v "^@"`;
+     my @original_read_files = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz");
+     my $first_second_line = `gzip -d -c "$original_read_files[0]" | head -2 | grep -v "^@"`;
      $readlen = length($first_second_line) - 1;
      $trimedlen = $readlen;
      print STDERR "read length and trimed length are not set, will take the original read length ($readlen bp) for both (no trimming).\n";
@@ -207,7 +209,7 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+  my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz");
   (my $qc_out1 = $qc_files[0]) =~ s/\.gz$/\.qc/;
   (my $qc_out2 = $qc_files[1]) =~ s/\.gz$/\.qc/;
   unless (-e "$qc_out1") {
@@ -227,11 +229,11 @@ if (exists $runlevel{$runlevels}) {
   if ( $trimedlen != $readlen ) {  #trimming
     my @trimed_read_files = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz");
     if ( scalar(@trimed_read_files) == 0 ) {
-      my @ori_read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+      my @ori_read_files = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz");
       foreach my $read_file (@ori_read_files) {
         my $read_out = $read_file;
         $read_out =~ s/fq\.gz$/trimed\.fq\.gz/;
-        if ($read_file =~ /_1\./) {
+        if ($read_file =~ /_R?1\./) {
           $read_files[0] = $read_out;
         }
         else {
@@ -247,7 +249,7 @@ if (exists $runlevel{$runlevels}) {
     }
   }
   else {
-    @read_files = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");
+    @read_files = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz");
     @read_files = mateorder(@read_files);
   }
 
@@ -275,7 +277,7 @@ if (exists $runlevel{$runlevels}) {
      if ( scalar(@AB_read_files) == 0 and scalar(@AB_read_files_ori) == 0) {
        my ($read_1, $read_2, $AB_1, $AB_2);
        foreach my $read_file (@read_files){
-         if ($read_file =~ /_1\./) {
+         if ($read_file =~ /_R?1\./) {
            $read_1 = $read_file;
            $AB_1 = $read_1;
            $AB_1 =~ s/fq\.gz$/AB\.fq/;
@@ -346,8 +348,9 @@ if (defined $lanename) {
   printtime();
   print STDERR "####### insert mean and sd calculation #######\n\n";
 
-  if ( -e "$lanepath/01_READS/$lanename\_1\.fq\.qc" ) { #decide the quality shift
-    open QC, "<$lanepath/01_READS/$lanename\_1\.fq\.qc";
+  my @quality_check_files = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.qc");
+  if ( scalar(@quality_check_files) == 2 ) { #decide the quality shift
+    open QC, "<$quality_check_files[0]";
     my $qual_min = -1;
     my $qual_max = -1;
     while ( <QC> ) {
@@ -392,7 +395,7 @@ if (defined $lanename) {
     print STDERR "insert mean: $ins_mean\tinsert mean AB (0 if AB is not set): $ins_mean_AB\tinsert_sd: $ins_sd\n";
 
     unless ($force) {
-      my $ins_th = round($real_len*0.25);
+      my $ins_th = round($real_len*0.5);
       if ($ins_mean < -$ins_th) {
         print STDERR "two mates is overlapping too much, please trim more.\n";
         exit 22;
@@ -429,7 +432,7 @@ if (exists $runlevel{$runlevels}) {
     @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz");   #trimmed reads
   }
   else {
-    @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");    #original reads
+    @reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz");    #original reads
   }
   @reads = mateorder(@reads);
 
@@ -442,17 +445,31 @@ if (exists $runlevel{$runlevels}) {
   my $fragment_length = 2*$real_len + $real_ins_mean;
 
   #do the mapping of pair - end reads
-  if ($mapper eq 'tophat'){
+  if ($mapper eq 'tophat1') {
      unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
        my $cmd = "tophat --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat_trans_index $bowtie_index $reads[0] $reads[1]";
        RunCommand($cmd,$noexecute,$quiet);
      }
-  }
+  } #tophat1
+
+  elsif ($mapper eq 'tophat2') {
+    unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
+       my $cmd = "tophat --bowtie1 --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat_trans_index $bowtie_index $reads[0] $reads[1]";
+       RunCommand($cmd,$noexecute,$quiet);
+     }
+  } #tophat2
 
   elsif ($mapper eq 'gsnap'){
 
+     my $quality_options;
+     if ( ($qual_zero - 33) < 10 ) {
+        $quality_options = "--quality-protocol=sanger";
+     } else {
+        $quality_options = "--quality-zero-score=$qual_zero --quality-print-shift=$qual_move";
+     }
+
      unless (-e "$lanepath/02_MAPPING/accepted_hits\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" or -e "$lanepath/02_MAPPING/accepted_hits\.sam") {
-        my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=5 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $reads[0] $reads[1] >$lanepath/02_MAPPING/accepted_hits\.sam";
+        my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=5 $quality_options $reads[0] $reads[1] >$lanepath/02_MAPPING/accepted_hits\.sam";
         RunCommand($cmd,$noexecute,$quiet);
      }
 
@@ -466,6 +483,11 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute,$quiet);
      }
 
+  } #gsnap
+
+  else {
+     print STDERR "Error: --mapper option should only be gsnap, tophat1 or tophat2. \n\n";
+     exit 22;
   }
 
 
@@ -485,7 +507,7 @@ if (exists $runlevel{$runlevels}) {
   $mapping_stats_line_number =~ s/^(\d+).*$/$1/;
   chomp($mapping_stats_line_number);
   if ($mapping_stats_line_number == 12){
-    my $total_reads = `gzip -d -c $lanepath/01_READS/$lanename\_1.fq.gz | wc -l`;
+    my $total_reads = `gzip -d -c $reads[0] | wc -l`;
     $total_reads /= 4;
     open STATS, ">>$lanepath/03_STATS/$lanename\.mapping\.stats" || die "can not open $lanepath/03_STATS/$lanename\.mapping\.stats\n";
     print STATS "total_frag: $total_reads\n";
@@ -653,7 +675,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/03_STATS/$lanename\.report/$lanename\.report\.html") {
-    my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$lanename\" anno=\"$anno\"\ src=\"$bin\" readlen=$real_len' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
+    my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$lanename\" anno=\"$anno\" src=\"$bin\" readlen=$real_len gf=\"$gf\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -730,12 +752,13 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute,$quiet);
       }
 
-      unless (-e "$lanepath/01_READS/$lanename\_1\.RAssembly\.fq" and -e "$lanepath/01_READS/$lanename\_2\.RAssembly\.fq"){ #get raw reads
+      my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.RAssembly\.fq");
+      unless ( scalar(@RAssembly_reads) == 2 ) { #get raw reads
         my @reads;
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz"); #original reads
         }
         @reads = mateorder(@reads);
 
@@ -760,9 +783,11 @@ if (exists $runlevel{$runlevels}) {
 
       if ($RA == 1) {
 
+        my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.RAssembly\.fq");
+        @RAssembly_reads = mateorder(@RAssembly_reads);
         #my $bp_regions_file = "$lanepath/04_ASSEMBLY/$lanename\.bp\_regions\.fa";
-        my $ra_reads1_file = "$lanepath/01_READS/$lanename\_1\.RAssembly\.fq";
-        my $ra_reads2_file = "$lanepath/01_READS/$lanename\_2\.RAssembly\.fq";
+        my $ra_reads1_file = $RAssembly_reads[0];
+        my $ra_reads2_file = $RAssembly_reads[1];
 
         #my %bp_regions_jumpers;
         my %ra_reads1_jumpers;
@@ -886,7 +911,7 @@ if (exists $runlevel{$runlevels}) {
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz"); #original reads
         }
         @reads = mateorder(@reads);
 
@@ -935,7 +960,13 @@ if (exists $runlevel{$runlevels}) {
             RunCommand($cmd,$noexecute,$quiet);
           } else {
 
-            my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --max-mismatches=2 --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 --quality-zero-score=$qual_zero --quality-print-shift=$qual_move $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
+            my $quality_options;
+            if ( ($qual_zero - 33) < 10 ) {
+              $quality_options = "--quality-protocol=sanger";
+            } else {
+              $quality_options = "--quality-zero-score=$qual_zero --quality-print-shift=$qual_move";
+            }
+            my $cmd = "gsnap -d hg19 -D $gmap_index -B 5 --gunzip --format=sam --nthreads=$threads -s $gmap_splicesites --max-mismatches=2 --npaths=10 --trim-mismatch-score=0 --trim-indel-score=0 $quality_options $ARP_trimed36[0] $ARP_trimed36[1] >$lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam";
             RunCommand($cmd,$noexecute,$quiet);
             $cmd = "samtools view -Sb $lanepath/02_MAPPING/SecondMapping/accepted_hits\.sam -o $lanepath/02_MAPPING/SecondMapping/accepted_hits\.bam";
             RunCommand($cmd,$noexecute,$quiet);
@@ -959,7 +990,7 @@ if (exists $runlevel{$runlevels}) {
           if ($trimedlen != $readlen) {
             @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
           } else {
-            @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz"); #original reads
+            @reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz"); #original reads
           }
           @reads = mateorder(@reads);
 
@@ -1048,7 +1079,7 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-  }
+  } #BLAST
 
   else {  #using BLAT
     unless (-e "$lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat") {
@@ -1070,7 +1101,7 @@ if (exists $runlevel{$runlevels}) {
       my $cmd = "perl $bin/filter_out_FP_from_blatps.pl --fusion_bf_seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq --fusion_bf $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration --fusion_bf_blat $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.blat >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
       RunCommand($cmd,$noexecute,$quiet);
     }
-  }
+  } #BLAT
 
   #build fusion candidate index
   unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq\.index\.1\.ebwt"){
@@ -1084,7 +1115,7 @@ if (exists $runlevel{$runlevels}) {
     if ($trimedlen != $readlen) {
       @reads = bsd_glob("$lanepath/01_READS/$lanename*trimed\.fq\.gz"); #trimmed reads
     } else {
-      @reads = bsd_glob("$lanepath/01_READS/$lanename\_[12]\.fq\.gz");  #original reads
+      @reads = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.gz");  #original reads
     }
     @reads = mateorder(@reads);
 
@@ -1355,42 +1386,59 @@ sub RunCommand {
 }
 
 sub helpm {
-  print STDERR "usage: $0 [options]\n\nOptions:\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl, see below\n";
-  print STDERR "\t\t\t1: trim reads and decide insert size using spiked in reads\n";
-  print STDERR "\t\t\t2: do the mapping and generate the statistics\n";
-  print STDERR "\t\t\t3: select anormalous/breakpoint-surrouding reads and preform the assembly\n";
-  print STDERR "\t\t\t4: get fusion candidates and visualize the result\n";
-  print STDERR "\t\t\t5: run cufflinks for gene/isoform quantification\n";
-  print STDERR "\t\t\t6: run cuffdiff for diffrential gene/isoform expression analysis\n";
-  print STDERR "\t\t\t7: run edgeR for diffrential gene expression analysis\n";
-  print STDERR "\t--lanename\tthe name of the lane needed to be processed (must set for all runlevels)\n";
-  print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
-  print STDERR "\t--quiet\t\tdo not print the command line calls and time information\n";
-  print STDERR "\t--readlen\tthe sequenced read length.\n";
-  print STDERR "\t--mapper\tthe mapper used in runlevel2, now support \'tophat\' and \'gsnap\' (default).\n";
+  print STDERR "\nSynopsis: RTrace.pl --runlevel 1 --lanename <sample1> --root <dir_root> --anno <dir_anno> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 2 --lanename <sample1> --root <dir_root> --anno <dir_anno> --patient <ID> --tissue <type> --threads <N> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 3-4 --lanename <sample1> --root <dir_root> --anno <dir_anno> --RA 1 --threads <N> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 5 --lanename <sample1> --root <dir_root> --anno <dir_anno> --threads <N> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 7 --root <dir_root> --anno <dir_anno> --priordf 1 2>>run.log\n\n";
+  print STDERR "GENERAL OPTIONS (MUST SET):\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl. See below for options for each runlevel.\n";
+  print STDERR "\t--lanename\tthe name of the lane needed to be processed (must set for runlevel 1-5)\n";
+  print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
+  print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
+  print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR ()\n";
+  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file\n\n";
+
+  print STDERR "CONTROL OPTIONS FOR EACH RUNLEVEL:\n";
+  print STDERR "runlevel 1: quality checking and insert size estimatiion using part of reads\n";
   print STDERR "\t--AB\t\tsplit reads up to generate non-overlapping paired-end reads.\n";
   print STDERR "\t--fqreid\trename the fastq id in case of \/1N, only for gsnap mapping.\n";
   print STDERR "\t--QC\t\tdo the quality check of reads, will stop the pipeline once it is finished.\n";
-  print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads reported by TopHat, for run-level 3\n";
-  print STDERR "\t--BT\t\tset if use BLAST in run-level 4 (default: use BLAT).\n";
-  print STDERR "\t--RA\t\tuse regional assembly for runlevel 3. Set to 1: independent regional assembly (recommended); 2: Columbus assembly.\n\t\t\tDefault is 0. When using gsnap as mapper in runlevel 2, must set to 1 or 2.\n";
+  print STDERR "\t--readlen\tthe sequenced read length.\n";
+  print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
+
+  print STDERR "\nrunlevel 2: mapping and report of mapping statistics\n";
+  print STDERR "\t--mapper\tthe mapper used in runlevel2, now support \'tophat1\', \'tophat2\' or \'gsnap\' (default).\n";
+  print STDERR "\t--seglen\tthe segment length for tophat mapping (default 25)\n";
+  print STDERR "\t--gf\t\tthe graphical format in mapping report, \'png\' (default) or \'pdf\' (when a x11 window is not available)\n";
   print STDERR "\t--WIG\t\tgenerate a big wiggle file in run-level 2.\n";
+  print STDERR "\t--insertmean\tthe mean insert size of read mates (not required, can be decided automatically)\n";
+  print STDERR "\t--insertsd\tthe SD of insert size of read mates (not required, can be decided automatically)\n";
+
+  print STDERR "\nrunlevel 3: selecting anormalous/breakpoint-surrouding reads and preforming the assembly\n";
+  print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads reported by TopHat, for run-level 3\n";
+  print STDERR "\t--RA\t\tuse regional assembly for runlevel 3. Set to 1: independent regional assembly (recommended); 2: Columbus assembly.\n\t\t\tDefault is 1. When using gsnap as mapper in runlevel 2, must set to 1 or 2.\n";
+
+  print STDERR "\nrunlevel 4: detection of fusion candidates\n";
+  print STDERR "\t--BT\t\tset if use BLAST in run-level 4 (default: use BLAT).\n";
+
+  print STDERR "\nrunlevel 5: run cufflinks for gene/isoform quantification\n";
+  print STDERR "runlevel 6: run cuffdiff for diffrential gene/isoform expression analysis\n";
   print STDERR "\t--gtf-guide\tuse gtf guided assembly method in run-level 5 (default: FALSE).\n";
   print STDERR "\t--known-trans\twhich known transcript annotation to be used for cufflinks, either \'ensembl\' (default) or 'refseq'.\n";
   print STDERR "\t--frag-bias\tcorrect fragmentation bias in run-level 5 (default: FALSE).\n";
   print STDERR "\t--upper-qt\tupper-quantile normalization in run-level 5 (default: FALSE).\n";
-  print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
-  print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
-  print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
-  print STDERR "\t--seglen\tthe segment length for tophat mapping (default 25)\n";
-  print STDERR "\t--insertmean\tthe mean insert size of read mates (not required, can be decided automatically)\n";
-  print STDERR "\t--insertsd\tthe SD of insert size of read mates (not required, can be decided automatically)\n";
-  print STDERR "\t--threads\tthe number of threads used for the mapping (default 1)\n";
+
+  print STDERR "\nrunlevel 7: run edgeR for diffrential gene expression analysis\n";
   print STDERR "\t--priordf\tthe prior.df parameter in edgeR, which determines the amount of smoothing of tagwise dispersions towards the common dispersion.\n\t\t\tThe larger the value for prior.df, the more smoothing. A prior.df of 1 gives the common likelihood the weight of one observation. \n\t\t\tDefault is 10. Set it smaller for large sample size (i.e., set to 1 for more than 20 replicates).\n";
   print STDERR "\t--spaired\twhether the experiment is a paired normal-disease design, 1 means yes (default), 0 for no.\n";
-  print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR\n";
-  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file\n";
-  print STDERR "\t--help\t\tprint this help message\n\n\n";
+
+  print STDERR "\nOTHER OPTIONS\n";
+  print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
+  print STDERR "\t--quiet\t\tdo not print the command line calls and time information\n";
+  print STDERR "\t--threads\tthe number of threads used for the mapping (default 1)\n";
+  print STDERR "\t--help\t\tprint this help message\n\n";
+
+  print STDERR "Runlevel dependencies (->): 4->3->2->1, 6->5->2->1, 7->2->1\n\n";
   exit 0;
 }
 
@@ -1403,16 +1451,16 @@ sub mateorder {
   my @r = @_;
   my @tmp;
 
-  if (scalar(@r) != 2){
+  if (scalar(@r) != 2) {
     print STDERR "there are not two mate read files, exit.\n";
     exit 1;
   }
 
   foreach my $r (@r){
-    if ($r =~ /_1\./) {
+    if ($r =~ /_R?1\./) {
       $tmp[0] = $r;
     }
-    elsif ($r =~ /_2\./) {
+    elsif ($r =~ /_R?2\./) {
       $tmp[1] = $r;
     }
     else {

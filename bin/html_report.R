@@ -1,3 +1,5 @@
+.libPaths(c(.libPaths(), "/home/eviun/R/x86_64-unknown-linux-gnu-library/2.15/"))
+
 library(R2HTML)
 library(RColorBrewer)
 library(fields)
@@ -14,7 +16,7 @@ if(length(args)==0){
   }
 }
 
-#arguments include 1).lane 2).path
+#arguments include 1).lane 2).path 3). gf
 setwd(path)
 
 stats.dir  = paste(path, "03_STATS", sep = "/")
@@ -73,7 +75,7 @@ HTML(mapping.stats.summary, innerBorder = 2, file= target)
 
 #quality distribution of reads
 HTML("<br> Read base quality distributions:", file = target)
-qual.plot = "base_qualities.png"
+qual.plot = paste("base_qualities",gf,sep=".")
 mate1.qc = paste(lane,"_1.fq.qc",sep="")
 mate2.qc = paste(lane,"_2.fq.qc",sep="")
 reads.qual.mate1 = read.table(paste(reads.dir, mate1.qc, sep="/"), header=T)
@@ -83,7 +85,11 @@ cols.qual = brewer.pal(3, "Set1")[1:2]
 quality.profile1 = cbind(reads.qual.mate1$mean, reads.qual.mate1$med)
 quality.profile2 = cbind(reads.qual.mate2$mean, reads.qual.mate2$med)
 
-png(file = paste(dir.html, qual.plot, sep ="/"), width = 1200, height = 400)
+if (gf == "png"){
+  png(file = paste(dir.html, qual.plot, sep ="/"), width = 1200, height = 400)
+} else {
+  pdf(file = paste(dir.html, qual.plot, sep ="/"), width = 12, height = 4)
+}
 layout(matrix(1:2,1,2))
 matplot(quality.profile1, type = "l" , col = cols.qual , lty = 1, lwd = 2,
         main = "Quality values (mate 1)", ylab = "Phred Quality Score", xlab = "position")
@@ -94,13 +100,21 @@ matplot(quality.profile2, type = "l" , col = cols.qual , lty = 1, lwd = 2,
 legend(x = "topright", col = cols.qual,legend = c("mean","median"), pch = 19)
 dev.off()
 
-HTMLInsertGraph(Caption = "profile of average and median quality values",
-                GraphFileName = qual.plot, Width = 1200,file = target)
-
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "profile of average and median quality values",
+                  GraphFileName = qual.plot, Width = 1200,file = target)
+} else {
+  linkpdf = paste("<a href=\"",qual.plot,"\">link to pdf file: profile of average and median quality values</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 HTML("<br> Read base composition distributions:", file = target)
-compos.plot = "base_composition.png"
-png(file = paste(dir.html, compos.plot, sep ="/"), width = 1200, height = 400)
+compos.plot = paste("base_composition",gf,sep=".")
+if (gf == "png"){
+  png(file = paste(dir.html, compos.plot, sep ="/"), width = 1200, height = 400)
+} else {
+  pdf(file = paste(dir.html, compos.plot, sep ="/"), width = 12, height = 4)
+}
 layout(matrix(1:2,1,2))
 plot(reads.qual.mate1$column, reads.qual.mate1$A_Count/reads.qual.mate1$count,type="l",ylim=c(0,0.5),col="#008B8B",lwd=2,main="base composition (mate 1)", xlab="base", ylab="fraction")
 lines(reads.qual.mate1$column, reads.qual.mate1$C_Count/reads.qual.mate1$count,col="#CD8500",lwd=2)
@@ -117,21 +131,34 @@ lines(reads.qual.mate2$column, reads.qual.mate2$N_Count/reads.qual.mate2$count,c
 legend("topright",legend=c("A","C","G","T","N"),col=c("#008B8B","#CD8500","#B03060","#436EEE","#030303"),bty="n",lwd=2)
 dev.off()
 
-HTMLInsertGraph(Caption = "base composition plot",
-                GraphFileName = compos.plot, Width = 1200,file = target)
-
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "base composition plot",
+                  GraphFileName = compos.plot, Width = 1200,file = target)
+} else {
+  linkpdf = paste("<a href=\"",compos.plot,"\">link to pdf file: base composition plot</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #insert size distributions
 HTML("<br> Estimated fragment size based on the mapping result:", file = target)
 insert.file = paste(lane,"ins",sep=".")
 insert.size = read.table(paste(stats.dir,insert.file,sep="/"))
-insert.plot = "insert_size.png"
-png(file = paste(dir.html, insert.plot, sep ="/"), width = 600, height = 600)
+insert.plot = paste("insert_size",gf,sep=".")
+if (gf == "png"){
+  png(file = paste(dir.html, insert.plot, sep ="/"), width = 600, height = 600)
+} else {
+  pdf(file = paste(dir.html, insert.plot, sep ="/"), width = 6, height = 6)
+}
 plot(density(insert.size[,1]), xlab="size (bp)", ylab="Frenquency", main="Estimated Fragment Size")
 dev.off()
 
-HTMLInsertGraph(Caption = "predicted fragment size based on the mapping",
-                GraphFileName = insert.plot, Width = 600,file = target)
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "predicted fragment size based on the mapping",
+                  GraphFileName = insert.plot, Width = 600,file = target)
+} else {
+  linkpdf = paste("<a href=\"",insert.plot,"\">link to pdf file: predicted fragment size based on the mapping</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 
 #chromosome distribution of uniquely mapped reads
@@ -155,61 +182,108 @@ tr.cov = t(data.frame(tr.cov))
 cols1 = brewer.pal(12, "Paired")[1:12]
 cols2 = c("gray","darkred")
 
-chrmap.plot = "chrmap.png"
-png(file = paste(dir.html, chrmap.plot, sep ="/"), width = 800, height = 400)
+chrmap.plot = paste("chrmap",gf,sep=".")
+if (gf == "png"){
+  png(file = paste(dir.html, chrmap.plot, sep ="/"), width = 800, height = 400)
+} else {
+  pdf(file = paste(dir.html, chrmap.plot, sep ="/"), width = 8, height = 4)
+}
 barplot(chrmap.sort1[,2],names.arg=chrmap.sort1[,1], col=cols1,las=3, main="Reads on chromosomes",ylab="Count of uniquely mapped reads")
 dev.off()
-HTMLInsertGraph(Caption = "Reads distributed on chromosomes",
-                GraphFileName = chrmap.plot, Width = 800,file = target)
 
-chrcov.plot = "chrcov.png"
-png(file = paste(dir.html, chrcov.plot, sep ="/"), width = 800, height = 400)
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "Reads distributed on chromosomes",
+                  GraphFileName = chrmap.plot, Width = 800,file = target)
+} else {
+  linkpdf = paste("<a href=\"",chrmap.plot,"\">link to pdf file: Reads distributed on different chromosomes</a>",sep="")
+  HTML(linkpdf, file = target)
+}
+
+chrcov.plot = paste("chrcov",gf,sep=".")
+if (gf == "png"){
+  png(file = paste(dir.html, chrcov.plot, sep ="/"), width = 800, height = 400)
+} else {
+  pdf(file = paste(dir.html, chrcov.plot, sep ="/"), width = 8, height = 4)
+}
 barplot(log2(tr.cov[,1]), names.arg=chrmap.sort1[,1], col=cols1, las=3,
         xlab="Chromosome", ylab="log2(Coverage per base in transcriptome)", main="base coverage in transcriptome (exon union)")
 dev.off()
-HTMLInsertGraph(Caption = "base coverage in transcriptome (exon union)",
-                GraphFileName = chrcov.plot, Width = 800,file = target)
 
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "base coverage in transcriptome (exon union)",
+                  GraphFileName = chrcov.plot, Width = 800,file = target)
+} else {
+  linkpdf = paste("<a href=\"",chrcov.plot,"\">link to pdf file: base coverage in transcriptome (exon union)</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #start position distribution
 HTML("<br> Unique read start positions on Chromosomes:", file = target)
-chrpos.plot = "chrpos.png"
+chrpos.plot = paste("chrpos",gf,sep=".")
 t.chr.position<-t(as.matrix(chrmap.sort2[,3:4]))
-png(file = paste(dir.html, chrpos.plot, sep ="/"), width = 800, height = 400)
-par(cex.lab=2,cex.axis=2)
+if (gf == "png"){
+  png(file = paste(dir.html, chrpos.plot, sep ="/"), width = 800, height = 400)
+} else {
+  pdf(file = paste(dir.html, chrpos.plot, sep ="/"), width = 8, height = 4)
+}
+par(cex.lab=1.5,cex.axis=1.5)
 barplot(t.chr.position, names.arg=chrmap.sort2[,1], col=cols2, beside=T, las=3, ylab="Count of start positions")
-legend(x="topright",legend=c("total start positions","start positions with more than 2 reads"),col=cols2,pch=15, bty="n",cex=2)
+legend(x="topright",legend=c("total start positions","start positions with more than 2 reads"),col=cols2,pch=15, bty="n",cex=1.5)
 dev.off()
-HTMLInsertGraph(Caption = "unique start positions on chromosomes",
-                GraphFileName = chrpos.plot, Width = 800,file = target)
 
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "unique start positions on chromosomes",
+                  GraphFileName = chrpos.plot, Width = 800,file = target)
+} else {
+  linkpdf = paste("<a href=\"",chrpos.plot,"\">link to pdf file: unique start positions on chromosomes</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #RPKM distribution (Reads Per Kilobase per Million of mapped reads)
 HTML("<br> RPKM distribution (Reads Per Kilobase per Million of mapped reads)", file = target)
 expr.file = paste(lane, "ensembl_gene.expr.sorted", sep=".")
 expr <- read.table(paste(stats.dir, expr.file, sep="/"))
-RPKM.plot = "RPKM.png"
-png(file = paste(dir.html, RPKM.plot, sep ="/"), width = 600, height = 400)
+RPKM.plot = paste("RPKM", gf, sep=".")
+if (gf == "png"){
+  png(file = paste(dir.html, RPKM.plot, sep ="/"), width = 600, height = 400)
+} else {
+  pdf(file = paste(dir.html, RPKM.plot, sep ="/"), width = 6, height = 4)
+}
 hist(log2(expr$V5[which(expr$V5>0)]*10^9/(mapping.stats[4,2]*2-mapping.stats[8,2])), breaks=200, col="lightblue", xlab="log2(RPKM)", main="")
 dev.off()
-HTMLInsertGraph(Caption = "RPKM distribution over Ensembl genes",
-                GraphFileName = RPKM.plot, Width = 600,file = target)
+
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "RPKM distribution over Ensembl genes",
+                  GraphFileName = RPKM.plot, Width = 600,file = target)
+} else {
+  linkpdf = paste("<a href=\"",RPKM.plot,"\">link to pdf file: RPKM distribution over Ensembl genes</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #position ~ RPKM
 source(paste(src, "smkey.R", sep="/"))
-postag.plot = "pos_tag.png"
-png(file = paste(dir.html, postag.plot, sep ="/"), width = 600, height = 500)
+postag.plot = paste("pos_tag", gf, sep=".")
+if (gf == "png") {
+  png(file = paste(dir.html, postag.plot, sep ="/"), width = 600, height = 500)
+} else {
+  pdf(file = paste(dir.html, postag.plot, sep ="/"), width = 6, height = 5)
+}
 smkey(log2(expr$V5[which(expr$V5>0)]*10^9/(mapping.stats[4,2]*2-mapping.stats[8,2])),expr$V6[which(expr$V5>0)],xlab="log2(RPKM)",ylab="fraction of covered positions", main="positions vs tags")
 abline(v=log2(mean(expr$V5[which(expr$V5>0)]*10^9/(mapping.stats[4,2]*2-mapping.stats[8,2]))), lwd = 2, col="red")
 abline(h=mean(expr$V6[which(expr$V5>0)]), lwd=2, col="black")
 legend("topleft", legend=c("mean RPKM of expressed ensembl gene", "mean covered fraction of expressed ensembl gene"), col=c("red","black"), pch="-", lwd=2, text.col="white", bty="n")
 dev.off()
-HTMLInsertGraph(Caption = "positions vs tags",
-                GraphFileName = postag.plot, Width = 600,file = target)
 
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "positions vs tags",
+                  GraphFileName = postag.plot, Width = 600,file = target)
+} else {
+  linkpdf = paste("<a href=\"",postag.plot,"\">link to pdf file: positions vs tags</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #read coverage distribution
-readcov.plot = "readcov.png"
+readcov.plot = paste("readcov", gf, sep=".")
 expr.file = paste(lane, "RefSeq.expr.sorted", sep=".")
 expr <- read.table(paste(stats.dir, expr.file, sep="/"))
 sel.cov.range <- quantile(log2(expr$V8[which(expr[,8] >= 1)]), c(0,1))
@@ -218,14 +292,24 @@ x.cov <- seq(0, sel.cov.range[2], by = 1)
 cov.index = findInterval( x.cov, sort(log2(expr$V8[which(expr[,8] >= 1)])), rightmost.closed = TRUE)
 cov.above = ntrans - cov.index
 y.above = cov.above/ntrans
-png(file = paste(dir.html, readcov.plot, sep ="/"), width = 600, height = 500)
+if (gf == "png") {
+  png(file = paste(dir.html, readcov.plot, sep ="/"), width = 600, height = 500)
+} else {
+  pdf(file = paste(dir.html, readcov.plot, sep ="/"), width = 6, height = 5)
+}
 plot(sel.cov.range, c(0,1), type = "n", xlab = "log(Number of Reads covered for each expressed RefSeq genes)", ylab = "Fraction of all expressed RefSeq genes", main=paste("Read coverage on expressed RefSeq Genes N=", ntrans, sep=""))
 points(x.cov, y.above, type = "l", lty = 1, lwd = 3 ,col = rgb(1,0,0,alpha=0.5))
 points(density(log2(expr$V8[which(expr[,8] >= 1)]), n=300), type = "l", lty = 1, lwd = 3, col= rgb(0,0,1,alpha=0.5))
 legend("topright", legend = c("cumulative fraction", "density"), col = c(rgb(1,0,0,alpha=0.5),rgb(0,0,1,alpha=0.5)), pch = 19, bty="n")
 dev.off()
-HTMLInsertGraph(Caption = "read coverage of each expressed RefSeq genes (with at least one read)",
-                GraphFileName = readcov.plot, Width = 600,file = target)
+
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "read coverage of each expressed RefSeq genes (with at least one read)",
+                  GraphFileName = readcov.plot, Width = 600,file = target)
+} else {
+  linkpdf = paste("<a href=\"",readcov.plot,"\">link to pdf file: read coverage of each expressed RefSeq genes (with at least one read)</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 
 #% refgenes contributing
@@ -241,13 +325,22 @@ for (i in 1:101) {
 }
 cum.perc = cum.perc*100
 perc = perc*100
-percov.plot = "percov.png"
-png(file = paste(dir.html, percov.plot, sep ="/"), width = 600, height = 500)
+percov.plot = paste("percov", gf, sep=".")
+if (gf == "png") {
+  png(file = paste(dir.html, percov.plot, sep ="/"), width = 600, height = 500)
+} else {
+  pdf(file = paste(dir.html, percov.plot, sep ="/"), width = 6, height = 5)
+}
 plot(perc, cum.perc, xlab = "% RefSeq genes contributing", ylab = "% of total counts of all RefSeq genes" ,type = "l", lwd = 4, col=rgb(0,0,1,alpha=0.7))
 dev.off()
-HTMLInsertGraph(Caption = "Cumulative percentage of total read count, starting with the RefSeq gene with the highest read count",
-                GraphFileName = percov.plot, Width = 600,file = target)
 
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "Cumulative percentage of total read count, starting with the RefSeq gene with the highest read count",
+                  GraphFileName = percov.plot, Width = 600,file = target)
+} else {
+  linkpdf = paste("<a href=\"",percov.plot,"\">link to pdf file: Cumulative percentage of total read count, starting with the RefSeq gene with the highest read count</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #covered fraction distribution
 frac = expr$V6[which(expr[,6] > 0)]
@@ -257,28 +350,47 @@ for (i in 1:101){
   fperc[i] = length(which(frac >= fscale[i]))/length(which(frac > 0))
 }
 frac.hist = hist(expr$V6[which(expr[,6] > 0)], breaks=50, plot=F)
-frachist.plot = "frachist.png"
-png(file = paste(dir.html, frachist.plot, sep ="/"), width = 1000, height = 500)
+frachist.plot = paste("frachist", gf, sep=".")
+if (gf == "png") {
+  png(file = paste(dir.html, frachist.plot, sep ="/"), width = 1000, height = 500)
+} else {
+  pdf(file = paste(dir.html, frachist.plot, sep ="/"), width = 10, height = 5)
+}
 layout(matrix(1:2,1,2))
 plot(frac.hist$mids, frac.hist$counts, log="y", xlim=c(0,1), pch=20, col="blue", xlab= "fraction of positions with starting reads", ylab="count of refseq genes", main="fraction histogram 1")
 plot(fscale, fperc, xlim=c(0,1), ylim=c(0,1), xlab=">= fraction of positions with starting reads", ylab="fraction of refseq genes", main="fraction histogram 2", pch=20, col="darkgreen")
 dev.off()
-HTMLInsertGraph(Caption = "Fraction of all the positions with starting reads of Refseq genes",
-                GraphFileName = frachist.plot, Width = 1000,file = target)
 
+if (gf == "png"){
+  HTMLInsertGraph(Caption = "Fraction of read-starting covered positions of Refseq genes",
+                  GraphFileName = frachist.plot, Width = 1000,file = target)
+} else {
+  linkpdf = paste("<a href=\"",frachist.plot,"\">link to pdf file: Fraction of read-starting covered positions of Refseq genes</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #locus_bias
 HTML("<br> Read distribution along transcripts (start site+1000; stop site-1000)", file = target)
 lbias.file = paste(lane, "lbias", sep=".")
 lbias <- read.table(paste(stats.dir, lbias.file, sep="/"))
-lbias.plot = "lbias.png"
-png(file = paste(dir.html, lbias.plot, sep ="/"), width = 800, height = 400)
+lbias.plot = paste("lbias", gf, sep=".")
+if (gf == "png") {
+  png(file = paste(dir.html, lbias.plot, sep ="/"), width = 800, height = 400)
+} else {
+  pdf(file = paste(dir.html, lbias.plot, sep ="/"), width = 8, height = 4)
+}
 par(mfrow=c(1,2))
 plot(lbias[,1],log(lbias[,2]), pch=3, col="red", xlab="downstream the start of a transcript", ylab="log(total counts)", ylim=c(8,15))
 plot(-lbias[,1], log(lbias[,4]),pch=4, col="blue", xlab="upstream the end of a transcript", ylab="", ylim=c(8,15))
 dev.off()
+
+if (gf == "png"){
 HTMLInsertGraph(Caption = "locus bias plot",
                 GraphFileName = lbias.plot, Width = 800,file = target)
+} else {
+  linkpdf = paste("<a href=\"",lbias.plot,"\">link to pdf file: locus bias plot</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 
 #category distribution
@@ -294,17 +406,26 @@ cate = read.table(paste(stats.dir, cate.file, sep="/"))
 
 
 HTML("<br> Boxplot of log2-scale coverage for ensembl genes in each category. Red dot: mean / Black dot : median.", file = target)
-trc.plot = "trc.png"
-png(file = paste(dir.html, trc.plot, sep ="/"), width = 600, height = 800)
+trc.plot = paste("trc", gf, sep=".")
+if (gf == "png") {
+  png(file = paste(dir.html, trc.plot, sep ="/"), width = 600, height = 800)
+} else {
+  pdf(file = paste(dir.html, trc.plot, sep ="/"), width = 6, height = 8)
+}
 trc<-data.frame(x=cate$V2, y=cate$V3)
 bwplot(y~(x+1), scales=list(x=list(log = 2)), data=trc, xlab="gene coverage", panel=function(x,y,...) {
   panel.bwplot(x, y, ...)
   panel.points(x=log2(unlist(as.list(by(trc$x,trc$y,function(z) mean(z))))+1), y=1:12, col="red",pch=19)
 })
 dev.off()
-HTMLInsertGraph(Caption = "coverage sum of genes belonging to different categories",
-                GraphFileName = trc.plot, Width = 600,file = target)
 
+if (gf == "png"){
+HTMLInsertGraph(Caption = "sum of coverage of genes belonging to different categories",
+                GraphFileName = trc.plot, Width = 600,file = target)
+} else {
+  linkpdf = paste("<a href=\"",trc.plot,"\">link to pdf file: sum of coverage of genes belonging to different categories</a>",sep="")
+  HTML(linkpdf, file = target)
+}
 
 #end
 HTMLEndFile(target)

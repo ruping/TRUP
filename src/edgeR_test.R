@@ -1,3 +1,5 @@
+.libPaths(c(.libPaths(), "/home/eviun/R/x86_64-unknown-linux-gnu-library/2.15/"))
+
 library(edgeR)
 library(limma)
 
