@@ -90,7 +90,7 @@ Runlevel dependencies (->): 4->3->2->1, 6->5->2->1, 7->2->1
 
 Options
 ---
-check the options by running the program without options all with ``--help``.
+check the options by running the program without options or with ``--help``.
 
 
 Contact
