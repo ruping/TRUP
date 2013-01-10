@@ -94,7 +94,7 @@ helpm() if ($help);
 ### Annotation paths------------------------------------------------------
 my $bowtie_index = "$anno/bowtie_index/hg19/hg19";
 my $genome_fasta = "$bowtie_index\.fa";
-my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_konw_ensemble_trans";
+my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_known_ensemble_trans";
 my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
 my $gene_annotation_gtf = "$anno/hg19\.ensembl\-for\-tophat\.gtf";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
@@ -1395,8 +1395,8 @@ sub helpm {
   print STDERR "\t--lanename\tthe name of the lane needed to be processed (must set for runlevel 1-5)\n";
   print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
   print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
-  print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR ()\n";
-  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file\n\n";
+  print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR\n";
+  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file for running edgeR and cuffdiff\n\n";
 
   print STDERR "CONTROL OPTIONS FOR EACH RUNLEVEL:\n";
   print STDERR "runlevel 1: quality checking and insert size estimatiion using part of reads\n";
