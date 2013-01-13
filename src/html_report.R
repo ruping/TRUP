@@ -16,7 +16,7 @@ if(length(args)==0){
   }
 }
 
-#arguments include 1).lane 2).path 3). gf
+#arguments include 1).lane 2).path 3). gf 4) qcsuffix1 2
 setwd(path)
 
 stats.dir  = paste(path, "03_STATS", sep = "/")
@@ -76,8 +76,8 @@ HTML(mapping.stats.summary, innerBorder = 2, file= target)
 #quality distribution of reads
 HTML("<br> Read base quality distributions:", file = target)
 qual.plot = paste("base_qualities",gf,sep=".")
-mate1.qc = paste(lane,"_1.fq.qc",sep="")
-mate2.qc = paste(lane,"_2.fq.qc",sep="")
+mate1.qc = paste(lane,qcsuffix1,sep="")
+mate2.qc = paste(lane,qcsuffix2,sep="")
 reads.qual.mate1 = read.table(paste(reads.dir, mate1.qc, sep="/"), header=T)
 reads.qual.mate2 = read.table(paste(reads.dir, mate2.qc, sep="/"), header=T)
 

@@ -675,7 +675,17 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-e "$lanepath/03_STATS/$lanename\.report/$lanename\.report\.html") {
-    my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$lanename\" anno=\"$anno\" src=\"$bin\" readlen=$real_len gf=\"$gf\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
+    my @qc_files = bsd_glob("$lanepath/01_READS/$lanename\_{R,}[12]\.fq\.qc");
+    @qc_files = mateorder(@qc_files);
+    my $qcmatesuffix1;
+    my $qcmatesuffix2;
+    if ($qc_files[0] =~ /(\_R?[12]\.fq\.qc)$/){
+       $qcmatesuffix1 = $1;
+    }
+    if ($qc_files[1] =~ /(\_R?[12]\.fq\.qc)$/){
+       $qcmatesuffix2 = $1;
+    }
+    my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$lanename\" anno=\"$anno\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
