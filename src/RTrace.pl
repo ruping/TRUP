@@ -709,13 +709,21 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-    unless (-e "$lanepath/03_STATS/$lanename\.breakpoints"){
-      print STDERR "Error: breakpoint file does not exist, do runlevel 2 first.\n\n";
-      exit 22;
+    unless (-e "$lanepath/03_STATS/$lanename\.breakpoints.sorted") {
+      unless (-e "$lanepath/03_STATS/$lanename\.breakpoints"){
+        print STDERR "Error: breakpoint file does not exist, do runlevel 2 first.\n\n";
+        exit 22;
+      }
+      my $cmd = "sort -k 1,1d -k 2,2n $lanepath/03_STATS/$lanename\.breakpoints >$lanepath/03_STATS/$lanename\.breakpoints.sorted";
+      RunCommand($cmd,$noexecute,$quiet);
+      if ( -e "$lanepath/03_STATS/$lanename\.breakpoints" and -e "$lanepath/03_STATS/$lanename\.breakpoints.sorted" ){
+         my $cmd2 = "rm $lanepath/03_STATS/$lanename\.breakpoints -f";
+         RunCommand($cmd2,$noexecute,$quiet);
+      }
     }
 
     unless (-e "$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed"){
-      my $cmd = "perl $bin/breakpoint\_processing.pl $lanepath/03_STATS/$lanename\.breakpoints >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed";
+      my $cmd = "perl $bin/breakpoint\_processing.pl $lanepath/03_STATS/$lanename\.breakpoints\.sorted >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
