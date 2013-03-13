@@ -757,16 +757,16 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-    unless (-e "$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p"){
-      my $cmd = "grep \"\tp\t\" $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+    #unless (-e "$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p"){
+    #  my $cmd = "grep \"\tp\t\" $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p";
+    #  RunCommand($cmd,$noexecute,$quiet);
+    #}
 
     if ($RA == 1) { #independent regional assembly
-      unless (-e "$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p\.reads"){
+      unless (-e "$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.reads"){
         my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
-        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p\.reads";
+        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.reads";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
@@ -780,12 +780,12 @@ if (exists $runlevel{$runlevels}) {
         }
         @reads = mateorder(@reads);
 
-        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
+        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
         RunCommand($cmd,$noexecute,$quiet);
       }
     } elsif ($RA == 2) {        #columbus assembler : get fasta sequences for regions
       unless (-e "$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.regions\.fa"){
-        my $cmd = "perl $bin/get_sequence_by_region.pl $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.p $genome_fasta >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.regions\.fa";
+        my $cmd = "perl $bin/get_sequence_by_region.pl $lanepath/04_ASSEMBLY/$lanename\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted $genome_fasta >$lanepath/04_ASSEMBLY/$lanename\.breakpoints\.regions\.fa";
         RunCommand($cmd,$noexecute,$quiet);
       }
     } else {

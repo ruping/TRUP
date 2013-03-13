@@ -40,6 +40,7 @@ struct region {  // a txt file containing breakpoints
   string chr;
   unsigned int coor;
   unsigned int support_no;
+  unsigned int pw;              //proper wrong pair counts
   unsigned int start;
   unsigned int end;
   set <string> tags;
@@ -312,6 +313,9 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
      case 5:  // support
        tmp.support_no = atof((*iter).c_str());
        continue;
+     case 6:  // pw
+       tmp.pw = atof((*iter).c_str());
+       continue;
      default:
        break;
      }
@@ -368,7 +372,18 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
 
 inline void output_processing (struct region &region) {
 
-  string current_bp = int2str(region.id) + "\t" + region.chr + "\t" + int2str(region.coor) + "\t" + int2str(region.support_no);
+  string current_bp = int2str(region.id)+"\t"+region.chr+"\t"+int2str(region.coor)+"\t"+int2str(region.support_no)+"\t"+int2str(region.pw)+"\t"+region.type;
+
+  if ( region.type == "s" ){
+    cout << current_bp << endl;
+    set <string>::iterator tagit = (region.tags).begin();
+    for (; tagit != (region.tags).end(); tagit++){
+      cout << *tagit << endl;
+    }
+    return;
+  }
+
+  //rest is for the type of "p"
 
   if ( rembp.count(region.id) > 0 ){   // the id is already there
     if ( rembp[region.id].size() == 1 ) {  // should add the other

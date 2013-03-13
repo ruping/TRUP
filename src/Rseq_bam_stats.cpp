@@ -186,6 +186,7 @@ int main (int argc, char *argv[]) {
     bool jc = false;
     bool chimeric = false;
     bool hoe = true;                               //true is head
+    string mateStatus = "p";                       //'w' hints breakpoints
     unsigned int breakpoint = 0;
     string chrom = "SRP";
     string strand = "+";
@@ -194,6 +195,9 @@ int main (int argc, char *argv[]) {
     unsigned int cigarEnd;
     vector <int> blockLengths;
     vector <int> blockStarts;
+    string mateChr = "SRP";
+    unsigned int matePos = 0;
+
     
     if ( bam.IsMapped() == true) {
       bam.GetTag("NH", unique);                     // uniqueness
@@ -207,7 +211,17 @@ int main (int argc, char *argv[]) {
       alignmentEnd   = bam.GetEndPosition();        // end
 
       if ( unique == 1 ) {                            // check breakpoint reads
+
         if (chimeric == true){
+
+          if ( bam.IsMateMapped() == true){
+            mateChr = refs.at(bam.MateRefID).RefName;
+            matePos = bam.MatePosition;
+            int mateDistance = matePos-alignmentStart;
+            if (mateChr != chrom || mateDistance > 300000) 
+              mateStatus = "w";
+          }
+
           if (hoe  == false) {
             //bp_f << "e\t";
             breakpoint =  alignmentStart;
@@ -219,9 +233,10 @@ int main (int argc, char *argv[]) {
             breakpoint = alignmentStart + *(bsiter-1) + *(bliter-1);
           }
           if ( bp_file != "" ) {
-            bp_f << chrom << "\t" << breakpoint << "\t" << bam.Name << endl;
+            bp_f << chrom << "\t" << breakpoint << "\t" << bam.Name << "\t" << mateStatus << endl;
           }
         }
+
       } // check breakpoint reads
     }
     unsigned int mate = 1;

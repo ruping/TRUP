@@ -196,10 +196,10 @@ while ( <R1> ) {                #name
 
     if (exists $ARP{$frag_name}) {
 
-      $ARP{$frag_name} =~ /^(\d+)/;
-      if ($1 == 119258){
-         print STDERR "$frag_name\n";
-      }
+      #$ARP{$frag_name} =~ /^(\d+)/;
+      #if ($1 == 119258){
+      #   print STDERR "$frag_name\n";
+      #}
 
       my $tag_tmp1;
       my $tag_tmp2;
