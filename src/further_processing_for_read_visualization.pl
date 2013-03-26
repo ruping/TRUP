@@ -6,16 +6,19 @@ use Data::Dumper;
 my $fusionseqfile;
 my $coveragefile;
 my $read_length;
+my $genomeBlatPred;
 
 GetOptions (
               "fusionseqfile|f=s"  => \$fusionseqfile,
               "coveragefile|c=s"   => \$coveragefile,
               "readlength|r=i"     => \$read_length,
+              "genomeBlatPred"     => \$genomeBlatPred,
               "help|h" => sub{
                              print "usage: $0 [options]\n\nOptions:\n\t--fusionseqfile\t\tthe file fusion after filteration seq\n";
                              print "\t--coveragefile\tthe coverage file of fusion candidates\n";
                              print "\t--readlength\tthe length of the read\n";
-                             print "\t--help\t\tprint this help message\n";
+                             print "\t--genomeBlatPred\tusing genome Blat.\n";
+                             print "\t--help\t\tprint this help message\n\n";
                              exit 0;
                             }
            );
@@ -25,14 +28,21 @@ GetOptions (
 open SEQ, "$fusionseqfile";
 my $candidate;
 my %seq;
-while ( <SEQ> ){
-   chomp;
-   if ($_ =~ /^>(.+?)\|/){
+while ( <SEQ> ) {
+  chomp;
+  if ($genomeBlatPred) {
+    if ($_ =~ /^>(.+?)$/) {
       $candidate = $1;
-   }
-   else {
-     $seq{$candidate} .= $_;
-   }
+    } else {
+      $seq{$candidate} .= $_;
+    }
+  } else {
+    if ($_ =~ /^>(.+?)\|/) {
+      $candidate = $1;
+    } else {
+      $seq{$candidate} .= $_;
+    }
+  }
 }
 close SEQ;
 
@@ -40,15 +50,23 @@ open IN, "$coveragefile";
 my $transcript;
 my %mapping;
 my %fusion_point_cov;
+my ($confidence, $length, $part1, $part2, $ori, $bp_s, $bp_e, $ron, $blat1, $blat2);
+
 while ( <IN> ){
   chomp;
-  if (/^#/) {
+  if ( /^#/ ) {
      $transcript = $_;
-     my ($candidate, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $strands, $blat1, $blat2, $cov1, $cov2, $cov3) = split (/\t/, $transcript);
+     my ($candidate, $idx, $cScore, $fusion_genes, $breakpoint, $rep, $type, $cov1, $cov2, $cov3);
+     if ($genomeBlatPred) {
+       ($candidate, $idx, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3) = split (/\t/, $transcript);
+     } else {
+       ($candidate, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3) = split (/\t/, $transcript);
+     }
      $candidate =~ s/^#//;
      $breakpoint =~ /^(\d+)\.\.(\d+)$/;
-     my $bps = $1;
-     my $bpe = $2;
+     my $bps = $1; $bp_s = $bps;
+     my $bpe = $2; $bp_e = $bpe;
+     $fusion_genes =~ /^(.+?\(.+?\))\-(.+?\(.+?\))/; $part1 = $1; $part2 = $2;
      my $seq = $seq{$candidate};
      my $s1 = substr($seq, 0, $bps-1);
      my $s2 = substr($seq, $bps-1, $bpe-$bps+1);
@@ -57,21 +75,13 @@ while ( <IN> ){
      $seq{$candidate} = $s1.$s2.$s3;
      $fusion_point_cov{$transcript} = $cov3;
   }
-  else{
+  else {
      my ($read, $strand, $candidate, $start, $read_seq, $read_qual, $multi, $mismatch) = split /\t/;
-     $candidate =~ /^(.+?Confidence_([10]\.\d+).*?)\|(\d+)\|(.+?)\+(.+?)\|(.+?)\|(\d+)\.\.(\d+)\|(.+?)\|(.+?)\|(.+)$/;
-     my $confidence = $2;
-     my $length = $3;
-     my $part1 = $4;
-     my $part2 = $5;
-     my $ori   = $6;
-     my $bp_s  = $7;
-     my $bp_e  = $8;
-     my $ron   = $9;
-     my $blat1 = $10;
-     my $blat2 = $11;
+     my $end;
+     $candidate =~ /Confidence_([10]\.\d+)/;
+     $confidence = $1;
      $start += 1;
-     my $end = $start+$read_length-1;
+     $end = $start+$read_length-1;
 
      my ($range_s, $range_e);
      if ($bp_s > $bp_e){$range_s = $bp_e; $range_e = $bp_s;}

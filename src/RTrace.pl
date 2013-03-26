@@ -28,6 +28,7 @@ my $SM;      #second mapping
 my $BT;      #using Blast instead of BLAT for runlevel-4
 my $RA         = 1;      #regional assembly
 my $idra       = 0;      #for a specific breakpoint id
+my $refseqblat;          #whether blat the assembled transcripts onto the refseq annotation
 my $force;   #force
 my $bigWig;  #wiggle file
 my $gtf_guide_assembly;  #for cufflinks
@@ -36,6 +37,7 @@ my $frag_bias_correct;   #for cufflinks
 my $upper_quantile_norm; #for cufflinks
 my $root = "$RealBin/../PIPELINE";
 my $anno = "$RealBin/../ANNOTATION";
+my $readpool = $root;
 my $bin  = "$RealBin/";
 my $qual_zero = 33;
 my $qual_move = 0;
@@ -72,6 +74,7 @@ GetOptions(
            "RA=i"         => \$RA,
            "gf=s"         => \$gf,
            "idra=i"       => \$idra,
+           "refseqblat"   => \$refseqblat,
            "WIG"          => \$bigWig,
            "fqreid"       => \$fq_reid,
            "gtf-guide"    => \$gtf_guide_assembly,
@@ -81,6 +84,7 @@ GetOptions(
            "force"        => \$force,
            "root=s"       => \$root,
            "anno=s"       => \$anno,
+           "readpool=s"   => \$readpool,
            "priordf=i"    => \$priordf,
            "spaired=i"    => \$spaired,
            "patient=s"    => \$patient,
@@ -162,7 +166,7 @@ if (defined $lanename) {
   printtime();
   print STDERR "####### lane name is set to $lanename #######\n\n";
 
-  my @lanefile = bsd_glob("$root/$lanename*fastq\.gz");
+  my @lanefile = bsd_glob("$readpool/$lanename*fastq\.gz");
   if (scalar(@lanefile) > 0) {
     foreach my $file (@lanefile) {
       (my $newfile = $file) =~ s/fastq\.gz/fq\.gz/;
@@ -171,7 +175,7 @@ if (defined $lanename) {
     }
   }
   @lanefile = ();
-  @lanefile = bsd_glob("$root/$lanename*fq\.gz");
+  @lanefile = bsd_glob("$readpool/$lanename*fq\.gz");
 
   $lanepath = "$root/$lanename";
 
@@ -185,7 +189,7 @@ if (defined $lanename) {
 
   if (scalar(@lanefile) > 0) {
     foreach my $read_file (@lanefile) {
-      my $cmd = "mv $read_file $lanepath/01_READS/";
+      my $cmd = "ln -s $read_file $lanepath/01_READS/";
       RunCommand($cmd,$noexecute,$quiet);
     }
   }
@@ -497,7 +501,7 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  unless (-e "$lanepath/03_STATS/$lanename\.mapping\.stats") {
+  unless (-s "$lanepath/03_STATS/$lanename\.mapping\.stats") {
     my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam --writer $lanepath/02_MAPPING/accepted_hits\.unique\.bam --arp $lanepath/03_STATS/$lanename\.arp --breakpoint $lanepath/03_STATS/$lanename\.breakpoints >$lanepath/03_STATS/$lanename\.mapping\.stats";
     RunCommand($cmd,$noexecute,$quiet);
   }
@@ -1077,48 +1081,73 @@ if (exists $runlevel{$runlevels}) {
   }
 
   if ($BT) {  #using BLAST alternative
-    unless (-e "$lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blast") {
-      my $cmd = "$bin/blastn -query $lanepath/04_ASSEMBLY/transcripts\.fa -db $anno/human\.rna\.fna\.blastdb -outfmt 7 -num_threads $threads -out $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blast";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+    if ($refseqblat) {
+      unless (-e "$lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blast") {
+        my $cmd = "$bin/blastn -query $lanepath/04_ASSEMBLY/transcripts\.fa -db $anno/human\.rna\.fna\.blastdb -outfmt 7 -num_threads $threads -out $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blast";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq") {
-      my $cmd = "perl $bin/pick_fusion_transcripts_from_BLAT.pl --refseq $anno/human\.rna\.fna --transcript $lanepath/04_ASSEMBLY/transcripts.fa --blat $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blast --lanename $lanename --lanepath $lanepath >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq") {
+        my $cmd = "perl $bin/pick_fusion_transcripts_from_BLAT.pl --refseq $anno/human\.rna\.fna --transcript $lanepath/04_ASSEMBLY/transcripts.fa --blat $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blast --lanename $lanename --lanepath $lanepath >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.gmap"){
-      my $cmd = "gmap -D $gmap_index -d hg19 --format=psl -t $threads $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.gmap";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.gmap"){
+        my $cmd = "gmap -D $gmap_index -d hg19 --format=psl -t $threads $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.gmap";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq"){
-      my $cmd = "perl $bin/filter_out_FP_from_blatps.pl --fusion_bf_seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq --fusion_bf $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration --fusion_bf_blat $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.gmap >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq"){
+        my $cmd = "perl $bin/filter_out_FP_from_blatps.pl --fusion_bf_seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq --fusion_bf $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration --fusion_bf_blat $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.gmap >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    } else {
+      unless (-s "$lanepath/05_FUSION/$lanename\.transcripts\.genome\.gmap"){
+        my $cmd = "gmap -D $gmap_index -d hg19 --format=psl -t $threads $lanepath/04_ASSEMBLY/transcripts\.fa >$lanepath/05_FUSION/$lanename\.transcripts\.genome\.gmap";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+
+      unless (-s "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq") {
+        my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $lanepath/04_ASSEMBLY/transcripts.fa $lanepath/05_FUSION/$lanename\.transcripts\.genome\.gmap >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration 2>$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    } #genome blat
 
   } #BLAST
 
   else {  #using BLAT
-    unless (-e "$lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat") {
-      my $cmd = "blat $anno/human\.rna\.fna $lanepath/04_ASSEMBLY/transcripts.fa -out=blast9 $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+    if ($refseqblat) {
+      unless (-e "$lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat") {
+        my $cmd = "blat $anno/human\.rna\.fna $lanepath/04_ASSEMBLY/transcripts.fa -out=blast9 $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq") {
-      my $cmd = "perl $bin/pick_fusion_transcripts_from_BLAT.pl --refseq $anno/human\.rna\.fna --transcript $lanepath/04_ASSEMBLY/transcripts.fa --blat $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat --lanename $lanename --lanepath $lanepath >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq") {
+        my $cmd = "perl $bin/pick_fusion_transcripts_from_BLAT.pl --refseq $anno/human\.rna\.fna --transcript $lanepath/04_ASSEMBLY/transcripts.fa --blat $lanepath/05_FUSION/$lanename\.transcripts\.refseq\.blat --lanename $lanename --lanepath $lanepath >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.blat"){
-      my $cmd = "blat $anno/hg19\_UCSC\.2bit $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration.genome\.blat";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.blat"){
+        my $cmd = "blat $anno/hg19\_UCSC\.2bit $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration.genome\.blat";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq"){
-      my $cmd = "perl $bin/filter_out_FP_from_blatps.pl --fusion_bf_seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq --fusion_bf $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration --fusion_bf_blat $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.blat >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq"){
+        my $cmd = "perl $bin/filter_out_FP_from_blatps.pl --fusion_bf_seq $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.seq --fusion_bf $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration --fusion_bf_blat $lanepath/05_FUSION/$lanename\.fusion_transcirpts_before_filtration\.genome\.blat >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    } else {
+      unless (-s "$lanepath/05_FUSION/$lanename\.transcripts\.genome\.blat"){
+        my $cmd = "blat $anno/hg19\_UCSC\.2bit $lanepath/04\_ASSEMBLY/transcripts\.fa $lanepath/05_FUSION/$lanename\.transcripts\.genome\.blat";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+
+      unless (-s "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq") {
+        my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $lanepath/04_ASSEMBLY/transcripts.fa $lanepath/05_FUSION/$lanename\.transcripts\.genome\.blat >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration 2>$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+
+    } #genome blat
   } #BLAT
 
   #build fusion candidate index
@@ -1142,19 +1171,35 @@ if (exists $runlevel{$runlevels}) {
   }
 
   #get fusion coverage
-  unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov") {
-    my $cmd = "perl $bin/get_fusion_coverage.pl --type pair --mappingfile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie --readlength $trimedlen --geneanno $gene_annotation --ensrefname $anno/Ensembl\_Ref\_Name\.tsv --locname $anno/Name2Location\.hg19 --refgene $anno/refgenes\.hg19 --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+  unless (-s "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov") {
+    my $gfc_opts = '';
+    if ($refseqblat) {
+      $gfc_opts = "--ensrefname $anno/Ensembl\_Ref\_Name\.tsv --locname $anno/Name2Location\.hg19 --refgene $anno/refgenes\.hg19";
+    } else {
+      $gfc_opts = "--genomeBlatPred $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration";
+    }
+    my $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
   #visualize coverage
-  unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis") {
-    my $cmd = "perl $bin/further_processing_for_read_visualization.pl --fusionseqfile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq --coveragefile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov --readlength $trimedlen >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis";
+  unless (-s "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis") {
+    my $fpv_opts = '';
+    unless ($refseqblat) {
+      $fpv_opts = "--genomeBlatPred";
+    }
+    my $cmd = "perl $bin/further_processing_for_read_visualization.pl $fpv_opts --fusionseqfile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.seq --coveragefile $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov --readlength $trimedlen >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  unless (-e "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.list"){
-    my $cmd = "grep \"^\#\" $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis \| sort -k 13,13nr -k 6,6d -k 8,8d >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.list";
+  unless (-s "$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.list"){
+    my $sorting_opts = '';
+    if ($refseqblat) {
+      $sorting_opts = "-k 14,14nr -k 7,7d -k 9,9d";
+    } else {
+      $sorting_opts = "-k 15,15nr -k 3,3nr -k 8,8d -k 10,10d";
+    }
+    my $cmd = "grep \"^\#\" $lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis \| sort $sorting_opts >$lanepath/05_FUSION/$lanename\.fusion_transcirpts_after_filtration\.list";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1418,6 +1463,7 @@ sub helpm {
 
   print STDERR "CONTROL OPTIONS FOR EACH RUNLEVEL:\n";
   print STDERR "runlevel 1: quality checking and insert size estimatiion using part of reads\n";
+  print STDERR "\t--readpool\tthe directory where all the read files with names ending with \.fq\.gz or \.fastq\.gz located.\n";
   print STDERR "\t--AB\t\tsplit reads up to generate non-overlapping paired-end reads.\n";
   print STDERR "\t--fqreid\trename the fastq id in case of \/1N, only for gsnap mapping.\n";
   print STDERR "\t--QC\t\tdo the quality check of reads, will stop the pipeline once it is finished.\n";
