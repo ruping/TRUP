@@ -124,9 +124,10 @@ if ($genomeBlatPred eq 'SRP') {
 open GA, "$gene_annotation";
 my %gene;
 my %gene_annotation;
-my @rs2;       #start array for each chr
-my $old_chr2;  #checking the chr
-my $ptr2;      #pointer for repeatmask sub
+my %mRNA_region;  #remember the mRNA region in this gene
+my @rs2;          #start array for each chr
+my $old_chr2;     #checking the chr
+my $ptr2;         #pointer for repeatmask sub
 while ( <GA> ){
    next if /^#/;
    chomp;
@@ -145,6 +146,21 @@ while ( <GA> ){
        $gene{$gene}{'end'}        = $end;
        $gene{$gene}{'strand'}     = $strand;
        $gene_annotation{$chr}{$start}{$end} = join(',', $ensemble.'('.$gene.')', $strand, $genelength);
+   }
+   elsif ($type eq 'mRNA'){ #remember the mRNA-part for genes
+       $tag =~ /Parent\=(.+?)\;/;
+       my $parentGene = $1;
+       my @mRNA = ($start, $end);
+       if (!exists($mRNA_region{$parentGene})) {
+         $mRNA_region{$parentGene} = \@mRNA;
+       } else {
+         if ($start <= $mRNA_region{$parentGene}->[0]) {
+            $mRNA_region{$parentGene}->[0] = $start;
+         }
+         if ($end >= $mRNA_region{$parentGene}->[1]) {
+            $mRNA_region{$parentGene}->[1] = $end;
+         }
+       } #parentGene already exists
    }
 }
 close GA;
@@ -757,20 +773,69 @@ sub breakpointInGene {
    }
 
    my $off = 0;
-   while ( ($ptr2+$off) <= $#rs2 and $rs2[$ptr2+$off] <= $coor ) {
+   my $geneMode = "nc"; #default is non-coding
+   my $max_glength = 0; #max gene length
+   my $max_mlength = 0; #max rna length
+   while ( ($ptr2+$off) <= $#rs2 and $rs2[$ptr2+$off] <= $coor ) { #same gene start
       my @geneEnds = sort {$a <=> $b} keys(%{$gene_annotation{$chr}{$rs2[$ptr2+$off]}});
-      my $max_glength = 0;
+
       foreach my $geneEnd (@geneEnds){
          my ($gname, $gstrand, $glength) = split /\,/, $gene_annotation{$chr}{$rs2[$ptr2+$off]}{$geneEnd};
-         if ( $geneEnd >= $coor and $glength > $max_glength ) {
-            $geneName = $gname;
-            if ($bstrand eq $gstrand){
-               $orientation = '->';
-            } else {
-               $orientation = '<-';
-            }
-            $max_glength = $glength;
+
+         $gname =~ /^(.+?)\(.+?\)$/;
+         my $ensembl = $1;
+         my $mRNA_start = -1;
+         my $mRNA_end   = -1;
+         my $mRNA_size  = -1;
+         if (exists $mRNA_region{$ensembl}) {
+           $mRNA_start = $mRNA_region{$ensembl}->[0];
+           $mRNA_end = $mRNA_region{$ensembl}->[1];
+           $mRNA_size = $mRNA_end - $mRNA_start;
          }
+
+        if ( $geneEnd >= $coor ) {   #seems overlapping
+
+           if ($mRNA_start != -1) { # mRNA in this gene
+
+             if ($mRNA_start <= $coor and $coor <= $mRNA_end) { #overlapping mRNA BEST
+               if ($mRNA_size > $max_mlength) {
+                 $geneName = $gname;
+                 if ($bstrand eq $gstrand) {
+                   $orientation = '->';
+                 } else {
+                   $orientation = '<-';
+                 }
+                 $max_mlength = $mRNA_size;
+               }
+               $max_glength = $glength if ($glength > $max_glength);
+             } else {           #not overlapping mRNA
+                if ($max_mlength == 0 and $glength > $max_glength){
+                  $geneName = $gname;
+                  if ($bstrand eq $gstrand) {
+                    $orientation = '->';
+                  } else {
+                    $orientation = '<-';
+                  }
+                  $max_glength = $glength;
+                }
+             }
+             $geneMode = "mRNA";
+
+           } else { #non coding
+
+             if ($geneMode == "nc" and $glength > $max_glength) { #only when non-coding
+               $geneName = $gname;
+               if ($bstrand eq $gstrand) {
+                 $orientation = '->';
+               } else {
+                 $orientation = '<-';
+               }
+               $max_glength = $glength;
+             }
+
+           } #non-coding
+
+         } #seems overlapping
       } #foreach gene end
       $off++;
    } #while bp coor is greater than the gene start
