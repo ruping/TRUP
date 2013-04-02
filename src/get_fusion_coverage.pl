@@ -165,6 +165,9 @@ while ( <GA> ){
 }
 close GA;
 
+#print STDERR Dumper(\@{$mRNA_region{'ENSG00000100890'}});
+#print STDERR Dumper(\@{$mRNA_region{'ENSG00000258790'}}) if (exists $mRNA_region{'ENSG00000258790'});
+
 my %genomeBlatPred;
 if ($genomeBlatPred ne 'SRP') {
   open GBP, "$genomeBlatPred";
@@ -459,6 +462,9 @@ if ($genomeBlatPred ne 'SRP'){
 	foreach my $pos (sort {$a<=>$b} keys %{$for_rm{$chr}}) {
 
 	    foreach my $transcript_name (keys %{$for_rm{$chr}{$pos}}) {
+                #if ($transcript_name eq 'Locus_1_Transcript_2/3_Confidence_0.778_Length_575_id_378519	1'){
+                #    print STDERR "$chr\t$pos\n";
+                #}
                 my ($strand, $oot) = split /\,/, $for_rm{$chr}{$pos}{$transcript_name};
                 my ($geneName, $orient) = &breakpointInGene($chr, $pos, $strand);
                 if ($oot == 1) {
@@ -793,11 +799,16 @@ sub breakpointInGene {
            $mRNA_size = $mRNA_end - $mRNA_start;
          }
 
+         #if ($chr eq 'chr14' and $coor == 35592466){
+         #    print STDERR "$ensembl\t$mRNA_start\t$mRNA_end\n";
+         #}
+
         if ( $geneEnd >= $coor ) {   #seems overlapping
 
            if ($mRNA_start != -1) { # mRNA in this gene
 
              if ($mRNA_start <= $coor and $coor <= $mRNA_end) { #overlapping mRNA BEST
+
                if ($mRNA_size > $max_mlength) {
                  $geneName = $gname;
                  if ($bstrand eq $gstrand) {
@@ -808,6 +819,7 @@ sub breakpointInGene {
                  $max_mlength = $mRNA_size;
                }
                $max_glength = $glength if ($glength > $max_glength);
+
              } else {           #not overlapping mRNA
                 if ($max_mlength == 0 and $glength > $max_glength){
                   $geneName = $gname;
@@ -823,7 +835,7 @@ sub breakpointInGene {
 
            } else { #non coding
 
-             if ($geneMode == "nc" and $glength > $max_glength) { #only when non-coding
+             if ($geneMode eq "nc" and $glength > $max_glength) { #only when non-coding
                $geneName = $gname;
                if ($bstrand eq $gstrand) {
                  $orientation = '->';

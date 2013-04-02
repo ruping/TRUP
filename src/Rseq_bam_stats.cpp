@@ -218,7 +218,7 @@ int main (int argc, char *argv[]) {
             mateChr = refs.at(bam.MateRefID).RefName;
             matePos = bam.MatePosition;
             int mateDistance = matePos-alignmentStart;
-            if (mateChr != chrom || mateDistance > 300000) 
+            if (mateChr != chrom || mateDistance > 230000) 
               mateStatus = "w";
           }
 
@@ -414,7 +414,7 @@ int main (int argc, char *argv[]) {
            writer.SaveAlignment(bam);                          // write
            if ( arp != "" ) {
              int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-             if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 100000) ) 
+             if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
                arp_f << bam.Name << endl;
              //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
            }
@@ -434,7 +434,7 @@ int main (int argc, char *argv[]) {
             writer.SaveAlignment(bam);                         // write
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 100000) ) 
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
                 arp_f << bam.Name << endl;
               //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
             }
@@ -470,7 +470,7 @@ int main (int argc, char *argv[]) {
           writer.SaveAlignment(fragment[bam.Name].mate2);      // write
           if ( arp != "" ) {
             int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-            if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 100000) ) 
+            if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
               arp_f << bam.Name << endl;
             //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
           }
@@ -489,7 +489,7 @@ int main (int argc, char *argv[]) {
             writer.SaveAlignment(fragment[bam.Name].mate2);    // write
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 100000) ) 
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
                 arp_f << bam.Name << endl;
               //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
             }
@@ -522,7 +522,7 @@ int main (int argc, char *argv[]) {
             writer.SaveAlignment(bam);                         // write
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 100000) ) 
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
                 arp_f << bam.Name << endl;
               //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
             }
@@ -561,7 +561,7 @@ int main (int argc, char *argv[]) {
             writer.SaveAlignment(fragment[bam.Name].mate2);    // write
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 100000) ) 
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
                 arp_f << bam.Name << endl;
               //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
             }
