@@ -20,7 +20,7 @@ my $ins_mean_AB= 0;
 my $ins_sd     = 20;
 my %runlevel;
 my $sampleName;
-my $laneID     = '';
+my $runID      = '';
 my $threads    = 1;
 my $help;
 my $AB;      #cut reads in AB (for koeln)
@@ -58,7 +58,7 @@ if (@ARGV == 0) {
 
 GetOptions(
            "sampleName=s" => \$sampleName,
-           "laneID=s"     => \$laneID,
+           "runID=s"     =>  \$runID,
            "runlevel=s"   => \$runlevels,
            "noexecute"    => \$noexecute,
            "quiet"        => \$quiet,
@@ -179,8 +179,8 @@ if (defined $sampleName) {
     exit 22;
   }
 
-  if ($laneID ne '') {
-    $lanepath = "$root/$sampleName"."\_$laneID";
+  if ($runID ne '') {
+    $lanepath = "$root/$sampleName"."\_$runID";
   } else {
     $lanepath = "$root/$sampleName";
   }
@@ -194,9 +194,9 @@ if (defined $sampleName) {
   }
 
   if (scalar(@lanefile) > 0) {
-    if ($laneID ne '') {
+    if ($runID ne '') {
       foreach my $read_file (@lanefile) {
-        if ($read_file =~ /($sampleName\_R?[12]\_$laneID)\.f/) {
+        if ($read_file =~ /($sampleName\_R?[12]\_$runID)\.f/) {
           my $cmd = "ln -s $read_file $lanepath/01_READS/$1\.fq\.gz";
           RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$1\.fq\.gz");
         }
@@ -212,7 +212,7 @@ if (defined $sampleName) {
   }
 
   if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
-     my @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz");
+     my @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");
      my $first_second_line = `gzip -d -c "$original_read_files[0]" | head -2 | grep -v "^@"`;
      $readlen = length($first_second_line) - 1;
      $trimedlen = $readlen;
@@ -230,7 +230,7 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz");
+  my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");
   (my $qc_out1 = $qc_files[0]) =~ s/\.gz$/\.qc/;
   (my $qc_out2 = $qc_files[1]) =~ s/\.gz$/\.qc/;
   unless (-e "$qc_out1") {
@@ -250,11 +250,11 @@ if (exists $runlevel{$runlevels}) {
   if ( $trimedlen != $readlen ) {  #trimming
     my @trimed_read_files = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz");
     if ( scalar(@trimed_read_files) == 0 ) {
-      my @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz");
+      my @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");
       foreach my $read_file (@ori_read_files) {
         my $read_out = $read_file;
         $read_out =~ s/fq\.gz$/trimed\.fq\.gz/;
-        if ($read_file =~ /\_R?1(\_$laneID)?\./) {
+        if ($read_file =~ /\_R?1(\_$runID)?\./) {
           $read_files[0] = $read_out;
         }
         else {
@@ -266,12 +266,12 @@ if (exists $runlevel{$runlevels}) {
     }
     else { #if trimed read file exists
       @read_files = @trimed_read_files;
-      @read_files = &mateorder(\@read_files, $laneID);
+      @read_files = &mateorder(\@read_files, $runID);
     }
   }
   else {
-    @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz");
-    @read_files = mateorder(\@read_files, $laneID);
+    @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");
+    @read_files = mateorder(\@read_files, $runID);
   }
 
   if ($fq_reid){  #renbame fastq id
@@ -298,7 +298,7 @@ if (exists $runlevel{$runlevels}) {
      if ( scalar(@AB_read_files) == 0 and scalar(@AB_read_files_ori) == 0) {
        my ($read_1, $read_2, $AB_1, $AB_2);
        foreach my $read_file (@read_files){
-         if ($read_file =~ /\_R?1(\_$laneID)?\./) {
+         if ($read_file =~ /\_R?1(\_$runID)?\./) {
            $read_1 = $read_file;
            $AB_1 = $read_1;
            $AB_1 =~ s/fq\.gz$/AB\.fq/;
@@ -370,7 +370,7 @@ if (defined $sampleName) {
   printtime();
   print STDERR "####### insert mean and sd calculation #######\n\n";
 
-  my @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.qc");
+  my @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.qc");
   if ( scalar(@quality_check_files) == 2 ) { #decide the quality shift
     open QC, "<$quality_check_files[0]";
     my $qual_min = -1;
@@ -454,9 +454,9 @@ if (exists $runlevel{$runlevels}) {
     @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz");   #trimmed reads
   }
   else {
-    @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz");    #original reads
+    @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");    #original reads
   }
-  @reads = &mateorder(\@reads, $laneID);
+  @reads = &mateorder(\@reads, $runID);
 
   my $real_len = $trimedlen;
   $real_len = $trimedlen/2 if ($AB);
@@ -697,14 +697,14 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$lanepath/03_STATS/$sampleName\.report/$sampleName\.report\.html") {
-    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.qc");
-    @qc_files = mateorder(\@qc_files, $laneID);
+    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.qc");
+    @qc_files = mateorder(\@qc_files, $runID);
     my $qcmatesuffix1;
     my $qcmatesuffix2;
-    if ($qc_files[0] =~ /(\_R?[12](\_$laneID)?\.fq\.qc)$/){
+    if ($qc_files[0] =~ /(\_R?[12](\_$runID)?\.fq\.qc)$/){
        $qcmatesuffix1 = $1;
     }
-    if ($qc_files[1] =~ /(\_R?[12](\_$laneID)?\.fq\.qc)$/){
+    if ($qc_files[1] =~ /(\_R?[12](\_$runID)?\.fq\.qc)$/){
        $qcmatesuffix2 = $1;
     }
     my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
@@ -792,15 +792,15 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute,$quiet);
       }
 
-      my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.RAssembly\.fq");
+      my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
       unless ( scalar(@RAssembly_reads) == 2 ) { #get raw reads
         my @reads;
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz"); #original reads
         }
-        @reads = mateorder(\@reads, $laneID);
+        @reads = mateorder(\@reads, $runID);
 
         my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.filter\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
         RunCommand($cmd,$noexecute,$quiet);
@@ -823,8 +823,8 @@ if (exists $runlevel{$runlevels}) {
 
       if ($RA == 1) {
 
-        my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.RAssembly\.fq");
-        @RAssembly_reads = mateorder(\@RAssembly_reads, $laneID);
+        my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
+        @RAssembly_reads = mateorder(\@RAssembly_reads, $runID);
         #my $bp_regions_file = "$lanepath/04_ASSEMBLY/$sampleName\.bp\_regions\.fa";
         my $ra_reads1_file = $RAssembly_reads[0];
         my $ra_reads2_file = $RAssembly_reads[1];
@@ -879,7 +879,7 @@ if (exists $runlevel{$runlevels}) {
             RunCommand($cmd,$noexecute,1);
           }
 
-          if (-e "$lanepath/04_ASSEMBLY/$bp_id/transcripts.fa") {
+          if (-s "$lanepath/04_ASSEMBLY/$bp_id/transcripts.fa") {
             open TRANSCRIPTS, "$lanepath/04_ASSEMBLY/$bp_id/transcripts.fa";
             open TRANSCRIPTSALL, ">>$lanepath/04_ASSEMBLY/transcripts.fa";
             while ( <TRANSCRIPTS> ) {
@@ -893,7 +893,7 @@ if (exists $runlevel{$runlevels}) {
             close TRANSCRIPTSALL;
           }
 
-          if (-s "$lanepath/04_ASSEMBLY/transcripts.fa") {
+          if (-e "$lanepath/04_ASSEMBLY/transcripts.fa") {
             my $cmd = "rm $lanepath/04_ASSEMBLY/$bp_id/ -rf";
             RunCommand($cmd,$noexecute,1) unless $idra != 0;
           }
@@ -951,9 +951,9 @@ if (exists $runlevel{$runlevels}) {
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz"); #original reads
         }
-        @reads = mateorder(\@reads, $laneID);
+        @reads = mateorder(\@reads, $runID);
 
         unless (-s "$lanepath/02_MAPPING/unmapped_left\.fq\.z"){
           print STDERR "Error: unmapped read file does not exist!!!\n";
@@ -972,7 +972,7 @@ if (exists $runlevel{$runlevels}) {
       }
 
       @ARP = bsd_glob("$lanepath/01_READS/$sampleName*ARP\.fq\.gz");
-      @ARP = mateorder(\@ARP, $laneID);
+      @ARP = mateorder(\@ARP, $runID);
 
       #in such case, do a second mapping based on trimed read, currently trim to 36bp
       if (($trimedlen >= 70 and $ins_mean <= 20) || $SM ) {
@@ -989,7 +989,7 @@ if (exists $runlevel{$runlevels}) {
 
         #second mapping
         my @ARP_trimed36 = bsd_glob("$lanepath/01_READS/$sampleName*ARP*trimed36\.fq\.gz");
-        @ARP_trimed36 = mateorder(\@ARP_trimed36, $laneID);
+        @ARP_trimed36 = mateorder(\@ARP_trimed36, $runID);
         unless (-s "$lanepath/02_MAPPING/SecondMapping/") {
           my $cmd = "mkdir -p $lanepath/02_MAPPING/SecondMapping/";
           RunCommand($cmd,$noexecute,$quiet);
@@ -1030,9 +1030,9 @@ if (exists $runlevel{$runlevels}) {
           if ($trimedlen != $readlen) {
             @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
           } else {
-            @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz"); #original reads
+            @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz"); #original reads
           }
-          @reads = mateorder(\@reads, $laneID);
+          @reads = mateorder(\@reads, $runID);
 
           my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/02_MAPPING/SecondMapping/$sampleName\.secondmapping\.arp --readfile1 $reads[0] --readfile2 $reads[1] --SM";
           $cmd .= " --AB" if ($AB);
@@ -1046,7 +1046,7 @@ if (exists $runlevel{$runlevels}) {
         }
 
         @ARP = bsd_glob("$lanepath/01_READS/$sampleName*ARP\.secondmapping\.fq\.gz");
-        @ARP = mateorder(\@ARP, $laneID);
+        @ARP = mateorder(\@ARP, $runID);
       }
 
       # shuffle ARP reads to a single file
@@ -1179,9 +1179,9 @@ if (exists $runlevel{$runlevels}) {
     if ($trimedlen != $readlen) {
       @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
     } else {
-      @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.gz");  #original reads
+      @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");  #original reads
     }
-    @reads = mateorder(\@reads, $laneID);
+    @reads = mateorder(\@reads, $runID);
 
     my $cmd = "gzip -d -c $reads[0] $reads[1] | bowtie -v 1 -k 10 -m 10 -p $threads $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index \- $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";
     RunCommand($cmd,$noexecute,$quiet);
@@ -1466,14 +1466,14 @@ sub RunCommand {
 }
 
 sub helpm {
-  print STDERR "\nSynopsis: RTrace.pl --runlevel 1 --sampleName <sample1> --laneID <ID> --root <dir_root> --anno <dir_anno> 2>>run.log\n";
-  print STDERR "Synopsis: RTrace.pl --runlevel 2 --sampleName <sample1> --laneID <ID> --root <dir_root> --anno <dir_anno> --patient <ID> --tissue <type> --threads <N> 2>>run.log\n";
-  print STDERR "Synopsis: RTrace.pl --runlevel 3-4 --sampleName <sample1> --laneID <ID> --root <dir_root> --anno <dir_anno> --RA 1 --threads <N> 2>>run.log\n";
-  print STDERR "Synopsis: RTrace.pl --runlevel 5 --sampleName <sample1> --laneID <ID> --root <dir_root> --anno <dir_anno> --threads <N> 2>>run.log\n";
+  print STDERR "\nSynopsis: RTrace.pl --runlevel 1 --sampleName <sample1> --runID <ID> --root <dir_root> --anno <dir_anno> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 2 --sampleName <sample1> --runID <ID> --root <dir_root> --anno <dir_anno> --patient <ID> --tissue <type> --threads <N> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 3-4 --sampleName <sample1> --runID <ID> --root <dir_root> --anno <dir_anno> --RA 1 --threads <N> 2>>run.log\n";
+  print STDERR "Synopsis: RTrace.pl --runlevel 5 --sampleName <sample1> --runID <ID> --root <dir_root> --anno <dir_anno> --threads <N> 2>>run.log\n";
   print STDERR "Synopsis: RTrace.pl --runlevel 7 --root <dir_root> --anno <dir_anno> --priordf 1 2>>run.log\n\n";
   print STDERR "GENERAL OPTIONS (MUST SET):\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl. See below for options for each runlevel.\n";
   print STDERR "\t--sampleName\tthe name of the lane needed to be processed (must set for runlevel 1-5)\n";
-  print STDERR "\t--laneID\tthe ID of the lane needed to be processed (default not set, must set if fastq files are ended with _R1_00X.fq)\n";
+  print STDERR "\t--runID\tthe ID of the run needed to be processed (default not set, must set if fastq files are ended with _R1_00X.fq)\n";
   print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
   print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
   print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR\n";
