@@ -697,14 +697,14 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$lanepath/03_STATS/$sampleName\.report/$sampleName\.report\.html") {
-    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]\.fq\.qc");
-    @qc_files = mateorder(@qc_files);
+    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$laneID,}\.fq\.qc");
+    @qc_files = mateorder(\@qc_files, $laneID);
     my $qcmatesuffix1;
     my $qcmatesuffix2;
-    if ($qc_files[0] =~ /(\_R?[12]\.fq\.qc)$/){
+    if ($qc_files[0] =~ /(\_R?[12](\_$laneID)?\.fq\.qc)$/){
        $qcmatesuffix1 = $1;
     }
-    if ($qc_files[1] =~ /(\_R?[12]\.fq\.qc)$/){
+    if ($qc_files[1] =~ /(\_R?[12](\_$laneID)?\.fq\.qc)$/){
        $qcmatesuffix2 = $1;
     }
     my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
