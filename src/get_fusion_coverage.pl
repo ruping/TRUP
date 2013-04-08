@@ -188,7 +188,7 @@ if ($genomeBlatPred ne 'SRP') {
 }
 
 
-open IN, "$mapping";
+open IN, "gzip -dc $mapping |";
 my %for_rm;
 my %coverage;
 my %for_encompass;

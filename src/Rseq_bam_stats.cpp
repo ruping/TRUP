@@ -218,7 +218,7 @@ int main (int argc, char *argv[]) {
             mateChr = refs.at(bam.MateRefID).RefName;
             matePos = bam.MatePosition;
             int mateDistance = matePos-alignmentStart;
-            if (mateChr != chrom || mateDistance > 230000) 
+            if (mateChr != chrom || abs(mateDistance) > 230000) 
               mateStatus = "w";
           }
 

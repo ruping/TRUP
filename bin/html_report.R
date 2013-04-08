@@ -141,8 +141,8 @@ if (gf == "png"){
 
 #insert size distributions
 HTML("<br> Estimated fragment size based on the mapping result:", file = target)
-insert.file = paste(lane,"ins",sep=".")
-insert.size = read.table(paste(stats.dir,insert.file,sep="/"))
+insert.file = paste(lane,"ins.gz",sep=".")
+insert.size = read.table(gzfile(paste(stats.dir,insert.file,sep="/")))
 insert.plot = paste("insert_size",gf,sep=".")
 if (gf == "png"){
   png(file = paste(dir.html, insert.plot, sep ="/"), width = 600, height = 600)
