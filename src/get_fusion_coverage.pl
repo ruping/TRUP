@@ -165,8 +165,6 @@ while ( <GA> ){
 }
 close GA;
 
-#print STDERR Dumper(\@{$mRNA_region{'ENSG00000100890'}});
-#print STDERR Dumper(\@{$mRNA_region{'ENSG00000258790'}}) if (exists $mRNA_region{'ENSG00000258790'});
 
 my %genomeBlatPred;
 if ($genomeBlatPred ne 'SRP') {
@@ -462,9 +460,6 @@ if ($genomeBlatPred ne 'SRP'){
 	foreach my $pos (sort {$a<=>$b} keys %{$for_rm{$chr}}) {
 
 	    foreach my $transcript_name (keys %{$for_rm{$chr}{$pos}}) {
-                #if ($transcript_name eq 'Locus_1_Transcript_2/3_Confidence_0.778_Length_575_id_378519	1'){
-                #    print STDERR "$chr\t$pos\n";
-                #}
                 my ($strand, $oot) = split /\,/, $for_rm{$chr}{$pos}{$transcript_name};
                 my ($geneName, $orient) = &breakpointInGene($chr, $pos, $strand);
                 if ($oot == 1) {
@@ -480,16 +475,40 @@ if ($genomeBlatPred ne 'SRP'){
     } #gene name finder
 
     my %name_pairs;
-    foreach my $transcript_name (keys %coverage){
+    foreach my $transcript_name (keys %coverage) {
        my $gene1 = $coverage{$transcript_name}{'info'}->{'gene1'};
        my $gene2 = $coverage{$transcript_name}{'info'}->{'gene2'};
+       my $blat1 = $coverage{$transcript_name}{'info'}->{'blat1'};
+       my $blat2 = $coverage{$transcript_name}{'info'}->{'blat2'};
        my $name_pair = $gene1.'+'.$gene2;
        $name_pairs{$name_pair} = '';
 
-       $gene1 =~ /^(.+?)\(/;
-       my $ensembl1 = $1;
-       $gene2 =~ /^(.+?)\(/;
-       my $ensembl2 = $1;
+       $blat1 =~ /^(\d+)\-(\d+)\(([+-])\)(chr\w+)\:(\d+)\-(\d+)$/;
+       my $blat1_st  = $3;
+       my $blat1_chr = $4;
+       my $blat1_ts  = $5;
+       my $blat1_te  = $6;
+       $blat2 =~ /^(\d+)\-(\d+)\(([+-])\)(chr\w+)\:(\d+)\-(\d+)$/;
+       my $blat2_st  = $3;
+       my $blat2_chr = $4;
+       my $blat2_ts  = $5;
+       my $blat2_te  = $6;
+
+       my ($ensembl1, $ensembl2);
+       if ( $gene1 =~ /^(.+?)\(/ ) {
+         $ensembl1 = $1;
+       } elsif ($gene1 == 'IGR') {
+         $ensembl1 = 'IGR';
+       } else {
+         print STDERR "$gene1 \($transcript_name\) is not valid.\n";
+       }
+       if ( $gene2 =~ /^(.+?)\(/ ) {
+         $ensembl2 = $1;
+       } elsif ($gene2 == 'IGR') {
+         $ensembl2 = 'IGR';
+       } else {
+         print STDERR "$gene2 \($transcript_name\) is not valid.\n";
+       }
 
        if ($ensembl1 eq $ensembl2) { #not a fusion
           delete($coverage{$transcript_name});
@@ -497,12 +516,34 @@ if ($genomeBlatPred ne 'SRP'){
        }
 
        #also should do for emcompassing
-       $for_encompass{$transcript_name}{'chr1'}   = $gene{$ensembl1}{'chr'};
-       $for_encompass{$transcript_name}{'start1'} = $gene{$ensembl1}{'start'};;
-       $for_encompass{$transcript_name}{'end1'}   = $gene{$ensembl1}{'end'};;
-       $for_encompass{$transcript_name}{'chr2'}   = $gene{$ensembl2}{'chr'};
-       $for_encompass{$transcript_name}{'start2'} = $gene{$ensembl2}{'start'};
-       $for_encompass{$transcript_name}{'end2'}   = $gene{$ensembl2}{'end'};;
+       if ( $ensembl1 ne 'IGR' ){
+         $for_encompass{$transcript_name}{'chr1'}   = $gene{$ensembl1}{'chr'};
+         if ($blat1_st eq '+'){
+           $for_encompass{$transcript_name}{'start1'} = $gene{$ensembl1}{'start'};
+           $for_encompass{$transcript_name}{'end1'}   = $blat1_te;
+         } else {
+           $for_encompass{$transcript_name}{'start1'} = $blat1_ts;
+           $for_encompass{$transcript_name}{'end1'}   = $gene{$ensembl1}{'end'};
+         }
+       } else {
+          $for_encompass{$transcript_name}{'chr1'}   = $blat1_chr;
+          $for_encompass{$transcript_name}{'start1'} = $blat1_ts - 1000;
+          $for_encompass{$transcript_name}{'end1'}   = $blat1_te + 1000;
+       }
+       if ( $ensembl2 ne 'IGR' ) {
+         $for_encompass{$transcript_name}{'chr2'}   = $gene{$ensembl2}{'chr'};
+         if ($blat2_st eq '+') {
+           $for_encompass{$transcript_name}{'start2'} = $blat2_ts;
+           $for_encompass{$transcript_name}{'end2'}   = $gene{$ensembl2}{'end'};
+         } else {
+           $for_encompass{$transcript_name}{'start2'} = $gene{$ensembl2}{'start'};
+           $for_encompass{$transcript_name}{'end2'}   = $blat2_te;
+         }
+       } else {
+          $for_encompass{$transcript_name}{'chr2'}   = $blat2_chr;
+          $for_encompass{$transcript_name}{'start2'} = $blat2_ts - 1000;
+          $for_encompass{$transcript_name}{'end2'}   = $blat2_te + 1000;
+       }
     }
     foreach my $transcript_name (keys %coverage){
        my $gene1 = $coverage{$transcript_name}{'info'}->{'gene1'};
@@ -516,6 +557,8 @@ if ($genomeBlatPred ne 'SRP'){
     }
 } #define missing info for genome blat
 
+print STDERR Dumper(\%{$for_encompass{"Locus_1_Transcript_7/7_Confidence_0.529_Length_793_id_327\t1"}});
+print STDERR Dumper(\%{$for_encompass{"Locus_1_Transcript_1/1_Confidence_1.000_Length_266_id_21794\t1"}});
 
 #generate the coverage encompassing first
 open AH, "samtools view $accepthits |";
@@ -544,12 +587,17 @@ my ($ptrA, $ptrB);
 while ( <AH> ) {
 
     next if /^@/;                #ignore comments
-    next if ($_ !~ /NH\:i\:1$/); #ignore multiple mappable reads
+    next if ( $_ !~ /NH\:i\:1\t/ and $_ !~ /NH\:i\:1$/ ); #ignore multiple mappable reads
     chomp;
 
     my ($Qname, $FLAG, $Rname, $Pos, $MAPQ, $CIGAR, $mateRname, $matePos, $ISIZE, $seq, $qual, @tag) = split /\t/;
     next if ($mateRname eq '*');
-    next if ($FLAG & 2);         #ignore correct pair
+    next if ($mateRname eq '=' and abs($matePos - $Pos) < 230000);         #ignore correct pair
+    if ($CIGAR =~ /^(\d+)[SH]/){
+      next if ($1 > 8);
+    } elsif ($CIGAR =~ /(\d+)[SH]$/) {
+      next if ($1 > 8);
+    }
 
     if ($Rname ne $old_chrA) {
        @ssA  = sort {$a <=> $b} keys %{$encoposA{$Rname}};
@@ -722,7 +770,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
    my $real_enco = scalar(keys (%{$for_encompass{$transcript_name}{'cov'}}));
    my $all  = $span + $real_enco;
 
-   next if ($all == 0);
+   next if ($all <= 1);
 
    my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all);
    print "#$newtitle\n";

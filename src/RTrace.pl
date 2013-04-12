@@ -25,6 +25,7 @@ my $threads    = 1;
 my $help;
 my $AB;      #cut reads in AB (for koeln)
 my $QC;      #quality check
+my $qcOFF;
 my $SM;      #second mapping
 my $BT;      #using Blast instead of BLAT for runlevel-4
 my $RA         = 1;      #regional assembly
@@ -71,6 +72,7 @@ GetOptions(
            "threads=i"    => \$threads,
            "AB"           => \$AB,
            "QC"           => \$QC,
+           "qcOFF"        => \$qcOFF,
            "SM"           => \$SM,
            "BT"           => \$BT,
            "RA=i"         => \$RA,
@@ -235,11 +237,11 @@ if (exists $runlevel{$runlevels}) {
   (my $qc_out2 = $qc_files[1]) =~ s/\.gz$/\.qc/;
   unless (-e "$qc_out1") {
     my $cmd = "gzip -d -c $qc_files[0] | $bin/fastx_quality_stats -Q33 -o $qc_out1";
-    RunCommand($cmd,$noexecute,$quiet);
+    RunCommand($cmd,$noexecute,$quiet) unless ($qcOFF);
   }
   unless (-e "$qc_out2") {
     my $cmd = "gzip -d -c $qc_files[1] | $bin/fastx_quality_stats -Q33 -o $qc_out2";
-    RunCommand($cmd,$noexecute,$quiet);
+    RunCommand($cmd,$noexecute,$quiet) unless ($qcOFF);
   }
   if ($QC) {
     print STDERR "quality check finished, please check the quality file manually.\n";
@@ -273,6 +275,11 @@ if (exists $runlevel{$runlevels}) {
     @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz");
     @read_files = mateorder(\@read_files, $runID);
   }
+
+  my $total_reads = `gzip -d -c $read_files[0] | wc -l`;
+  $total_reads /= 4;
+  print STDERR "total number of read pairs: $total_reads\n";
+
 
   if ($fq_reid){  #renbame fastq id
     foreach my $read_file (@read_files){
@@ -813,7 +820,8 @@ if (exists $runlevel{$runlevels}) {
       }
 
       my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
-      unless ( scalar(@RAssembly_reads) == 2 ) { #get raw reads
+      my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq\.gz");
+      unless ( scalar(@RAssembly_reads) == 2 or scalar(@RAssembly_reads_gz) == 2 ) { #get raw reads
         my @reads;
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
@@ -1546,6 +1554,7 @@ sub helpm {
   print STDERR "\t--AB\t\tsplit reads up to generate non-overlapping paired-end reads.\n";
   print STDERR "\t--fqreid\trename the fastq id in case of \/1N, only for gsnap mapping.\n";
   print STDERR "\t--QC\t\tdo the quality check of reads, will stop the pipeline once it is finished.\n";
+  print STDERR "\t--qcOFF\t\tturn off quality check.\n";
   print STDERR "\t--readlen\tthe sequenced read length.\n";
   print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
 

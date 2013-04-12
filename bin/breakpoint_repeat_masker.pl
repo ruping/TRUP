@@ -24,7 +24,7 @@ open IN, "$breakpoints";
 
 while ( <IN> ){
    chomp;
-   my ($id, $type, $chr, $coor, $support, $pw) = split /\t/;
+   my ($id, $type, $chr, $coor, $support, $pw, $ct) = split /\t/;
    my $rmflag = repeatmask($chr, $coor);
    if ($rmflag == 1) {
       print "$_\tR\n";

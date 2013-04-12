@@ -41,6 +41,7 @@ struct region {  // a txt file containing breakpoints
   unsigned int coor;
   unsigned int support_no;
   unsigned int pw;              //proper wrong pair counts
+  unsigned int ct;
   unsigned int start;
   unsigned int end;
   set <string> tags;
@@ -315,6 +316,9 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
        continue;
      case 6:  // pw
        tmp.pw = atof((*iter).c_str());
+       continue;
+     case 7:  // pw
+       tmp.ct = atof((*iter).c_str());
        continue;
      default:
        break;

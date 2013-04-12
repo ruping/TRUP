@@ -40,7 +40,8 @@ struct region {  // a txt file containing breakpoints
   string chr;
   unsigned int coor;
   unsigned int support_no;
-  unsigned int pw;              //proper wrong pair counts
+  unsigned int pw;              //proper or wrong
+  unsigned int ct;              //clip type
   string rep;
   unsigned int start;
   unsigned int end;
@@ -324,7 +325,10 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
      case 6:  // pw
        tmp.pw = atof((*iter).c_str());
        continue;
-     case 7:  // rep
+     case 7:  // ct
+       tmp.ct = atof((*iter).c_str());
+       continue;
+     case 8:  // rep
        tmp.rep = *iter;
        continue;
      default:
@@ -379,7 +383,7 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
 
 inline void output_processing (struct region &region) {
 
-  string current_bp = int2str(region.id)+"\t"+region.type+"\t"+region.chr+"\t"+int2str(region.coor)+"\t"+int2str(region.support_no)+"\t"+int2str(region.pw)+"\t"+region.rep;
+  string current_bp = int2str(region.id)+"\t"+region.type+"\t"+region.chr+"\t"+int2str(region.coor)+"\t"+int2str(region.support_no)+"\t"+int2str(region.pw)+"\t"+int2str(region.ct)+"\t"+region.rep;
   vector<unsigned int> consisCounts;
   unsigned int consisCount = 0;
 

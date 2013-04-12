@@ -14,7 +14,7 @@ my %single;
 while ( <IN> ) {
 
   chomp;
-  my ($id, $type, $chr, $coor, $support, $pw, $repornot, $disco) = split /\t/;
+  my ($id, $type, $chr, $coor, $support, $pw, $ct, $repornot, $disco) = split /\t/;
 
   $remember{$id} .= "$_\n";
 
@@ -25,17 +25,19 @@ while ( <IN> ) {
   $data->{'coor'} = $coor;
   $data->{'support'} = $support;
   $data->{'pw'} = $pw;
+  $data->{'ct'} = $ct;
   $data->{'rep'} = $repornot;
   $data->{'disco'} = $disco;
   push @data, $data;
 
 
-  if ($type eq 'p'){
+  if ($type eq 'p') {
     my $pid;
     $pid->{'chr'} = $chr;
     $pid->{'coor'} = $coor;
     $pid->{'su'} = $support;
     $pid->{'pw'} = $pw;
+    $pid->{'ct'} = $ct;
     $pid->{'rep'} = $repornot;
     $pid->{'disco'} = $disco;
     push @{$pair{$id}}, $pid;
@@ -46,6 +48,7 @@ while ( <IN> ) {
      $single{$bp}{'id'} = $id;
      $single{$bp}{'su'} = $support;
      $single{$bp}{'pw'} = $pw;
+     $single{$bp}{'ct'} = $ct;
      $single{$bp}{'rep'} = $repornot;
      $single{$bp}{'disco'} = $disco;
   }
@@ -64,6 +67,7 @@ foreach my $data (@data) {
    my $coor = $data->{'coor'};
    my $support = $data->{'support'};
    my $pw = $data->{'pw'};
+   my $ct = $data->{'ct'};
    my $repornot = $data->{'rep'};
    my $disco = $data->{'disco'};
 
@@ -87,6 +91,7 @@ foreach my $data (@data) {
             $redundancy{$bp}{'su'} = $support;
             $redundancy{$bp}{'type'} = $type;
             $redundancy{$bp}{'pw'} = $pw;
+            $redundancy{$bp}{'ct'} = $ct;
             $redundancy{$bp}{'rep'} = $repornot;
             $redundancy{$bp}{'disco'} = $disco;
          }
@@ -120,6 +125,7 @@ foreach my $data (@data) {
              $redundancy{$bp}{'su'} = $support;
              $redundancy{$bp}{'type'} = $type;
              $redundancy{$bp}{'pw'} = $pw;
+             $redundancy{$bp}{'ct'} = $ct;
              $redundancy{$bp}{'rep'} = $repornot;
              $redundancy{$bp}{'disco'} = $disco;
           }
@@ -130,6 +136,7 @@ foreach my $data (@data) {
          $redundancy{$bp}{'su'} = $support;
          $redundancy{$bp}{'type'} = $type;
          $redundancy{$bp}{'pw'} = $pw;
+         $redundancy{$bp}{'ct'} = $ct;
          $redundancy{$bp}{'rep'} = $repornot;
          $redundancy{$bp}{'disco'} = $disco;
        }
@@ -140,6 +147,7 @@ foreach my $data (@data) {
      $redundancy{$bp}{'su'} = $support;
      $redundancy{$bp}{'type'} = $type;
      $redundancy{$bp}{'pw'} = $pw;
+     $redundancy{$bp}{'ct'} = $ct;
      $redundancy{$bp}{'rep'} = $repornot;
      $redundancy{$bp}{'disco'} = $disco;
    }
@@ -161,16 +169,8 @@ foreach my $data (@data) {
    }
 }
 
-#print STDERR Dumper(\%{$single{'chr20	32264187'}});
 
-#scan id
 my %printed;
-#foreach my $id (keys %remember) {
-#  if (! exists($forget{$id})) {
-#    print "$remember{$id}";
-#    $printed{$id} = '';
-#  }
-#}
 
 #scan coordinates
 foreach my $bp (keys %redundancy) {
@@ -181,13 +181,10 @@ foreach my $bp (keys %redundancy) {
    my $type = $redundancy{$bp}{'type'};
    my $support = $redundancy{$bp}{'su'};
    my $pw = $redundancy{$bp}{'pw'};
+   my $ct = $redundancy{$bp}{'ct'};
    my $count = $redundancy{$bp}{'count'};
    my $repornot = $redundancy{$bp}{'rep'};
    my $disco = $redundancy{$bp}{'disco'};
-
-   #if ($chr eq 'chr20' and $coor == 32264187){
-   # print STDERR "$id\t$type\n";
-   #}
 
    if ($type eq 's') {
      if (! exists($forget{$id})){
@@ -200,7 +197,7 @@ foreach my $bp (keys %redundancy) {
    } #type S
 
    #rest is type P
-   my ($chr2, $coor2, $bp2, $support2, $pw2, $count2, $repornot2, $disco2);
+   my ($chr2, $coor2, $bp2, $support2, $pw2, $ct2, $count2, $repornot2, $disco2);
 
    if ( ${$pair{$id}}[0]->{'chr'} eq $chr and ${$pair{$id}}[0]->{'coor'} eq $coor ) {
       $chr2 = ${$pair{$id}}[1]->{'chr'};
@@ -208,6 +205,7 @@ foreach my $bp (keys %redundancy) {
       $bp2 = $chr2."\t".$coor2;
       $support2 = ${$pair{$id}}[1]->{'su'};
       $pw2 = ${$pair{$id}}[1]->{'pw'};
+      $ct2 = ${$pair{$id}}[1]->{'ct'};
       $repornot2 = ${$pair{$id}}[1]->{'rep'};
       $disco2 = ${$pair{$id}}[1]->{'disco'};
    } else {
@@ -216,6 +214,7 @@ foreach my $bp (keys %redundancy) {
       $bp2 = $chr2."\t".$coor2;
       $support2 = ${$pair{$id}}[0]->{'su'};
       $pw2 = ${$pair{$id}}[0]->{'pw'};
+      $ct2 = ${$pair{$id}}[0]->{'ct'};
       $repornot2 = ${$pair{$id}}[0]->{'rep'};
       $disco2 = ${$pair{$id}}[0]->{'disco'};
    }
@@ -226,22 +225,16 @@ foreach my $bp (keys %redundancy) {
 
    next if ($repornot eq 'R');   #now it is not repeat
    next if ($chr eq 'chrM' or $chr2 eq 'chrM');       #now it is not chrM
-   next if ($support < 3 and $pw < 5);                #now support is at least 3
-
-   #if ($chr eq 'chr20' and $coor == 32264187){
-   #  print STDERR "$id\t$type\t$supportA\t$pwA\n";
-   #}
+   next if ($support < 3 and $pw < 5 and $ct == 0);                #now support is at least 3
 
    if (! exists($forget{$id})) {
 
      print "$remember{$id}" if (! exists $printed{$id} );
      $printed{$id} = '';
 
-   } else { #it is forgot
+   } else { #it is forgot, SAVE
 
        if ( $disco >= 8 and $single{$bp}{'id'} ne '' ) {
-
-          #if ($chr eq 'chr20' and $coor == 32264187){print STDERR "haha\n";}
 
           my $idS = $single{$bp}{'id'};
 
@@ -253,11 +246,13 @@ foreach my $bp (keys %redundancy) {
           print "$remember{$idS}" if (! exists $printed{$idS} );
           $printed{$idS} = '';
 
+       } elsif ( $ct > 0 and $ct > 0 ) {
+          print "$remember{$id}" if (! exists $printed{$id} );
+          $printed{$id} = '';
        }
 
    } #it is forgotted
 }
-
 
 
 exit 0;
