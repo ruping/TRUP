@@ -8,7 +8,7 @@ use File::Basename;
 
 my $breakpoint_file = shift;  # a sorted breakpoint file
 
-open BP, "$breakpoint_file";
+open BP, "gzip -d -c $breakpoint_file |";
 
 my %breakpoints;          #storing data
 my %breakpoints_coor;     #storing all breakpoints

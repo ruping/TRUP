@@ -353,7 +353,7 @@ if (exists $runlevel{$runlevels}) {
   #do the pair-end mapping of spiked_in reads
   unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.hits") {
     my $misBowtie = 3;
-    my $cmd= "bowtie -v $misBowtie $tophat_trans_index -1 $spiked_in[0] -2 $spiked_in[1] $lanepath/00_TEST/$sampleName\.spikedin\.hits";
+    my $cmd= "bowtie -v $misBowtie -p $threads $tophat_trans_index -1 $spiked_in[0] -2 $spiked_in[1] $lanepath/00_TEST/$sampleName\.spikedin\.hits";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -531,6 +531,12 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
+  unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" ){
+    if (-s "$lanepath/03_STATS/$sampleName\.breakpoints") {
+       my $cmd = "gzip $lanepath/03_STATS/$sampleName\.breakpoints";
+       RunCommand($cmd,$noexecute,$quiet);
+    }
+  }
 
   my $mapping_stats_line_number = `wc -l $lanepath/03_STATS/$sampleName.mapping.stats`;
   $mapping_stats_line_number =~ s/^(\d+).*$/$1/;
@@ -761,21 +767,27 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-    unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted") {
-      unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints"){
+    unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted\.gz") {
+      unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" or -s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted"){
         print STDERR "Error: breakpoint file does not exist, do runlevel 2 first.\n\n";
         exit 22;
       }
-      my $cmd = "sort -k 1,1d -k 2,2n $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.breakpoints.sorted";
-      RunCommand($cmd,$noexecute,$quiet);
-      if ( -s "$lanepath/03_STATS/$sampleName\.breakpoints" and -e "$lanepath/03_STATS/$sampleName\.breakpoints.sorted" ){
-         my $cmd2 = "rm $lanepath/03_STATS/$sampleName\.breakpoints -f";
+      unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted"){
+        my $cmd = "gzip -d -c $lanepath/03_STATS/$sampleName\.breakpoints\.gz | sort -k 1,1d -k 2,2n >$lanepath/03_STATS/$sampleName\.breakpoints.sorted";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+      if ( -s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" and -s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted" ){
+         my $cmd2 = "rm $lanepath/03_STATS/$sampleName\.breakpoints\.gz -f";
          RunCommand($cmd2,$noexecute,$quiet);
+      }
+      if (-s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted"){
+         my $cmd3 = "gzip $lanepath/03_STATS/$sampleName\.breakpoints.sorted";
+         RunCommand($cmd3,$noexecute,$quiet);
       }
     }
 
     unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed"){
-      my $cmd = "perl $bin/breakpoint\_processing.pl $lanepath/03_STATS/$sampleName\.breakpoints\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
+      my $cmd = "perl $bin/breakpoint\_processing.pl $lanepath/03_STATS/$sampleName\.breakpoints\.sorted\.gz >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
@@ -1247,7 +1259,10 @@ if (exists $runlevel{$runlevels}) {
       }
       @reads = mateorder(\@reads, $runID);
 
-      my $cmd = "gzip -d -c $reads[0] $reads[1] | bowtie -v 1 -k 10 -m 10 -p $threads $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index \- $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";
+      my $misallow = &round($trimedlen*0.02);
+      $misallow = 3 if ($misallow > 3);
+
+      my $cmd = "gzip -d -c $reads[0] $reads[1] | bowtie -v $misallow -k 22 -m 22 -p $threads $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index \- $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";
       RunCommand($cmd,$noexecute,$quiet);
 
       $cmd = "gzip $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";

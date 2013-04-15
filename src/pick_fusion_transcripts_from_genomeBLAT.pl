@@ -93,7 +93,7 @@ while ( <> ) {
 
 }
 
-#print Dumper (\@{$blat{'Locus_1_Transcript_2/9_Confidence_0.357_Length_497_id_10615'}});
+#print Dumper (\@{$blat{'Locus_1_Transcript_3/3_Confidence_0.714_Length_1008_id_51705'}});
 
 my $count;
 
@@ -131,7 +131,7 @@ foreach my $transcript (keys %blat) {
   }
   @blat = @blat_uniq;
 #=cut
-  #print Dumper (\@blat) if $transcript eq 'Locus_1_Transcript_2/9_Confidence_0.357_Length_497_id_10615';
+  #print Dumper (\@blat) if $transcript eq 'Locus_1_Transcript_3/3_Confidence_0.714_Length_1008_id_51705';
 
   next if ( scalar(@blat) < 2 );
 

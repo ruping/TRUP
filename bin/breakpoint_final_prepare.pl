@@ -246,9 +246,11 @@ foreach my $bp (keys %redundancy) {
           print "$remember{$idS}" if (! exists $printed{$idS} );
           $printed{$idS} = '';
 
-       } elsif ( $ct > 0 and $ct > 0 ) {
-          print "$remember{$id}" if (! exists $printed{$id} );
-          $printed{$id} = '';
+       } elsif ( $ct > 0 and $ct2 > 0 ) {
+          unless ($repornot2 eq 'R' and $support == 1) {
+            print "$remember{$id}" if (! exists $printed{$id} );
+            $printed{$id} = '';
+          }
        }
 
    } #it is forgotted

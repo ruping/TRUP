@@ -526,9 +526,14 @@ if ($genomeBlatPred ne 'SRP'){
            $for_encompass{$transcript_name}{'end1'}   = $gene{$ensembl1}{'end'};
          }
        } else {
-          $for_encompass{$transcript_name}{'chr1'}   = $blat1_chr;
-          $for_encompass{$transcript_name}{'start1'} = $blat1_ts - 1000;
-          $for_encompass{$transcript_name}{'end1'}   = $blat1_te + 1000;
+         $for_encompass{$transcript_name}{'chr1'}   = $blat1_chr;
+         if ($blat1_st eq '+'){
+           $for_encompass{$transcript_name}{'start1'} = $blat1_ts - 10000;
+           $for_encompass{$transcript_name}{'end1'}   = $blat1_te;
+         } else {
+           $for_encompass{$transcript_name}{'start1'} = $blat1_ts;
+           $for_encompass{$transcript_name}{'end1'}   = $blat1_te + 10000;
+         }
        }
        if ( $ensembl2 ne 'IGR' ) {
          $for_encompass{$transcript_name}{'chr2'}   = $gene{$ensembl2}{'chr'};
@@ -541,8 +546,13 @@ if ($genomeBlatPred ne 'SRP'){
          }
        } else {
           $for_encompass{$transcript_name}{'chr2'}   = $blat2_chr;
-          $for_encompass{$transcript_name}{'start2'} = $blat2_ts - 1000;
-          $for_encompass{$transcript_name}{'end2'}   = $blat2_te + 1000;
+          if ($blat2_st eq '+') {
+            $for_encompass{$transcript_name}{'start2'} = $blat2_ts;
+            $for_encompass{$transcript_name}{'end2'}   = $blat2_te + 10000;
+          } else {
+            $for_encompass{$transcript_name}{'start2'} = $blat2_ts - 10000;
+            $for_encompass{$transcript_name}{'end2'}   = $blat2_te;
+          }
        }
     }
     foreach my $transcript_name (keys %coverage){
@@ -557,8 +567,7 @@ if ($genomeBlatPred ne 'SRP'){
     }
 } #define missing info for genome blat
 
-print STDERR Dumper(\%{$for_encompass{"Locus_1_Transcript_7/7_Confidence_0.529_Length_793_id_327\t1"}});
-print STDERR Dumper(\%{$for_encompass{"Locus_1_Transcript_1/1_Confidence_1.000_Length_266_id_21794\t1"}});
+#print STDERR Dumper(\%for_encompass);
 
 #generate the coverage encompassing first
 open AH, "samtools view $accepthits |";
@@ -766,7 +775,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
 
    my $span = scalar (keys %{$coverage{$transcript_name}{'spanning'}}); #pile-up reads only count once
    my $enco = scalar (keys %{$coverage{$transcript_name}{'encompass'}}); #pile-up frags only count once
-   my $cov  = $span.'('.$span.'+'.$enco.')'; 
+   my $cov  = $span.'('.$span.'+'.$enco.')';
    my $real_enco = scalar(keys (%{$for_encompass{$transcript_name}{'cov'}}));
    my $all  = $span + $real_enco;
 
