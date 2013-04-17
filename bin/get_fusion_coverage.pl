@@ -775,7 +775,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
 
    my $span = scalar (keys %{$coverage{$transcript_name}{'spanning'}}); #pile-up reads only count once
    my $enco = scalar (keys %{$coverage{$transcript_name}{'encompass'}}); #pile-up frags only count once
-   my $cov  = $span.'('.$span.'+'.$enco.')'; 
+   my $cov  = $span.'('.$span.'+'.$enco.')';
    my $real_enco = scalar(keys (%{$for_encompass{$transcript_name}{'cov'}}));
    my $all  = $span + $real_enco;
 

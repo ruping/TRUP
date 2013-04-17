@@ -188,7 +188,7 @@ foreach my $bp (keys %redundancy) {
 
    if ($type eq 's') {
      if (! exists($forget{$id})){
-       if ($disco >= 2) {
+       if ( $disco >= 2 or ($disco == 1 and $support > 10) ) {
           print "$remember{$id}" if (!exists $printed{$id});
           $printed{$id} = '';
        }
