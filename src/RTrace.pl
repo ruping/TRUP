@@ -527,7 +527,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$lanepath/03_STATS/$sampleName\.mapping\.stats") {
-    my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam --writer $lanepath/02_MAPPING/accepted_hits\.unique\.bam --arp $lanepath/03_STATS/$sampleName\.arp --breakpoint $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.mapping\.stats";
+    my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam --readlength $trimedlen --writer $lanepath/02_MAPPING/accepted_hits\.unique\.bam --arp $lanepath/03_STATS/$sampleName\.arp --breakpoint $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.mapping\.stats";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1189,7 +1189,7 @@ if (exists $runlevel{$runlevels}) {
       }
     } else {
       unless (-s "$lanepath/05_FUSION/$sampleName\.transcripts\.genome\.gmap"){
-        my $cmd = "gmap -D $gmap_index -d hg19 --format=psl -t $threads $lanepath/04_ASSEMBLY/transcripts\.fa >$lanepath/05_FUSION/$sampleName\.transcripts\.genome\.gmap";
+        my $cmd = "gmap -D $gmap_index -d hg19 --format=psl -t $threads --intronlength=230000 $lanepath/04_ASSEMBLY/transcripts\.fa >$lanepath/05_FUSION/$sampleName\.transcripts\.genome\.gmap";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
@@ -1223,7 +1223,7 @@ if (exists $runlevel{$runlevels}) {
       }
     } else {
       unless (-s "$lanepath/05_FUSION/$sampleName\.transcripts\.genome\.blat"){
-        my $cmd = "blat $anno/hg19\_UCSC\.2bit $lanepath/04\_ASSEMBLY/transcripts\.fa $lanepath/05_FUSION/$sampleName\.transcripts\.genome\.blat";
+        my $cmd = "blat -maxIntron=230000 $anno/hg19\_UCSC\.2bit $lanepath/04\_ASSEMBLY/transcripts\.fa $lanepath/05_FUSION/$sampleName\.transcripts\.genome\.blat";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
@@ -1296,9 +1296,9 @@ if (exists $runlevel{$runlevels}) {
   unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list"){
     my $sorting_opts = '';
     if ($refseqblat) {
-      $sorting_opts = "-k 14,14nr -k 7,7d -k 9,9d";
+      $sorting_opts = "-k 14,14nr -k 16,16d -k 7,7d -k 9,9d";
     } else {
-      $sorting_opts = "-k 15,15nr -k 3,3nr -k 8,8d -k 10,10d";
+      $sorting_opts = "-k 15,15nr -k 17,17nr -k 3,3nr -k 8,8d -k 10,10d";
     }
     my $cmd = "grep \"^\#\" $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis \| sort $sorting_opts >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list";
     RunCommand($cmd,$noexecute,$quiet);

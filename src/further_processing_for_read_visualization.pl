@@ -50,17 +50,18 @@ open IN, "$coveragefile";
 my $transcript;
 my %mapping;
 my %fusion_point_cov;
+my %spanScore;
 my ($confidence, $length, $part1, $part2, $ori, $bp_s, $bp_e, $ron, $blat1, $blat2);
 
 while ( <IN> ){
   chomp;
-  if ( /^#/ ) {
+  if ($_ =~ /^#/) {
      $transcript = $_;
-     my ($candidate, $idx, $cScore, $fusion_genes, $breakpoint, $rep, $type, $cov1, $cov2, $cov3);
+     my ($candidate, $idx, $cScore, $fusion_genes, $breakpoint, $rep, $type, $cov1, $cov2, $cov3, $spanAll, $spanScore);
      if ($genomeBlatPred) {
-       ($candidate, $idx, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3) = split (/\t/, $transcript);
+       ($candidate, $idx, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3, $spanAll, $spanScore) = split (/\t/, $transcript);
      } else {
-       ($candidate, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3) = split (/\t/, $transcript);
+       ($candidate, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3, $spanAll, $spanScore) = split (/\t/, $transcript);
      }
      $candidate =~ s/^#//;
      $breakpoint =~ /^(\d+)\.\.(\d+)$/;
@@ -74,6 +75,7 @@ while ( <IN> ){
      my $s3 = substr($seq, $bpe);
      $seq{$candidate} = $s1.$s2.$s3;
      $fusion_point_cov{$transcript} = $cov3;
+     $spanScore{$transcript} = $spanScore;
   }
   else {
      my ($read, $strand, $candidate, $start, $read_seq, $read_qual, $multi, $mismatch) = split /\t/;
@@ -117,7 +119,7 @@ while ( <IN> ){
 }
 close IN;
 
-foreach my $transcript (sort {($fusion_point_cov{$b}<=>$fusion_point_cov{$a}) or (scalar(@{$mapping{$b}}) <=> scalar(@{$mapping{$a}}))} keys %mapping){
+foreach my $transcript (sort {($spanScore{$b}<=>$spanScore{$a}) or ($fusion_point_cov{$b}<=>$fusion_point_cov{$a})} keys %mapping){
   my $first_start;
   my $indi = 0;
   print "$transcript\n";

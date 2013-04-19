@@ -773,7 +773,17 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
    }
 
 
-   my $span = scalar (keys %{$coverage{$transcript_name}{'spanning'}}); #pile-up reads only count once
+   my @spans= keys %{$coverage{$transcript_name}{'spanning'}};
+   my $span = scalar(@spans); #pile-up reads only count once
+   my $spanAll; #span redundant
+   my $spanScore = $span;
+   foreach my $spanStart (@spans) {
+     $spanAll += $coverage{$transcript_name}{'spanning'}{$spanStart};
+     my $spanEnd = $spanStart + $read_length - 1;
+     my $balancePen = abs(($bps-$spanStart)-($spanEnd-$bpe))/(($bps-$spanStart)+($spanEnd-$bpe));
+     $spanScore -= $balancePen;
+   }
+   $spanScore = sprintf("%.1f", $spanScore);
    my $enco = scalar (keys %{$coverage{$transcript_name}{'encompass'}}); #pile-up frags only count once
    my $cov  = $span.'('.$span.'+'.$enco.')';
    my $real_enco = scalar(keys (%{$for_encompass{$transcript_name}{'cov'}}));
@@ -781,7 +791,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
 
    next if ($all <= 1);
 
-   my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all);
+   my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all, $spanAll, $spanScore);
    print "#$newtitle\n";
    print ENCOMCOV "#$newtitle\n";
    foreach my $razers (@{$coverage{$transcript_name}{reads}}){
