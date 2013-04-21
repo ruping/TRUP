@@ -31,6 +31,7 @@ my $BT;      #using Blast instead of BLAT for runlevel-4
 my $RA         = 1;      #regional assembly
 my $idra       = 0;      #for a specific breakpoint id
 my $refseqblat;          #whether blat the assembled transcripts onto the refseq annotation
+my $consisCount = 5;     #the threshold for the number of consistent mate pairs with discordant maping
 my $force;   #force
 my $bigWig;  #wiggle file
 my $gtf_guide_assembly;  #for cufflinks
@@ -70,6 +71,7 @@ GetOptions(
            "insertmean=i" => \$ins_mean,
            "insertsd=i"   => \$ins_sd,
            "threads=i"    => \$threads,
+           "consisCount=i"=> \$consisCount,
            "AB"           => \$AB,
            "QC"           => \$QC,
            "qcOFF"        => \$qcOFF,
@@ -757,7 +759,6 @@ if (exists $runlevel{$runlevels}) {
   if ($RA != 0) {  #regional assembly test###############################################
 
     my $assembly_type = "independent regional assembly";
-    if ($RA == 2){$assembly_type = "columbus assembly";}
 
     printtime();
     print STDERR "Regional assembly process is starting \($assembly_type\)... first breakpoint processing...\n\n";
@@ -813,21 +814,51 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter"){
+    unless (-e "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter"){
       my $cmd = "perl $bin/breakpoint_final_prepare.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted"){
-      my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted";
+    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
+        my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+        die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
+        my $largestBPID = `tail -1 $lanepath/04_ASSEMBLY/$sampleName.breakpoints.processed | cut -f 1`;
+        $largestBPID =~ s/\n//;
+        my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+      if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
+        my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    }
+
+    if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate" and -s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
+      my $cmd = "rm $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate -f";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter"){
+      my $cmd = "perl $bin/discordant_mate_processing.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted $anno/UCSC\_repeats\_hg19.gff $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined"){
+      my $cmd = "cat $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted"){
+      my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
     if ($RA == 1) { #independent regional assembly
-      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted\.reads"){
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads"){
         my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
-        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted\.reads";
+        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
@@ -842,19 +873,13 @@ if (exists $runlevel{$runlevels}) {
         }
         @reads = mateorder(\@reads, $runID);
 
-        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
-        RunCommand($cmd,$noexecute,$quiet);
-      }
-    } elsif ($RA == 2) {        #columbus assembler : get fasta sequences for regions
-      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.regions\.fa"){
-        my $cmd = "perl $bin/get_sequence_by_region.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter\.sorted $genome_fasta >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.regions\.fa";
+        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
         RunCommand($cmd,$noexecute,$quiet);
       }
     } else {
-      print STDERR "Error: --RA must be set to 1 or 2 if not 0 (default)...\n\n";
+      print STDERR "Error: --RA must be set to 1 or 0 (default)...\n\n";
       exit 22;
     }
-
 
     printtime();
     print STDERR "now assembling...\n\n";
@@ -943,7 +968,7 @@ if (exists $runlevel{$runlevels}) {
             close TRANSCRIPTSALL;
           }
 
-          if (-e "$lanepath/04_ASSEMBLY/transcripts.fa") {
+          if (-e "$lanepath/04_ASSEMBLY/$bp_id/") {
             my $cmd = "rm $lanepath/04_ASSEMBLY/$bp_id/ -rf";
             RunCommand($cmd,$noexecute,1) unless $idra != 0;
           }
@@ -979,30 +1004,8 @@ if (exists $runlevel{$runlevels}) {
           }
         } #if gz file exists
 
-      }                         #RA == 1
-
-      elsif ($RA == 2) { #columbus assmbly
-        my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
-        die "Error: the name-sorted mapping bam file is not available." unless (-e $mapping_bam);
-        my $regions_fa = "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.regions\.fa";
-        die "Error: the region fasta file for columbus assembleris not available." unless (-e $regions_fa);
-
-        unless (-s "$lanepath/04_ASSEMBLY/Roadmaps") {
-          my $cmd = "velveth $lanepath/04_ASSEMBLY/ 21 -reference $regions_fa -shortPaired -bam $mapping_bam";
-          RunCommand($cmd,$noexecute,$quiet);
-        }
-
-        unless (-s "$lanepath/04_ASSEMBLY/Graph2") {
-          my $cmd = "velvetg $lanepath/04_ASSEMBLY/ -read_trkg yes";
-          RunCommand($cmd,$noexecute,$quiet);
-        }
-
-        unless (-s "$lanepath/04_ASSEMBLY/transcripts.fa"){
-          my $cmd = "oases $lanepath/04_ASSEMBLY/";
-          RunCommand($cmd,$noexecute,$quiet);
-        }
       } else {
-        print STDERR "Error: --RA must be set to 1 or 2 if not 0 (default)...\n\n";
+        print STDERR "Error: --RA must be set to 1 if not 0 (default)...\n\n";
         exit 22;
       }
     }  #if transcripts.fa not exist
@@ -1583,7 +1586,8 @@ sub helpm {
 
   print STDERR "\nrunlevel 3: selecting anormalous/breakpoint-surrouding reads and preforming the assembly\n";
   print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads reported by TopHat, for run-level 3\n";
-  print STDERR "\t--RA\t\tuse regional assembly for runlevel 3. Set to 1: independent regional assembly (recommended); 2: Columbus assembly.\n\t\t\tDefault is 1. When using gsnap as mapper in runlevel 2, must set to 1 or 2.\n";
+  print STDERR "\t--RA\t\tuse regional assembly for runlevel 3. Default is 1. When using tophat as mapper in runlevel 2, set to 0.\n";
+  print STDERR "\t--consisCount\tnumber of consistent read pairs with discordant mapping (default: 5). use smaller value For <70bp reads or low depth data.\n";
 
   print STDERR "\nrunlevel 4: detection of fusion candidates\n";
   print STDERR "\t--BT\t\tset if use BLAST in run-level 4 (default: use BLAT).\n";

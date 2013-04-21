@@ -17,7 +17,7 @@ while ( <REPEAT> ) {
     my $repeat_s = $tmp[3];
     my $repeat_e = $tmp[4];
     $repeatmask{$chr}{$repeat_s} = $repeat_e;
-  }
+}
 close REPEAT;
 
 open IN, "$breakpoints";

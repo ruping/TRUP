@@ -157,13 +157,18 @@ int main ( int argc, char *argv[] ) {
       blockStarts.push_back(0);
       ParseCigar(bam.CigarData, blockStarts, blockLengths, cigarEnd, keep);
 
-      //if (bam.Name == "Run0009Lane4Tile83x12044y19781Multi0"){
-      //  if (keep == false) 
-      //    cerr << "yes" << endl;
-      // else {
-      //   cerr << "shit" << endl;
-      // }
-      //}
+      string mateChr = "SRP";
+      unsigned int matePos = 0;
+      if ( bam.IsMateMapped() == true) {
+        mateChr = refs.at(bam.MateRefID).RefName;
+        matePos = bam.MatePosition;
+        int mateDistance = matePos-alignmentStart;
+        if (mateChr != chrom || abs(mateDistance) > 230000){
+          if (keep == false){
+            keep = true;
+          }
+        }
+      }
 
       if (keep == false) continue;   // skip normal reads
 
@@ -308,7 +313,11 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
        continue;
      case 4:  // coor
        tmp.coor = atoi((*iter).c_str());
-       tmp.start = tmp.coor - 200;
+       if (tmp.coor > 200){
+         tmp.start = tmp.coor - 200;
+       } else {
+         tmp.start = 1;
+       }
        tmp.end   = tmp.coor + 200;
        continue;
      case 5:  // support
@@ -378,7 +387,7 @@ inline void output_processing (struct region &region) {
 
   string current_bp = int2str(region.id)+"\t"+region.chr+"\t"+int2str(region.coor)+"\t"+int2str(region.support_no)+"\t"+int2str(region.pw)+"\t"+region.type;
 
-  if ( region.type == "s" ){
+  if ( region.type == "s" || region.type == "D") {
     cout << current_bp << endl;
     set <string>::iterator tagit = (region.tags).begin();
     for (; tagit != (region.tags).end(); tagit++){

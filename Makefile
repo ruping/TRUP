@@ -10,10 +10,12 @@ SOURCE_STA=Rseq_bam_stats.cpp
 SOURCE_EXP=Rseq_bam_reads2expr.cpp
 SOURCE_RIR=reads_in_region.cpp
 SOURCE_DC=discordant_consistency.cpp
+SOURCE_DM=discordant_mate.cpp
 STA=Rseq_bam_stats
 EXP=Rseq_bam_reads2expr
 RIR=reads_in_region
 DC=discordant_consistency
+DM=discordant_mate
 
 all: Rseq_bam_stats Rseq_bam_reads2expr reads_in_region discordant perl_scripts R_scripts other_tools
 
@@ -35,6 +37,8 @@ reads_in_region:
 discordant:
 	@echo "* compiling" $(SOURCE_DC)
 	@$(CXX) $(SRC)/$(SOURCE_DC) -o $(PREFIX)/$(BIN)/$(DC) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
+	@echo "* compiling" $(SOURCE_DM)
+	@$(CXX) $(SRC)/$(SOURCE_DM) -o $(PREFIX)/$(BIN)/$(DM) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
 
 perl_scripts:
 	@echo "* copying perl scripts"

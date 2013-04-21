@@ -144,7 +144,9 @@ int main ( int argc, char *argv[] ) {
       //cout << bam.Name << endl;
       string chrom = refs.at(bam.RefID).RefName;
       string strand = "+";
+      string strandMate = "+";
       if (bam.IsReverseStrand()) strand = "-";
+      if (bam.IsMateReverseStrand()) strandMate = "-";
 
       unsigned int alignmentStart =  bam.Position+1;
       unsigned int alignmentEnd = bam.GetEndPosition();
@@ -177,8 +179,10 @@ int main ( int argc, char *argv[] ) {
       
       deque <struct region>::iterator iter = regions.begin();
 
-      if ( iter->start > alignmentEnd ) continue;  // skip reads not overlapping with the first region
-  
+      if ( iter->start > alignmentEnd ){  // reads not overlapping with the first region: do discordant calculation
+         continue;
+      }
+
       while ( iter->chr == old_chr && iter->start <= alignmentEnd && iter != regions.end() ) {
 
         if (iter->end < alignmentStart) {            // the region end is beyond the alignmentStart
@@ -231,7 +235,7 @@ int main ( int argc, char *argv[] ) {
       } //while
 
     }  // read a bam
- 
+
     //somehow to loop back
     it = regions.begin();                   //reset to begin
     for (; it != regions.end() && it->chr == old_chr; ) {
@@ -255,7 +259,7 @@ int main ( int argc, char *argv[] ) {
     }
 
   } // region chr != old chr
-      
+
   regions.clear();
   reader.Close();
   region_f.close();
