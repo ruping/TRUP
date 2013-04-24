@@ -14,11 +14,12 @@ my $read_length;
 my $accepthits;
 my $encomcov;
 my $gene_annotation;
+my $selfChain;
 my $ensemble_ref_name;
 my $locnamefile;
 my $ucsc_refgene;
-my $repeatmasker;
-my $genomeBlatPred = "SRP";
+my $repeatmasker;my $genomeBlatPred = "SRP";
+
 
 GetOptions (
               "type|t=s"              => \$type,
@@ -27,6 +28,7 @@ GetOptions (
 	      "accepthits|ah=s"       => \$accepthits,
 	      "encomcov=s"            => \$encomcov,
 	      "geneanno|ga=s"         => \$gene_annotation,
+              "selfChain=s"           => \$selfChain,
               "ensrefname|ern=s"      => \$ensemble_ref_name,
               "locname|loc=s"         => \$locnamefile,
               "refgene|ref=s"         => \$ucsc_refgene,
@@ -37,6 +39,7 @@ GetOptions (
                              print "\t--mappingfile\tthe mappingfile of the reads onto the assembled fusion candidates\n";
 			     print "\t--readlength\tthe length of the read\n";
 			     print "\t--geneanno\tthe ensemble gene anotation file\n";
+                             print "\t--selfChain\tthe self Chain annotation downloaded from UCSC Table.\n";
                              print "\t--ensrefname\tthe ensemble, refseq, gene name list table\n";
                              print "\t--locname\tloc_gene_name2location file\n";
                              print "\t--refgene\tdownloaded from ucsc the refgene annotation file\n";
@@ -62,6 +65,27 @@ while ( <REPEAT> ){
     $repeatmask{$chr}{$repeat_s} = $repeat_e;
 }
 close REPEAT;
+
+#Ucsc Self Chain
+my %selfChain;
+my @rs_selfChain;
+my $old_chr_selfChain;
+my $ptr_selfChain;
+open SELFCHAIN, "$selfChain";
+while ( <SELFCHAIN> ){
+    next if /^#/;
+    chomp;
+    my ($bin, $score, $tName, $tSize, $tStart, $tEnd, $qName, $qSize, $qStrand, $qStart, $qEnd, $id, $normScore) = split /\t/;
+
+    next if ($normScore < 10);
+
+    next if ($selfChain{$tName}{$tStart} ne '' and $selfChain{$tName}{$tStart} >= $tEnd);
+    $selfChain{$tName}{$tStart} = $tEnd;
+
+    next if ($selfChain{$qName}{$qStart} ne '' and $selfChain{$qName}{$qStart} >= $qEnd);
+    $selfChain{$qName}{$qStart} = $qEnd;
+}
+close SELFCHAIN;
 
 
 my %name2ens;
@@ -435,23 +459,70 @@ while ( <IN> ){
 close IN;
 
 
-#do the repeatmasker for the breakpoint
+#do the repeatmasker & selfChain mask for the breakpoint
 my %bprepeat;
+my %bpselfChain;
 foreach my $chr (sort keys %for_rm) {
     foreach my $pos (sort {$a<=>$b} keys %{$for_rm{$chr}}){
 	my $rmflag = &repeatmask($chr, $pos);
+        my $scflag = &selfChainMask($chr, $pos);
+
         if ($rmflag == 1){
 	    foreach my $transcript_name (keys %{$for_rm{$chr}{$pos}}){
-                $bprepeat{$transcript_name} .= 'R';
+	       if (exists $bprepeat{$transcript_name}){
+		   if ($for_rm{$chr}{$pos}{$transcript_name} =~ /1$/){
+                       $bprepeat{$transcript_name} = 'R'.$bprepeat{$transcript_name};
+		   } else {
+                       $bprepeat{$transcript_name} = $bprepeat{$transcript_name}.'R';
+		   }
+	       } else {
+		   $bprepeat{$transcript_name} = 'R';
+	       } 
             }
-        }
+        } #repeat
         if ($rmflag == 0){
             foreach my $transcript_name (keys %{$for_rm{$chr}{$pos}}){
-                $bprepeat{$transcript_name} .= 'N';
+               if (exists $bprepeat{$transcript_name}){
+		   if ($for_rm{$chr}{$pos}{$transcript_name} =~ /1$/){
+                       $bprepeat{$transcript_name} = 'N'.$bprepeat{$transcript_name};
+		   } else {
+                       $bprepeat{$transcript_name} = $bprepeat{$transcript_name}.'N';
+		   }
+	       } else {
+		   $bprepeat{$transcript_name} = 'N';
+	       } 
             }
-        }
-    }
-} #repeat mask
+        } #not repeat
+
+        if ($scflag == 1){
+	    foreach my $transcript_name (keys %{$for_rm{$chr}{$pos}}){
+	       if (exists $bpselfChain{$transcript_name}){
+		   if ($for_rm{$chr}{$pos}{$transcript_name} =~ /1$/){
+                       $bpselfChain{$transcript_name} = 'C'.$bpselfChain{$transcript_name};
+		   } else {
+                       $bpselfChain{$transcript_name} = $bpselfChain{$transcript_name}.'C';
+		   }
+	       } else {
+		   $bpselfChain{$transcript_name} = 'C';
+	       } 
+            }
+        } #selfChain
+        if ($scflag == 0){
+            foreach my $transcript_name (keys %{$for_rm{$chr}{$pos}}){
+               if (exists $bpselfChain{$transcript_name}){
+		   if ($for_rm{$chr}{$pos}{$transcript_name} =~ /1$/){
+                       $bpselfChain{$transcript_name} = 'N'.$bpselfChain{$transcript_name};
+		   } else {
+                       $bpselfChain{$transcript_name} = $bpselfChain{$transcript_name}.'N';
+		   }
+	       } else {
+		   $bpselfChain{$transcript_name} = 'N';
+	       } 
+            }
+        } #not selfChain
+
+    } # for each pos
+} #repeat mask & selfChain mask
 
 
 #find the gene name, orientation and strands if genome Blat
@@ -677,9 +748,9 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
    my $ori   = $coverage{$transcript_name}{'info'}->{'ori'};
    my $ron   = $coverage{$transcript_name}{'info'}->{'ron'};
    my $cScore = $coverage{$transcript_name}{'info'}->{'cScore'};
-   my $bpr;
-   $bpr = 'R' if ($bprepeat{$transcript_name} =~ /R/);
-   $bpr = 'N' if ($bprepeat{$transcript_name} !~ /R/);
+   my $bpr = $bprepeat{$transcript_name};
+   my $bpsc = $bpselfChain{$transcript_name};
+   next if $bpr eq 'RR';
 
    foreach my $read_root (keys %{$coverage{$transcript_name}}) {
 
@@ -791,7 +862,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
 
    next if ($all <= 1);
 
-   my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all, $spanAll, $spanScore);
+   my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $bpsc, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all, $spanAll, $spanScore);
    print "#$newtitle\n";
    print ENCOMCOV "#$newtitle\n";
    foreach my $razers (@{$coverage{$transcript_name}{reads}}){
@@ -821,6 +892,23 @@ sub repeatmask {
 	$flag = 1;
     }
     $old_chr = $chr;
+    return $flag;
+}
+
+sub selfChainMask {
+    my ($chr, $coor) = @_;
+    my $flag = 0;
+    if ($chr ne $old_chr_selfChain){
+	@rs_selfChain = sort {$a <=> $b} keys %{$selfChain{$chr}};
+	$ptr_selfChain = 0;
+    }
+    while (($ptr_selfChain <= $#rs_selfChain) and ($selfChain{$chr}{$rs_selfChain[$ptr_selfChain]} < $coor)){
+	$ptr_selfChain++;
+    }
+    if ($rs_selfChain[$ptr_selfChain] <= $coor){
+	$flag = 1;
+    }
+    $old_chr_selfChain = $chr;
     return $flag;
 }
 

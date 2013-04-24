@@ -57,11 +57,11 @@ while ( <IN> ){
   chomp;
   if ($_ =~ /^#/) {
      $transcript = $_;
-     my ($candidate, $idx, $cScore, $fusion_genes, $breakpoint, $rep, $type, $cov1, $cov2, $cov3, $spanAll, $spanScore);
+     my ($candidate, $idx, $cScore, $fusion_genes, $breakpoint, $rep, $sc, $type, $cov1, $cov2, $cov3, $spanAll, $spanScore);
      if ($genomeBlatPred) {
-       ($candidate, $idx, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3, $spanAll, $spanScore) = split (/\t/, $transcript);
+       ($candidate, $idx, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $sc, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3, $spanAll, $spanScore) = split (/\t/, $transcript);
      } else {
-       ($candidate, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3, $spanAll, $spanScore) = split (/\t/, $transcript);
+       ($candidate, $cScore, $length, $fusion_genes, $ori, $breakpoint, $rep, $sc, $type, $ron, $blat1, $blat2, $cov1, $cov2, $cov3, $spanAll, $spanScore) = split (/\t/, $transcript);
      }
      $candidate =~ s/^#//;
      $breakpoint =~ /^(\d+)\.\.(\d+)$/;
