@@ -103,8 +103,10 @@ helpm() if ($help);
 
 ### Annotation paths------------------------------------------------------
 my $bowtie_index = "$anno/bowtie_index/hg19/hg19";
+my $bowtie2_index = "$anno/bowtie2_index/hg19/hg19";
 my $genome_fasta = "$bowtie_index\.fa";
 my $tophat_trans_index = "$anno/bowtie_index/hg19_trans/hg19_known_ensemble_trans";
+my $tophat2_trans_index = "$anno/bowtie2_index/hg19_trans/hg19_known_ensemble_trans";
 my $gene_annotation = "$anno/hg19\.ensembl\-for\-tophat\.gff";
 my $gene_annotation_gtf = "$anno/hg19\.ensembl\-for\-tophat\.gtf";
 my $ensemble_gene = "$anno/UCSC\_Ensembl\_Genes\_hg19";
@@ -354,15 +356,14 @@ if (exists $runlevel{$runlevels}) {
 
   #do the pair-end mapping of spiked_in reads
   unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.hits") {
-    my $misBowtie = 3;
-    my $cmd= "bowtie -v $misBowtie -p $threads $tophat_trans_index -1 $spiked_in[0] -2 $spiked_in[1] $lanepath/00_TEST/$sampleName\.spikedin\.hits";
+    my $cmd= "bowtie2 -p $threads --no-unal --no-hd --score-min L,-2,-0.15 -x $tophat2_trans_index -1 $spiked_in[0] -2 $spiked_in[1] >$lanepath/00_TEST/$sampleName\.spikedin\.hits";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
   unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength") {
     my $real_len = $trimedlen;
     $real_len = $trimedlen/2 if ($AB);
-    my $cmd = "perl $bin/spike_in.pl $lanepath/00_TEST/$sampleName\.spikedin\.hits $real_len >$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength";
+    my $cmd = "perl $bin/spike_in.pl $lanepath/00_TEST/$sampleName\.spikedin\.hits >$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1238,21 +1239,25 @@ if (exists $runlevel{$runlevels}) {
     } #genome blat
   } #BLAT
 
-  #build fusion candidate index
-  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index\.1\.ebwt"){
-    my $cmd = "bowtie-build --quiet $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index";
+  #build fusion candidate index (now bowtie2)
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index\.1\.bt2"){
+    my $cmd = "bowtie2-build --quiet $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
   #map reads to the fusion candidate index
-  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.gz"){
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam"){
 
-    if ( -s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie" ){ #bowtie is done
+    if ( -s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam" ){ #bowtie2 is done
 
-      my $cmd = "gzip $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";
+      my $cmd = "samtools view -Sb $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam -o $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2.bam";
       RunCommand($cmd,$noexecute,$quiet);
+      if (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2.bam"){
+         my $cmd = "rm $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam -f";
+         RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    } else {
+    } else {  #bowtie2 is not done
 
       my @reads;
       if ($trimedlen != $readlen) {
@@ -1262,17 +1267,18 @@ if (exists $runlevel{$runlevels}) {
       }
       @reads = mateorder(\@reads, $runID);
 
-      my $misallow = &round($trimedlen*0.02);
-      $misallow = 3 if ($misallow > 3);
-
-      my $cmd = "gzip -d -c $reads[0] $reads[1] | bowtie -v $misallow -k 22 -m 22 -p $threads $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index \- $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";
+      my $cmd = "bowtie2 -k 22 -p $threads --no-unal --score-min L,-2,-0.15 -x $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index -1 $reads[0] -2 $reads[1] >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam";
       RunCommand($cmd,$noexecute,$quiet);
 
-      $cmd = "gzip $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie";
+      $cmd = "samtools view -Sb $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam -o $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2.bam";
       RunCommand($cmd,$noexecute,$quiet);
 
-    }
-  }
+      if (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2.bam"){
+         my $cmd = "rm $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam -f";
+         RunCommand($cmd,$noexecute,$quiet);
+      }
+    } #bowtie2 is not done
+  } #bowtie2 bam is generated
 
   #get fusion coverage
   unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov") {
@@ -1282,7 +1288,7 @@ if (exists $runlevel{$runlevels}) {
     } else {
       $gfc_opts = "--genomeBlatPred $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration";
     }
-    my $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.gz --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --selfChain $anno/SelfChain\_UCSC\_hg19 --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+    my $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --selfChain $anno/SelfChain\_UCSC\_hg19 --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     RunCommand($cmd,$noexecute,$quiet);
   }
 

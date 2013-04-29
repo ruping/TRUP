@@ -1,32 +1,26 @@
 #!/usr/bin/perl
 
-my ($bowtie, $readlen) = @ARGV;
+my $bowtie2 = shift;
 
-open IN, "$bowtie";
+open IN, "$bowtie2";
 my $last_frag;
 my $last_start;
 my %fragl;
-while ( <IN> ){
+while ( <IN> ) {
+
+   next if /^\@/;
    chomp;
-   my @cols = split /\t/;
-   my $read = $cols[0];
-   my $strand = $cols[1];
-   my $chr = $cols[2];
-   my $start = $cols[3];
-   my $frag;
-   if ( $read !~ /\s+/ ){
-     $read =~ /^(.+?)\//;
-     $frag = $1;
-   }
-   else {
-     $read =~ /^(.+?)\s+/;
-     $frag = $1;
-   }
-   if ($frag eq $last_frag){
-     $fragl{$frag} = $start - $last_start + $readlen;
-   }
-   $last_frag = $frag;
-   $last_start = $start;
+
+   my ($frag, $flag, $candidate, $start, $mapQ, $cigar, $mateR, $matePos, $insert, $read_seq, $read_qual, @tags) = split /\t/;
+   next unless $insert > 0;
+   next if $insert > 1000;
+   #my $strand = '+';
+   #my $read_end;
+   #if ($flag & 16) {$strand = '-';} #the read strand -
+   #if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
+   #elsif ($flag & 128) {$read_end = '2';} #the read is the second in the pair
+
+   $fragl{$frag} = $insert;
 }
 close IN;
 

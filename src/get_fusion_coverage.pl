@@ -18,8 +18,9 @@ my $selfChain;
 my $ensemble_ref_name;
 my $locnamefile;
 my $ucsc_refgene;
-my $repeatmasker;my $genomeBlatPred = "SRP";
-
+my $repeatmasker;
+my $genomeBlatPred = "SRP";
+my $anchorLen = 12;
 
 GetOptions (
               "type|t=s"              => \$type,
@@ -210,17 +211,32 @@ if ($genomeBlatPred ne 'SRP') {
 }
 
 
-open IN, "gzip -dc $mapping |";
+open IN, "samtools view $mapping |";
 my %for_rm;
 my %coverage;
 my %for_encompass;
 while ( <IN> ){
 
+   next if /^\@/;
    chomp;
-   my @cols = split /\t/;
+   #my @cols = split /\t/;
 
-   if ($type =~ /pair/){ #bowtie
-      my ($read, $strand, $candidate, $start, $read_seq, $read_qual, $multi, $mismatch) = @cols;
+   if ($type =~ /pair/) { #bowtie
+      #my ($read, $strand, $candidate, $start, $read_seq, $read_qual, $multi, $mismatch) = @cols;
+
+      my ($read, $flag, $candidate, $start, $mapQ, $cigar, $mateR, $matePos, $insert, $read_seq, $read_qual, @tags) = split /\t/;
+
+      #1 QNAME String [!-?A-~]{1,255} Query template NAME
+      #2 FLAG Int [0,216-1] bitwise FLAG
+      #3 RNAME String \*|[!-()+-<>-~][!-~]* Reference sequence NAME
+      #4 POS Int [0,229-1] 1-based leftmost mapping POSition
+      #5 MAPQ Int [0,28-1] MAPping Quality
+      #6 CIGAR String \*|([0-9]+[MIDNSHPX=])+ CIGAR string
+      #7 RNEXT String \*|=|[!-()+-<>-~][!-~]* Ref. name of the mate/next segment
+      #8 PNEXT Int [0,229-1] Position of the mate/next segment
+      #9 TLEN Int [-229+1,229-1] observed Template LENgth
+      #10 SEQ String \*|[A-Za-z=.]+ segment SEQuence
+      #11 QUAL String [!-~]+ ASCII of Phred-scaled base QUALity+33
 
       my @transcript;
       my $transcript;
@@ -442,18 +458,25 @@ while ( <IN> ){
 
       #store read mapping information
 
-      $read =~ /(.+?)[\/\s]([12])/;
-      my $read_root = $1;
-      my $read_end = $2;
+      #$read =~ /(.+?)[\/\s]([12])/;
+      my $read_root = $read;
+      my $read_end;;
 
-      $start += 1;
+      if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
+      elsif ($flag & 128){$read_end = '2';} #the read is the second in the pair
+      else {
+         print STDERR "error: there is a read alignment ( $read ) seems not to be any mate end!!!!!!\n";
+         exit 22;
+      }
+
+      #$start += 1;
 
       foreach my $transcript_bp (@transcript) {
         my $transcript_name = $transcript_bp->{'name'};
         $coverage{$transcript_name}{$read_root}{$read_end}{$start} = $_;
       }
 
-   }
+   } #pair type
 }
 
 close IN;
@@ -762,7 +785,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
          my $start = $starts[0];
          my $end = $start+$read_length-1;
          if ($start < $bps and $end > $bpe) { #spanning
-            next if ( ($bps-$start) < 8 or ($end-$bpe) < 8 );    #requiring minimal anchoring length
+            next if ( ($bps-$start) < $anchorLen or ($end-$bpe) < $anchorLen );    #requiring minimal anchoring length
             $coverage{$transcript_name}{'spanning'}{$start}++;
             push (@{$coverage{$transcript_name}{'reads'}},  $coverage{$transcript_name}{$read_root}{$pair[0]}{$start});
          }
@@ -788,7 +811,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
          my $flag = 0;
 
          if ($start1 < $bps and $end1 > $bpe) { # 5'end spanning
-           if ( ($bps-$start1) >= 8 and ($end1-$bpe) >= 8 ) {   #minimal anchoring length
+           if ( ($bps-$start1) >= $anchorLen and ($end1-$bpe) >= $anchorLen ) {   #minimal anchoring length
              $coverage{$transcript_name}{'spanning'}{$start1}++;
              $flag = 1;
            }
@@ -798,7 +821,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
          }
 
          if ($flag == 0 and ($start2 < $bps and $end2 > $bpe)) { # 3'end spanning
-           if ( ($bps-$start2) >= 8 and ($end2-$bpe) >= 8 ) { #minimal anchoring length
+           if ( ($bps-$start2) >= $anchorLen and ($end2-$bpe) >= $anchorLen ) { #minimal anchoring length
              $coverage{$transcript_name}{'spanning'}{$start2}++;
              $flag = 3;
            }
@@ -808,7 +831,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
          }
 
          elsif ($flag == 1 and ($start2 < $bps and $end2 > $bpe)) { # 5' end and 3' end both spanning
-            if ( ($bps-$start2) >= 8 and ($end2-$bpe) >= 8 ) { #minimal anchoring length
+            if ( ($bps-$start2) >= $anchorLen and ($end2-$bpe) >= $anchorLen ) { #minimal anchoring length
               $flag = 5;
             }
          }
@@ -818,7 +841,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
          }
 
          elsif ($flag == 2 and ($start2 < $bps and $end2 > $bpe)) { # 5' end overlapping and 3' end spanning
-            if ( ($bps-$start2) >= 8 and ($end2-$bpe) >= 8 ) { #minimal anchoring length
+            if ( ($bps-$start2) >= $anchorLen and ($end2-$bpe) >= $anchorLen ) { #minimal anchoring length
               $coverage{$transcript_name}{'spanning'}{$start2}++;
               $flag = 7;
             }
@@ -830,7 +853,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
 
 
          if ($flag =~ /[0248]/ and ($frag_s < $bps and $frag_e > $bpe)){
-            if ( ($bps-$frag_s) >= 8 and ($frag_e-$bpe) >= 8 ) { #minimal anchoring length
+            if ( ($bps-$frag_s) >= $anchorLen and ($frag_e-$bpe) >= $anchorLen ) { #minimal anchoring length
               $coverage{$transcript_name}{'encompass'}{$frag_s}++;
               $flag = 9;
             }
@@ -865,7 +888,7 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
    my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $bpsc, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all, $spanAll, $spanScore);
    print "#$newtitle\n";
    print ENCOMCOV "#$newtitle\n";
-   foreach my $razers (@{$coverage{$transcript_name}{reads}}){
+   foreach my $razers (@{$coverage{$transcript_name}{'reads'}}){
       print "$razers\n";
    }
    foreach my $hits (@{$for_encompass{$transcript_name}{'hits'}}){
