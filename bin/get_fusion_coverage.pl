@@ -150,6 +150,8 @@ open GA, "$gene_annotation";
 my %gene;
 my %gene_annotation;
 my %mRNA_region;  #remember the mRNA region in this gene
+my %gene2exon;
+my %transcript2gene;
 my @rs2;          #start array for each chr
 my $old_chr2;     #checking the chr
 my $ptr2;         #pointer for repeatmask sub
@@ -157,38 +159,90 @@ while ( <GA> ){
    next if /^#/;
    chomp;
    my ($chr,$source,$type,$start,$end,$score,$strand,$phase,$tag) = split /\t/;
+
    if ($type eq 'gene'){
-       $tag =~ /^ID=(.+?);Name=(.+?);/;
-       my $ensemble = $1;
-       my $gene = $2;
-       my $genelength= $end-$start+1;
-       $gene{$ensemble}{'chr'}    = $chr;
-       $gene{$ensemble}{'start'}  = $start;
-       $gene{$ensemble}{'end'}    = $end;
-       $gene{$ensemble}{'strand'} = $strand;
-       $gene{$gene}{'chr'}        = $chr;
-       $gene{$gene}{'start'}      = $start;
-       $gene{$gene}{'end'}        = $end;
-       $gene{$gene}{'strand'}     = $strand;
-       $gene_annotation{$chr}{$start}{$end} = join(',', $ensemble.'('.$gene.')', $strand, $genelength);
-   }
-   elsif ($type eq 'mRNA'){ #remember the mRNA-part for genes
-       $tag =~ /Parent\=(.+?)\;/;
-       my $parentGene = $1;
-       my @mRNA = ($start, $end);
-       if (!exists($mRNA_region{$parentGene})) {
-         $mRNA_region{$parentGene} = \@mRNA;
-       } else {
-         if ($start <= $mRNA_region{$parentGene}->[0]) {
-            $mRNA_region{$parentGene}->[0] = $start;
-         }
-         if ($end >= $mRNA_region{$parentGene}->[1]) {
-            $mRNA_region{$parentGene}->[1] = $end;
-         }
-       } #parentGene already exists
+
+     $tag =~ /^ID=(.+?);Name=(.+?);/;
+     my $ensemble = $1;
+     my $gene = $2;
+     my $genelength= $end-$start+1;
+     $gene{$ensemble}{'chr'}    = $chr;
+     $gene{$ensemble}{'start'}  = $start;
+     $gene{$ensemble}{'end'}    = $end;
+     $gene{$ensemble}{'strand'} = $strand;
+     $gene{$gene}{'chr'}        = $chr;
+     $gene{$gene}{'start'}      = $start;
+     $gene{$gene}{'end'}        = $end;
+     $gene{$gene}{'strand'}     = $strand;
+     $gene_annotation{$chr}{$start}{$end} = join(',', $ensemble.'('.$gene.')', $strand, $genelength);
+
+   } elsif ($type eq 'mRNA') {  #remember the mRNA-part for genes
+
+     $tag =~ /ID\=(.+?)\;/;
+     my $transcriptID = $1;
+     $tag =~ /Parent\=(.+?)\;/;
+     my $parentGene = $1;
+     $transcript2gene{$transcriptID} = $parentGene;
+
+     my @mRNA = ($start, $end);
+     if (!exists($mRNA_region{$parentGene})) {
+       $mRNA_region{$parentGene} = \@mRNA;
+     } else {
+       if ($start <= $mRNA_region{$parentGene}->[0]) {
+         $mRNA_region{$parentGene}->[0] = $start;
+       }
+       if ($end >= $mRNA_region{$parentGene}->[1]) {
+         $mRNA_region{$parentGene}->[1] = $end;
+       }
+     }                          #parentGene already exists
+
+   } elsif ($type eq 'transcript') {
+
+     $tag =~ /ID\=(.+?)\;/;
+     my $transcriptID = $1;
+     $tag =~ /Parent\=(.+?)\;/;
+     my $parentGene = $1;
+     $transcript2gene{$transcriptID} = $parentGene;
+
+   } elsif ($type eq 'exon') {  #remember exons for gene
+
+     $tag =~ /Parent\=(.+?)\;/;
+     my $parentTranscriptID = $1;
+     my $parentGene = $transcript2gene{$parentTranscriptID};
+     $gene2exon{$parentGene}{$start}{$end} = $parentTranscriptID;
+
    }
 }
 close GA;
+
+#merge exons for gene;
+my %gene2exonMerged;
+foreach my $ensGene (keys %gene2exon) {
+
+  my $last_start = 0;
+  my $last_end = 0;
+
+  foreach my $current_start (sort {$a <=> $b} keys %{$gene2exon{$ensGene}} ) {
+    my @current_ends = sort {$b <=> $a} keys %{$gene2exon{$ensGene}{$current_start}};  #may be multiple ends, pick the largest one
+    my $current_end = $current_ends[0];
+
+    if ( $current_start <= $last_end ) { #overlapping
+       if ($current_end > $last_end) {
+          $gene2exonMerged{$ensGene}{$last_start} = $current_end;
+       } else { #included in the old one
+          next;
+       }
+    } else { #new_starts
+      $gene2exonMerged{$ensGene}{$current_start} = $current_end;
+      $last_start = $current_start;
+    }
+
+    $last_end = $current_end;
+  }
+
+}
+%transcript2gene = (); #clear memory
+%gene2exon = ();  #clear memory
 
 
 my %genomeBlatPred;
@@ -222,7 +276,6 @@ while ( <IN> ){
    #my @cols = split /\t/;
 
    if ($type =~ /pair/) { #bowtie
-      #my ($read, $strand, $candidate, $start, $read_seq, $read_qual, $multi, $mismatch) = @cols;
 
       my ($read, $flag, $candidate, $start, $mapQ, $cigar, $mateR, $matePos, $insert, $read_seq, $read_qual, @tags) = split /\t/;
 
@@ -460,7 +513,7 @@ while ( <IN> ){
 
       #$read =~ /(.+?)[\/\s]([12])/;
       my $read_root = $read;
-      my $read_end;;
+      my $read_end;
 
       if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
       elsif ($flag & 128){$read_end = '2';} #the read is the second in the pair
@@ -500,7 +553,7 @@ foreach my $chr (sort keys %for_rm) {
 		   }
 	       } else {
 		   $bprepeat{$transcript_name} = 'R';
-	       } 
+	       }
             }
         } #repeat
         if ($rmflag == 0){
@@ -513,7 +566,7 @@ foreach my $chr (sort keys %for_rm) {
 		   }
 	       } else {
 		   $bprepeat{$transcript_name} = 'N';
-	       } 
+	       }
             }
         } #not repeat
 
@@ -540,7 +593,7 @@ foreach my $chr (sort keys %for_rm) {
 		   }
 	       } else {
 		   $bpselfChain{$transcript_name} = 'N';
-	       } 
+	       }
             }
         } #not selfChain
 
@@ -661,7 +714,6 @@ if ($genomeBlatPred ne 'SRP'){
     }
 } #define missing info for genome blat
 
-#print STDERR Dumper(\%for_encompass);
 
 #generate the coverage encompassing first
 open AH, "samtools view $accepthits |";
@@ -941,7 +993,7 @@ sub breakpointInGene {
    my $geneName = 'IGR';
    my $orientation = '-';
 
-   if ($chr ne $old_chr2){
+   if ($chr ne $old_chr2) {
       @rs2 = sort {$a <=> $b} keys %{$gene_annotation{$chr}};
       $ptr2 = 0;
    }
@@ -957,13 +1009,14 @@ sub breakpointInGene {
    }
 
    my $off = 0;
-   my $geneMode = "nc"; #default is non-coding
+   my $geneMode = "nc"; #mRNA-exon > gene-exon > nc-exon > nc
    my $max_glength = 0; #max gene length
    my $max_mlength = 0; #max rna length
    while ( ($ptr2+$off) <= $#rs2 and $rs2[$ptr2+$off] <= $coor ) { #same gene start
+
       my @geneEnds = sort {$a <=> $b} keys(%{$gene_annotation{$chr}{$rs2[$ptr2+$off]}});
 
-      foreach my $geneEnd (@geneEnds){
+      foreach my $geneEnd (@geneEnds) {
          my ($gname, $gstrand, $glength) = split /\,/, $gene_annotation{$chr}{$rs2[$ptr2+$off]}{$geneEnd};
 
          $gname =~ /^(.+?)\(.+?\)$/;
@@ -977,61 +1030,122 @@ sub breakpointInGene {
            $mRNA_size = $mRNA_end - $mRNA_start;
          }
 
-         #if ($chr eq 'chr14' and $coor == 35592466){
-         #    print STDERR "$ensembl\t$mRNA_start\t$mRNA_end\n";
-         #}
 
-        if ( $geneEnd >= $coor ) {   #seems overlapping
+         if ( $geneEnd >= $coor ) {   #seems overlapping
+
+           my $exonInclFlag = &exonIncl(\%{$gene2exonMerged{$ensembl}}, $coor);
 
            if ($mRNA_start != -1) { # mRNA in this gene
 
-             if ($mRNA_start <= $coor and $coor <= $mRNA_end) { #overlapping mRNA BEST
+             if ($mRNA_start <= $coor and $coor <= $mRNA_end) { #overlapping mRNA
 
-               if ($mRNA_size > $max_mlength) {
+               if ($exonInclFlag == 1) {            #BEST
+                 if ($mRNA_size > $max_mlength) {
+                   $geneName = $gname;
+                   if ($bstrand eq $gstrand) {
+                     $orientation = '->';
+                   } else {
+                     $orientation = '<-';
+                   }
+                   $max_mlength = $mRNA_size;
+                 }
+                 $max_glength = $glength if ($glength > $max_glength);
+                 $geneMode = 'mRNA-exon';
+
+               } else { #overlapping with mRNA but not with exon!?
+                 if ($geneMode eq 'nc' and $glength > $max_glength) {   #treat as BAD:NC
+                   $geneName = $gname;
+                   if ($bstrand eq $gstrand) {
+                     $orientation = '->';
+                   } else {
+                     $orientation = '<-';
+                   }
+                   $max_glength = $glength;
+                 }
+               }
+
+             } else {           #not overlapping mRNA
+                if ($exonInclFlag == 1) {
+                  if ($geneMode eq 'nc' or $geneMode eq 'nc-exon' or ($geneMode eq 'gene-exon' and $glength > $max_glength)) {
+                    $geneName = $gname;
+                    if ($bstrand eq $gstrand) {
+                      $orientation = '->';
+                    } else {
+                      $orientation = '<-';
+                    }
+                    $max_glength = $glength;
+                    $geneMode = 'gene-exon';
+                  }
+                } else {
+                  if ($geneMode eq 'nc' and $glength > $max_glength) {
+                    $geneName = $gname;
+                    if ($bstrand eq $gstrand) {
+                      $orientation = '->';
+                    } else {
+                      $orientation = '<-';
+                    }
+                    $max_glength = $glength;
+                  }
+                }
+             }
+
+           } else { #non coding
+
+             if ($exonInclFlag == 1) {   #non coding exon
+
+               if ($geneMode eq 'nc' or ($geneMode eq 'nc-exon' and $glength > $max_glength)) {
                  $geneName = $gname;
                  if ($bstrand eq $gstrand) {
                    $orientation = '->';
                  } else {
                    $orientation = '<-';
                  }
-                 $max_mlength = $mRNA_size;
+                 $max_glength = $glength;
+                 $geneMode = "nc-exon";
                }
-               $max_glength = $glength if ($glength > $max_glength);
 
-             } else {           #not overlapping mRNA
-                if ($max_mlength == 0 and $glength > $max_glength){
-                  $geneName = $gname;
-                  if ($bstrand eq $gstrand) {
-                    $orientation = '->';
-                  } else {
-                    $orientation = '<-';
-                  }
-                  $max_glength = $glength;
-                }
-             }
-             $geneMode = "mRNA";
-
-           } else { #non coding
-
-             if ($geneMode eq "nc" and $glength > $max_glength) { #only when non-coding
-               $geneName = $gname;
-               if ($bstrand eq $gstrand) {
-                 $orientation = '->';
-               } else {
-                 $orientation = '<-';
+             } else {       # in this nc gene but not with exon
+               if ($geneMode eq 'nc' and $glength > $max_glength) {
+                 $geneName = $gname;
+                 if ($bstrand eq $gstrand) {
+                   $orientation = '->';
+                 } else {
+                   $orientation = '<-';
+                 }
+                 $max_glength = $glength;
                }
-               $max_glength = $glength;
              }
 
            } #non-coding
 
          } #seems overlapping
       } #foreach gene end
+
       $off++;
+
    } #while bp coor is greater than the gene start
 
    push @return_info, $geneName;
    push @return_info, $orientation;
    $old_chr2 = $chr;
    return @return_info;
+}
+
+sub exonIncl {
+
+  my $eflag = 0;
+  my ($exons, $coor) = @_;
+  my @ers = sort {$a <=> $b} keys %{$exons};
+  my $eptr = 0;
+
+  while (($eptr<=$#ers) and ($exons->{$ers[$eptr]} < $coor)){
+    $eptr++;
+  }
+
+  if ($ers[$eptr] <= $coor){
+    $eflag = 1;
+  }
+
+  return $eflag;
+
 }
