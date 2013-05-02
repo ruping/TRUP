@@ -156,7 +156,7 @@ foreach my $fusion (keys %fusion){
 
      $report->{'transcripts'} .= $trans->{'name'}.',';
 
-     if ($trans->{'spanning'} > $report->{'spanning'}){
+     if ($trans->{'supporting'} > $report->{'supporting'}) {
        $report->{'spanning'} = $trans->{'spanning'};
        $report->{'encompassing'} = $trans->{'encompassing'};
        $report->{'supporting'} = $trans->{'supporting'};

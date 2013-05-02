@@ -1313,6 +1313,11 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion.report"){
+    my $cmd = "perl $bin/fusion_report.pl $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list >$lanepath/05_FUSION/$sampleName\.fusion.report";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
   printtime();
   print STDERR "####### runlevel $runlevels done #######\n\n";
 
