@@ -1,4 +1,4 @@
-.libPaths(c(.libPaths(), "/home/eviun/R/x86_64-unknown-linux-gnu-library/2.15/"))
+#.libPaths(c(.libPaths(), "/home/eviun/R/x86_64-unknown-linux-gnu-library/2.15/"))
 
 library(edgeR)
 library(limma)
@@ -20,6 +20,8 @@ setwd(path)
 path
 priordf
 spaired
+pair1
+pair2
 
 #data preparation
 targets = read.delim(file="targets",stringsAsFactors=FALSE,row.names="label")
@@ -67,7 +69,6 @@ if (spaired == 1) {
 #d$CR.common.dispersion
 #sqrt(d$CR.common.dispersion)
 
-
 #differential expression analysis
 
 if (spaired == 1) {
@@ -77,7 +78,7 @@ if (spaired == 1) {
   d.ifDE <- decideTestsDGE(d.lrt)
   d.ifDE.table <- cbind(d.lrt$table, d.ifDE)
 } else {
-  d.et <- exactTest(d, dispersion = "tagwise")
+  d.et <- exactTest(d, pair = c(pair1,pair2), dispersion = "tagwise")
   d.top <- topTags(d.et, n=dim(d)[1])
   d.ifDE <- decideTestsDGE(d.et)
   d.ifDE.table <- cbind(d.et$table, d.ifDE)

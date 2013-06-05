@@ -46,6 +46,8 @@ my $qual_zero = 33;
 my $qual_move = 0;
 my $fq_reid; #rename fastq read id (for gsnap)
 my $priordf = 10;         #for edgeR
+my $pairDE1 = 'N';        #for edgeR
+my $pairDE2 = 'T';        #for edgeR
 my $spaired = 1;          #for edgeR
 my $patient; #the patient id for edgeR DE test
 my $tissue;   #the tissue type for edgeR DE test
@@ -93,6 +95,8 @@ GetOptions(
            "readpool=s"   => \$readpool,
            "priordf=i"    => \$priordf,
            "spaired=i"    => \$spaired,
+           "pairDE1=s"    => \$pairDE1,
+           "pairDE2=s"    => \$pairDE2,
            "patient=s"    => \$patient,
            "tissue=s"     => \$tissue,
            "help|h"       => \$help,
@@ -1523,6 +1527,9 @@ if (exists $runlevel{$runlevels}) {
 
   my $edgeR_output = "$root/edgeR";
 
+  print STDERR "DE analysis parameters:\n";
+  print STDERR "priordf: $priordf\; spaired: $spaired\; $pairDE1\-$pairDE2\n";
+
   if (! -e $edgeR_output) {
      print STDERR "Error: $edgeR_output dir does not exist!!! Please rerun RTrace.pl for each sample with --patient and --tissue set.\n\n";
      exit 22;
@@ -1532,7 +1539,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$edgeR_output/topDE.txt") {
-    my $cmd = "R2151 CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$priordf spaired=$spaired\' $bin/edgeR_test.R $edgeR_output/R\_html\.out";
+    my $cmd = "Rtrup CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$priordf spaired=$spaired pair1=\"$pairDE1\" pair2=\"$pairDE2\"\' $bin/edgeR_test.R $edgeR_output/R\_html\.out";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1613,6 +1620,8 @@ sub helpm {
   print STDERR "\nrunlevel 7: run edgeR for diffrential gene expression analysis\n";
   print STDERR "\t--priordf\tthe prior.df parameter in edgeR, which determines the amount of smoothing of tagwise dispersions towards the common dispersion.\n\t\t\tThe larger the value for prior.df, the more smoothing. A prior.df of 1 gives the common likelihood the weight of one observation. \n\t\t\tDefault is 10. Set it smaller for large sample size (i.e., set to 1 for more than 20 replicates).\n";
   print STDERR "\t--spaired\twhether the experiment is a paired normal-disease design, 1 means yes (default), 0 for no.\n";
+  print STDERR "\t--pairDE1\tspecify the name of the groups to be compared, e.g., Normal. (pairDE2 \-\> pairedDE1)\n";
+  print STDERR "\t--pairDE2\tspecify the name of the groups to be compared, e.g., Tumour. (pairDE2 \-\> pairedDE1)\n";
 
   print STDERR "\nOTHER OPTIONS\n";
   print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
