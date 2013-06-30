@@ -715,10 +715,6 @@ if ($genomeBlatPred ne 'SRP'){
 } #define missing info for genome blat
 
 
-#generate the coverage encompassing first
-open AH, "samtools view $accepthits |";
-my (%buffer1, %buffer2);
-
 #sort out the encompassing chr and positions
 my %encoposA;
 my %encoposB;
@@ -735,6 +731,15 @@ foreach my $transcript_name (keys %for_encompass) {
        push (@{$encoposB{$chr2}{$start2}{$end2}}, [$transcript_name, $start1, $end1]);
 
 }
+
+my @mergehits = split(/,/, $accepthits);
+
+foreach my $accepthitsC (@mergehits) {
+
+#generate the coverage encompassing first
+my (%buffer1, %buffer2);
+
+open AH, "samtools view $accepthitsC |";
 
 my ($old_chrA, $old_chrB);
 my (@ssA, @ssB);
@@ -805,6 +810,8 @@ foreach my $transcript_name (keys %buffer1){
      }
   }
 }
+
+} #foreach merged bam
 
 #end of encompassing cov
 

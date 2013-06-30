@@ -65,15 +65,72 @@ int main ( int argc, char *argv[] ) {
   region_f.open(param->region_f, ios_base::in);  // the region file is opened
 
   //bam input and generate index if not yet
-  BamReader reader;
-  reader.Open(param->mapping_f);   // the mapping bam file is opened 
+  //-------------------------------------------------------------------------------------------------------+
+  // BAM input (file or filenames?)                                                                        |
+  //-------------------------------------------------------------------------------------------------------+
+  char *fof = param->mapping_f;
+  FILE *IN=NULL;
+  char linefof[5000];
+  int filecount=0;
+  vector <string> fnames;
+
+  if (strchr(fof,' ')!=NULL) {
+    char *ptr;
+    ptr=strtok(fof," ");
+    while (ptr!=NULL) {
+      fnames.push_back(ptr);
+      filecount++;
+      ptr=strtok(NULL," ");
+    }
+  } else {
+    IN=fopen(fof,"rt");
+    if (IN!=NULL) {
+      long linecount=0;
+      while (fgets(linefof,5000-1,IN)!=NULL) {
+        linecount++;
+        if (linefof[0]!='#' && linefof[0]!='\n') {
+          char *ptr=strchr(linefof,'\n');
+          if (ptr!=NULL && ptr[0]=='\n') {
+            ptr[0]='\0';
+          }
+          FILE *dummy=NULL;
+          dummy=fopen(linefof,"rt");
+          if (dummy!=NULL) {     // seems to be a file of filenames...
+            fclose(dummy);
+            fnames.push_back(linefof);
+            filecount++;
+          } else if (filecount==0 || linecount>=1000-1) {  // seems to be a single file
+            fnames.push_back(fof);
+            filecount++;
+            break;
+          }
+        }
+      }
+      fclose(IN);
+    }
+  }  //file or file name decided and stored in vector "fnames"
+
+  cerr << "the input mapping files are:" << endl;
+  vector <string>::iterator fit = fnames.begin();
+  for(; fit != fnames.end(); fit++) {
+    cerr << *fit << endl;
+  }
+
+  //-------------------------------------------------------------------------------------------------------+
+  // end of file or filenames                                                                              |
+  //-------------------------------------------------------------------------------------------------------+
+
+  // open the BAM file(s)
+  BamMultiReader reader;
+  reader.Open(fnames);
 
   // get header & reference information
   string header = reader.GetHeaderText();
   RefVector refs = reader.GetReferenceData();
 
-  if ( !reader.LocateIndex() )  //create index incase 
-     reader.CreateIndex();
+  if ( ! reader.LocateIndexes() )     // opens any existing index files that match our BAM files
+    reader.CreateIndexes();         // creates index files for BAM files that still lack one
+
 
   //should decide which chromosome
   string line;

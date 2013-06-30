@@ -97,8 +97,14 @@ close ARP;
 print STDERR "ARP file loaded\n";
 
 
+#split read files
+my @read_files_mate1 = split(",", $read_file_1);
+my @read_files_mate2 = split(",", $read_file_2);
+my $read_files_mate1 = join(" ", @read_files_mate1);
+my $read_files_mate2 = join(" ", @read_files_mate2);
+
 unless ($SM) {
-  open R1P, "gzip -d -c $read_file_1 |";
+  open R1P, "gzip -d -c $read_files_mate1 |";
   while ( <R1P> ) {
     chomp;
     if ($_ =~ /^@(.+?)[\/\s]/) {
@@ -126,7 +132,7 @@ unless ($SM) {
   }
   close R1P;
 
-  open R2P, "gzip -d -c $read_file_2 |";
+  open R2P, "gzip -d -c $read_files_mate2 |";
   while ( <R2P> ) {
     chomp;
     if ($_ =~ /^@(.+?)[\/\s]/) {
@@ -156,20 +162,19 @@ unless ($SM) {
 } ##############check for undecided nucleiotide
 
 
-open R1, "gzip -d -c $read_file_1 |";
-my $a_R1 = $read_file_1;
+my $a_R1 = $read_files_mate1[0];
 if($SM) {
  $a_R1 =~ s/fq\.gz$/ARP\.secondmapping\.fq/;
 }
 elsif($RA) {
  $a_R1 =~ s/fq\.gz$/RAssembly\.fq/;
 }
-else{
+else {
  $a_R1 =~ s/fq\.gz$/ARP\.fq/;
 }
 
-open R2, "gzip -d -c $read_file_2 |";
-my $a_R2 = $read_file_2;
+
+my $a_R2 = $read_files_mate2[0];
 if($SM){
  $a_R2 =~ s/fq\.gz$/ARP\.secondmapping\.fq/;
 }
@@ -183,6 +188,9 @@ else{
 open AR1, ">$a_R1";
 open AR2, ">$a_R2";
 
+open R1, "gzip -d -c $read_files_mate1 |";
+open R2, "gzip -d -c $read_files_mate2 |";
+
 my %RA;                         #a hash for RAssembly;
 while ( <R1> ) {                #name
 
@@ -195,11 +203,6 @@ while ( <R1> ) {                #name
     my $frag_name = $1;
 
     if (exists $ARP{$frag_name}) {
-
-      #$ARP{$frag_name} =~ /^(\d+)/;
-      #if ($1 == 119258){
-      #   print STDERR "$frag_name\n";
-      #}
 
       my $tag_tmp1;
       my $tag_tmp2;
@@ -263,7 +266,7 @@ while ( <R1> ) {                #name
 close R1;
 close R2;
 
-if ($RA){   #for regional assembly printing (shuffled)
+if ($RA) {   #for regional assembly printing (shuffled)
   foreach my $breakpoint (sort {$a =~ /^(\d+)\t/; my $ida = $1; $b =~ /^(\d+)\t/; my $idb = $1; $ida<=>$idb} keys %RA){
     print AR1 "$breakpoint";
     print AR2 "$breakpoint";

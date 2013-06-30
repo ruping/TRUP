@@ -52,6 +52,8 @@ my $spaired = 1;          #for edgeR
 my $patient; #the patient id for edgeR DE test
 my $tissue;   #the tissue type for edgeR DE test
 my $gf = "png"; #the format used in html report
+my $merge = ''; #whether merge for multiple runs
+my @merge;
 
 
 if (@ARGV == 0) {
@@ -62,7 +64,8 @@ if (@ARGV == 0) {
 
 GetOptions(
            "sampleName=s" => \$sampleName,
-           "runID=s"     =>  \$runID,
+           "runID=s"      => \$runID,
+           "merge=s"      => \$merge,
            "runlevel=s"   => \$runlevels,
            "noexecute"    => \$noexecute,
            "quiet"        => \$quiet,
@@ -228,6 +231,41 @@ if (defined $sampleName) {
      $trimedlen = $readlen;
      print STDERR "read length and trimed length are not set, will take the original read length ($readlen bp) for both (no trimming).\n";
   }
+
+  #prepare MERGE list
+  if ($merge){ #defined merge runIDs
+    @merge = split(/,/, $merge);
+    my $merge_list = "$lanepath/$sampleName\.merge\_list";
+
+    if ($runID eq '') {
+       print STDERR "option \-\-merge is set, but \-\-runID is not set yet!!!\n";
+       exit 22;
+    }
+
+    my %already_merged;
+    if (-s $merge_list) {
+       open MERGE_LIST_I, "<$merge_list";
+       while ( <MERGE_LIST_I> ){
+          chomp;
+          $already_merged{$_} = '';
+       }
+       close MERGE_LIST_I;
+    } #remember already merged run
+
+    open MERGE_LIST, ">>$merge_list";
+    foreach my $mergeC (@merge) {
+      my $cRunPath = "$root/$sampleName"."\_$mergeC";
+      my $cRunBam =  "$cRunPath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+      if ( ($merge ne $runID) and !(-s $cRunBam) ) {
+        print STDERR "runID $mergeC: the bam file $cRunBam does not exist!!!\n";
+        exit 22;
+      }
+      next if exists($already_merged{$cRunBam}); #not print
+      print MERGE_LIST "$cRunBam\n";  #print
+    }
+    close MERGE_LIST;
+  } #merge
+
 }
 
 ###
@@ -589,10 +627,21 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
+  #for expression extimation;
+  my $readingBam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+  if ($merge) {
+    if (-s "$lanepath/$sampleName\.merge\_list") {
+      $readingBam = "$lanepath/$sampleName\.merge\_list";
+    } else {
+      print STDERR "$lanepath/$sampleName\.merge\_list does not exit or has no content!!!\n";
+      exit 22;
+    }
+  }
+
   #ensembl transcripts######################################################
   unless (-s "$lanepath/03_STATS/$sampleName\.expr.sorted") {
     unless (-s "$lanepath/03_STATS/$sampleName\.expr") {
-      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --posc $lanepath/03_STATS/$sampleName\.pos\.gff --chrmap $lanepath/03_STATS/$sampleName\.chrmap --lbias $lanepath/03_STATS/$sampleName\.lbias >$lanepath/03_STATS/$sampleName\.expr";
+      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene --mapping $readingBam --posc $lanepath/03_STATS/$sampleName\.pos\.gff --chrmap $lanepath/03_STATS/$sampleName\.chrmap --lbias $lanepath/03_STATS/$sampleName\.lbias >$lanepath/03_STATS/$sampleName\.expr";
       RunCommand($cmd1,$noexecute,$quiet);
     }
     my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.expr >$lanepath/03_STATS/$sampleName\.expr.sorted";
@@ -613,7 +662,7 @@ if (exists $runlevel{$runlevels}) {
   #refseq gene##############################################################
   unless (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr.sorted") {
     unless (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr") {
-      my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$sampleName\.RefSeq\.expr";
+      my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $readingBam >$lanepath/03_STATS/$sampleName\.RefSeq\.expr";
       RunCommand($cmd,$noexecute,$quiet);
     }
     my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.RefSeq\.expr >$lanepath/03_STATS/$sampleName\.RefSeq\.expr.sorted";
@@ -627,7 +676,7 @@ if (exists $runlevel{$runlevels}) {
   #ensembl gene#############################################################
   unless (-s "$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr\.sorted") {
     unless (-s "$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr") {
-      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene_bednew --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr";
+      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensemble_gene_bednew --mapping $readingBam >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr";
       RunCommand($cmd1,$noexecute,$quiet);
     }
     my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr.sorted";
@@ -654,7 +703,7 @@ if (exists $runlevel{$runlevels}) {
   #gencode gene#############################################################
   unless (-s "$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr.sorted") {
     unless (-s "$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr") {
-      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $gencode_gene_bed --mapping $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr";
+      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $gencode_gene_bed --mapping $readingBam >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr";
       RunCommand($cmd1,$noexecute,$quiet);
     }
     my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.gencode\_gene\.expr >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr.sorted";
@@ -792,8 +841,34 @@ if (exists $runlevel{$runlevels}) {
       }
     }
 
+    #merge breakpoints for different runs!!
+    my $breakpointSource = "$lanepath/03_STATS/$sampleName\.breakpoints\.sorted\.gz";
+    if (scalar(@merge) != 0) {
+      my $bpMerged = "";
+      foreach my $mergeC (@merge) {
+        my $cRunPath = "$root/$sampleName"."\_$mergeC";
+        my $cRunBP = "$cRunPath/03_STATS/$sampleName\.breakpoints.sorted\.gz";
+        my $cRunBP_us = "$cRunPath/03_STATS/$sampleName\.breakpoints\.gz";
+        if (-s $cRunBP) {
+          $bpMerged .= $cRunBP." ";
+        } elsif (-s $cRunBP_us) {
+          $bpMerged .= $cRunBP_us." ";
+        } else {
+          print STDERR "merge error: $cRunBP or $cRunBP_us does not exit or has no content!!!\n";
+          exit 22;
+        }
+      }
+      $breakpointSource = "$lanepath/03_STATS/$sampleName\.breakpoints\.merged\.sorted\.gz";
+      unless (-s $breakpointSource) {
+        my $cmd = "gzip -d -c $bpMerged |sort -k 1,1d -k 2,2n | gzip >$breakpointSource";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    } #if merge,then redefine breakpointSource
+    print STDERR "the breakpoint sources are: $breakpointSource\n";
+    #breakpoint Source is defined
+
     unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed"){
-      my $cmd = "perl $bin/breakpoint\_processing.pl $lanepath/03_STATS/$sampleName\.breakpoints\.sorted\.gz >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
+      my $cmd = "perl $bin/breakpoint\_processing.pl $breakpointSource >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
@@ -810,6 +885,14 @@ if (exists $runlevel{$runlevels}) {
     unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco"){
       my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
       die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
+      if ($merge) {
+        if (-s "$lanepath/$sampleName\.merge\_list") {
+          $mapping_bam = "$lanepath/$sampleName\.merge\_list";
+        } else {
+          print STDERR "$lanepath/$sampleName\.merge\_list does not exit or has no content!!!\n";
+          exit 22;
+        }
+      }
       my $cmd = "$bin/discordant_consistency --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco";
       RunCommand($cmd,$noexecute,$quiet);
     }
@@ -828,6 +911,14 @@ if (exists $runlevel{$runlevels}) {
       unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
         my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
+        if ($merge) {
+          if (-s "$lanepath/$sampleName\.merge\_list") {
+            $mapping_bam = "$lanepath/$sampleName\.merge\_list";
+          } else {
+            print STDERR "$lanepath/$sampleName\.merge\_list does not exit or has no content!!!\n";
+            exit 22;
+          }
+        }
         my $largestBPID = `tail -1 $lanepath/04_ASSEMBLY/$sampleName.breakpoints.processed | cut -f 1`;
         $largestBPID =~ s/\n//;
         my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
@@ -860,8 +951,16 @@ if (exists $runlevel{$runlevels}) {
     }
 
     if ($RA == 1) { #independent regional assembly
-      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads"){
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads") {
         my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+        if ($merge) {
+          if (-s "$lanepath/$sampleName\.merge\_list") {
+            $mapping_bam = "$lanepath/$sampleName\.merge\_list";
+          } else {
+            print STDERR "$lanepath/$sampleName\.merge\_list does not exit or has no content!!!\n";
+            exit 22;
+          }
+        }
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
         my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
         RunCommand($cmd,$noexecute,$quiet);
@@ -870,13 +969,36 @@ if (exists $runlevel{$runlevels}) {
       my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
       my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq\.gz");
       unless ( scalar(@RAssembly_reads) == 2 or scalar(@RAssembly_reads_gz) == 2 ) { #get raw reads
+
+        #need to do something here
         my @reads;
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
+          @reads = mateorder(\@reads, $runID);
+          if (scalar(@merge) != 0){
+            foreach my $mergeC (@merge) {
+              next if ($mergeC eq $runID);
+              my $cRunPath = "$root/$sampleName"."\_$mergeC";
+              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName*trimed\.fq\.gz");
+              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              $reads[0] .= ",".$readsMerge[0];
+              $reads[1] .= ",".$readsMerge[1];
+            }
+          } #if merge
         } else {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz"); #original reads
+          @reads = mateorder(\@reads, $runID);
+          if (scalar(@merge) != 0){
+            foreach my $mergeC (@merge) {
+              next if ($mergeC eq $runID);
+              my $cRunPath = "$root/$sampleName"."\_$mergeC";
+              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[12]{\_$mergeC,}\.fq\.gz");
+              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              $reads[0] .= ",".$readsMerge[0];
+              $reads[1] .= ",".$readsMerge[1];
+            }
+          } #if merge
         }
-        @reads = mateorder(\@reads, $runID);
 
         my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
         RunCommand($cmd,$noexecute,$quiet);
@@ -1265,11 +1387,32 @@ if (exists $runlevel{$runlevels}) {
 
       my @reads;
       if ($trimedlen != $readlen) {
-        @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
-      } else {
-        @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz"); #original reads
-      }
-      @reads = mateorder(\@reads, $runID);
+          @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.gz"); #trimmed reads
+          @reads = mateorder(\@reads, $runID);
+          if (scalar(@merge) != 0) {
+            foreach my $mergeC (@merge) {
+              next if ($mergeC eq $runID);
+              my $cRunPath = "$root/$sampleName"."\_$mergeC";
+              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName*trimed\.fq\.gz");
+              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              $reads[0] .= ",".$readsMerge[0];
+              $reads[1] .= ",".$readsMerge[1];
+            }
+          } #if merge
+       } else {
+          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.gz"); #original reads
+          @reads = mateorder(\@reads, $runID);
+          if (scalar(@merge) != 0){
+            foreach my $mergeC (@merge) {
+              next if ($mergeC eq $runID);
+              my $cRunPath = "$root/$sampleName"."\_$mergeC";
+              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[12]{\_$mergeC,}\.fq\.gz");
+              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              $reads[0] .= ",".$readsMerge[0];
+              $reads[1] .= ",".$readsMerge[1];
+            }
+          } #if merge
+       }
 
       my $cmd = "bowtie2 -k 22 -p $threads --no-unal --score-min L,-2,-0.15 -x $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index -1 $reads[0] -2 $reads[1] >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam";
       RunCommand($cmd,$noexecute,$quiet);
@@ -1292,7 +1435,23 @@ if (exists $runlevel{$runlevels}) {
     } else {
       $gfc_opts = "--genomeBlatPred $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration";
     }
-    my $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --selfChain $anno/SelfChain\_UCSC\_hg19 --accepthits $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+
+    my $readingBam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+    if ($merge) {
+      foreach my $mergeC (@merge) {
+         next if ($mergeC eq $runID);
+         my $cRunPath = "$root/$sampleName"."\_$mergeC";
+         my $cRunBam = "$cRunPath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+         if (-s $cRunBam){
+           $readingBam .= ",".$cRunBam;
+         } else {
+           print STDERR "merge error: $cRunBam does not exist!!!!";
+           exit 22;
+         }
+      }
+    } #if merge
+
+    my $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $anno/UCSC\_repeats\_hg19\.gff --selfChain $anno/SelfChain\_UCSC\_hg19 --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1578,7 +1737,8 @@ sub helpm {
   print STDERR "Synopsis: RTrace.pl --runlevel 7 --root <dir_root> --anno <dir_anno> --priordf 1 2>>run.log\n\n";
   print STDERR "GENERAL OPTIONS (MUST SET):\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl. See below for options for each runlevel.\n";
   print STDERR "\t--sampleName\tthe name of the lane needed to be processed (must set for runlevel 1-5)\n";
-  print STDERR "\t--runID\tthe ID of the run needed to be processed (default not set, must set if fastq files are ended with _R1_00X.fq)\n";
+  print STDERR "\t--runID\t\tthe ID of the run needed to be processed (default not set, must set if fastq files are ended with _R1_00X.fq)\n";
+  print STDERR "\t--merge\t\ta comma-separated list of runIDs that are needed to be merged, the output will be written to the defined runID\n";
   print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";
   print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
   print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR\n";
