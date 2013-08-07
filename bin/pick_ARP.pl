@@ -1,6 +1,6 @@
 use strict;
 use Getopt::Long;
-#this program is used for getting reads for denovo assembly
+#0;136;0cthis program is used for getting reads for denovo assembly
 
 
 my $arp_file;
@@ -34,6 +34,19 @@ GetOptions (
                              exit 0;
 			    }
 	   );
+
+
+my ($decompress, $zipSuffix);
+if ($read_file_1 =~ /\.gz$/){
+  $decompress = "gzip -d -c";
+  $zipSuffix = "gz";
+} elsif ($read_file_1 =~ /\.bz2$/) {
+  $decompress = "bzip2 -d -c";
+  $zipSuffix = "bz2";
+} else {
+  print STDERR "the read file $read_file_1 does not seem to be gziped or bziped!!!\n";
+  exit 22;
+}
 
 
 my %ARP;  #hash to remember the anomalous read pairs
@@ -104,7 +117,7 @@ my $read_files_mate1 = join(" ", @read_files_mate1);
 my $read_files_mate2 = join(" ", @read_files_mate2);
 
 unless ($SM) {
-  open R1P, "gzip -d -c $read_files_mate1 |";
+  open R1P, "$decompress $read_files_mate1 |";
   while ( <R1P> ) {
     chomp;
     if ($_ =~ /^@(.+?)[\/\s]/) {
@@ -132,7 +145,7 @@ unless ($SM) {
   }
   close R1P;
 
-  open R2P, "gzip -d -c $read_files_mate2 |";
+  open R2P, "$decompress $read_files_mate2 |";
   while ( <R2P> ) {
     chomp;
     if ($_ =~ /^@(.+?)[\/\s]/) {
@@ -164,32 +177,32 @@ unless ($SM) {
 
 my $a_R1 = $read_files_mate1[0];
 if($SM) {
- $a_R1 =~ s/fq\.gz$/ARP\.secondmapping\.fq/;
+ $a_R1 =~ s/fq\.$zipSuffix$/ARP\.secondmapping\.fq/;
 }
 elsif($RA) {
- $a_R1 =~ s/fq\.gz$/RAssembly\.fq/;
+ $a_R1 =~ s/fq\.$zipSuffix$/RAssembly\.fq/;
 }
 else {
- $a_R1 =~ s/fq\.gz$/ARP\.fq/;
+ $a_R1 =~ s/fq\.$zipSuffix$/ARP\.fq/;
 }
 
 
 my $a_R2 = $read_files_mate2[0];
 if($SM){
- $a_R2 =~ s/fq\.gz$/ARP\.secondmapping\.fq/;
+ $a_R2 =~ s/fq\.$zipSuffix$/ARP\.secondmapping\.fq/;
 }
 elsif($RA){
- $a_R2 =~ s/fq\.gz$/RAssembly\.fq/;
+ $a_R2 =~ s/fq\.$zipSuffix$/RAssembly\.fq/;
 }
 else{
- $a_R2 =~ s/fq\.gz$/ARP\.fq/;
+ $a_R2 =~ s/fq\.$zipSuffix$/ARP\.fq/;
 }
 
 open AR1, ">$a_R1";
 open AR2, ">$a_R2";
 
-open R1, "gzip -d -c $read_files_mate1 |";
-open R2, "gzip -d -c $read_files_mate2 |";
+open R1, "$decompress $read_files_mate1 |";
+open R2, "$decompress $read_files_mate2 |";
 
 my %RA;                         #a hash for RAssembly;
 while ( <R1> ) {                #name

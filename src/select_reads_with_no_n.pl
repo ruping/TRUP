@@ -5,8 +5,18 @@ my $read_file2 = shift;
 my $sn = shift;
 my $cn = 0;
 
-open IN1, "gzip -d -c $read_file1 |";
-open IN2, "gzip -d -c $read_file2 |";
+my $decompress;
+if ($read_file1 =~ /\.gz$/){
+  $decompress = "gzip -d -c";
+} elsif ($read_file1 =~ /\.bz2$/) {
+  $decompress = "bzip2 -d -c";
+} else {
+  print STDERR "the read file $read_file1 does not seem to be gziped or bziped!!!\n";
+  exit 22;
+}
+
+open IN1, "$decompress $read_file1 |";
+open IN2, "$decompress $read_file2 |";
 
 while ( <IN1> ) {
   my $name1 = $_;

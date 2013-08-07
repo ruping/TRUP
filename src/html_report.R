@@ -163,9 +163,9 @@ if (gf == "png"){
 
 #chromosome distribution of uniquely mapped reads
 HTML("<br> Uniquely Mappable Reads (UMR) on Chromosomes:", file = target)
-transcriptome.length.hg19 = paste(anno, "transcriptome_length_HG19", sep="/")
-tmp1 <- pipe(paste("cut -f 2", transcriptome.length.hg19, sep=" "))
-tmp2 <- pipe(paste("cut -f 1", transcriptome.length.hg19, sep=" "))
+transcriptome.length.species = paste(anno, species, paste(species, "transcriptome_length.txt", sep="."), sep="/")
+tmp1 <- pipe(paste("cut -f 2", transcriptome.length.species, sep=" "))
+tmp2 <- pipe(paste("cut -f 1", transcriptome.length.species, sep=" "))
 transcriptome.length <- as.list(scan(tmp1,comment.char = "#"))
 names(transcriptome.length) = scan(tmp2,comment.char = "#", what="")
 close(tmp1)
@@ -175,7 +175,7 @@ chrmap.file = paste(lane, "chrmap", sep=".")
 chrmap<-read.table(paste(stats.dir,chrmap.file,sep="/"))
 chrmap.sort1<-chrmap[order(-chrmap$V2),]
 chrmap.sort2<-chrmap[order(-chrmap$V3),]
-tr.cov = lapply(as.list(chrmap.sort1[,1]),function(key) chrmap.sort1$V2[chrmap.sort1[,1] == key]*readlen/transcriptome.length[[key]])
+tr.cov = lapply(as.list(chrmap.sort1[,1]),function(key) (chrmap.sort1$V2[chrmap.sort1[,1] == key]+1)*readlen/transcriptome.length[[key]])
 names(tr.cov) = chrmap.sort1[,1]
 tr.cov = t(data.frame(tr.cov))
 

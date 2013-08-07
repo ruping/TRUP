@@ -78,7 +78,7 @@ while ( <SELFCHAIN> ){
     chomp;
     my ($bin, $score, $tName, $tSize, $tStart, $tEnd, $qName, $qSize, $qStrand, $qStart, $qEnd, $id, $normScore) = split /\t/;
 
-    next if ($normScore < 10);
+    next if ($normScore > 0 and $normScore < 10);
 
     next if ($selfChain{$tName}{$tStart} ne '' and $selfChain{$tName}{$tStart} >= $tEnd);
     $selfChain{$tName}{$tStart} = $tEnd;
