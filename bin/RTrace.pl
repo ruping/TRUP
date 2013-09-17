@@ -53,6 +53,8 @@ my $gf = "png"; #the format used in html report
 my $merge = ''; #whether merge for multiple runs
 my @merge;
 my $bzip;  #to allow bzip compressed fastq files
+my $Rbinary = 'R';
+
 
 if (@ARGV == 0) {
   helpm();
@@ -100,6 +102,7 @@ GetOptions(
            "patient=s"    => \$patient,
            "tissue=s"     => \$tissue,
            "bzip"         => \$bzip,
+           "Rbinary=s"    => \$Rbinary,
            "help|h"       => \$help,
           );
 
@@ -433,7 +436,7 @@ if (defined $sampleName) {
 
   if ($ins_mean == 0) {
 
-    my $fraginfo = `R --no-save --slave \'--args path=\"$lanepath/00_TEST/\" lane=\"$sampleName\.spikedin\"\' < $bin/fragment_length.R`;
+    my $fraginfo = `$Rbinary --no-save --slave \'--args path=\"$lanepath/00_TEST/\" lane=\"$sampleName\.spikedin\"\' < $bin/fragment_length.R`;
     $fraginfo =~ /^(.+)\s(.+)/;
     my $frag_mean = $1; $frag_mean = round($frag_mean);
     my $insert_sd   = $2; $insert_sd =~ s/\n//; $insert_sd = round($insert_sd);
@@ -756,7 +759,7 @@ if (exists $runlevel{$runlevels}) {
     if ($qc_files[1] =~ /(\_R?[12](\_$runID)?\.fq\.qc)$/){
        $qcmatesuffix2 = $1;
     }
-    my $cmd = "R CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" species=\"$species\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
+    my $cmd = "$Rbinary CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" species=\"$species\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1472,7 +1475,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$edgeR_output/topDE.txt") {
-    my $cmd = "Rtrup CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$priordf spaired=$spaired pair1=\"$pairDE1\" pair2=\"$pairDE2\"\' $bin/edgeR_test.R $edgeR_output/R\_html\.out";
+    my $cmd = "$Rbinary CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$priordf spaired=$spaired pair1=\"$pairDE1\" pair2=\"$pairDE2\"\' $bin/edgeR_test.R $edgeR_output/R\_html\.out";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1511,7 +1514,8 @@ sub helpm {
   print STDERR "\t--anno\t\tthe annotations directory (default is \$bin/../ANNOTATION/, MUST set using other dir)\n";
   print STDERR "\t--species\tspecify the reference version of the species, such as hg19 (default), mm10.\n";
   print STDERR "\t--patient\tthe patient id, which will be written into the target file for edgeR\n";
-  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file for running edgeR and cuffdiff\n\n";
+  print STDERR "\t--tissue\tthe tissue type name (like \'normal\', \'cancer\'), for the target file for running edgeR and cuffdiff\n";
+  print STDERR "\t--Rbinary\tthe name of R executable, default is \'R\'. Set if your R binary name is different.\n\n";
 
   print STDERR "CONTROL OPTIONS FOR EACH RUNLEVEL:\n";
   print STDERR "runlevel 1: quality checking and insert size estimatiion using part of reads\n";
