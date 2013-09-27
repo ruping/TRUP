@@ -8,18 +8,17 @@ Cancer cells express many rearranged transcripts posing increased complexity to 
 
 Dependencies
 ---
-+   Samtools
-+   Bowtie2
-+   GSNAP (version > 2012-07-20)
-+   Velvet (https://github.com/dzerbino/velvet)
++   Samtools.
++   Bowtie2.
++   GSNAP (version > 2012-07-20).
++   Velvet (https://github.com/dzerbino/velvet).
 +   Oases (https://github.com/dzerbino/oases).
 +   R libraries: feilds, KernSmooth, lattice, RColorBrewer and R2HTML.
-
++   Bioconductor packages: DESeq2, edgeR.
 
 Annotation files
 ---
-Annotation files are available upon request (contact: ruping@molgen.mpg.de)
-
+Annotation files are available upon request. Currently hg19 and mm10 are available. 
 
 Installation
 ---
@@ -41,7 +40,7 @@ Usage
 
 TRUP can be run with UNIX command-line interface.
 
-Assuming that in the directory "RP" there are two gzipped fastq-files are called as SAMPLE_R?1(_XXX)?.fq.gz and SAMPLE_R?2(_XXX)?.fq.gz (where "\_R?1" and "\_R?2" means mate 1 and mate 2 reads, XXX means a run ID, R and _XXX are optional which can be missing), the path to the directory of the pipeline is called "PD" and the path to tha annotation files are called "AD", one can run the pipeline in the following way:
+Assuming that in the directory "RP" there are two gzipped fastq-files are called as SAMPLE_R?1(_XXX)?.fq.gz and SAMPLE_R?2(_XXX)?.fq.gz (where "\_R?1" and "\_R?2" means mate 1 and mate 2 reads, XXX means a run ID, R and _XXX are optional that can be missing), the path to the directory of the pipeline is called "PD" and the path to tha annotation files are called "AD", one can run the pipeline in the following way:
 
 **Run-level 1** (Quality check, mapping of spiked-in read pairs and give a rough estimate of the insert size etc.):
 
@@ -102,9 +101,13 @@ Contact
 ---
 Sun Ruping
 
+Current Affiliation:
+Califano Lab, Department of Systems Biology, Columbia University, New York, NY, USA
+
+Previous Affiliation:
 Dept. Vingron (Computational Molecular Biology)
 Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Germany
 
-Email: ruping@molgen.mpg.de
+Email: rs3412@columbia.edu
 
 Project Website: https://github.com/ruping/TRUP
