@@ -1,4 +1,4 @@
-TRUP is a pipeline designed for analyzing RNA-seq data from Tumor samples.
+TRUP is a pipeline designed for analyzing RNA-seq data from Tumor samples..
 
 
 Learn More
