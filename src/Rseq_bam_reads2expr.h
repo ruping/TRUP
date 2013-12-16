@@ -12,6 +12,7 @@ struct parameters {
   char* lbias;
   char* type;
   unsigned int unique;
+  unsigned int nochr;
 };
 
 struct parameters* interface(struct parameters* param,int argc, char *argv[]);
@@ -47,6 +48,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
     {"lbias",1,0,'l'},
     {"type",1,0,'t'},
     {"unique",0,0,'u'},
+    {"nochr",0,0,'n'},
     {"help",0,0,'h'},
     {0, 0, 0, 0}
   };
@@ -54,7 +56,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hur:m:t:l:p:c:",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hur:m:t:l:p:c:n:",long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -83,6 +85,9 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
       break;
     case 'u':
       param->unique = 1;
+      break;
+    case 'n':
+      param->nochr = 1;
       break;
     case 'h':
       help = 1;
@@ -117,6 +122,7 @@ void usage()
   fprintf(stdout, "-c --chrmap  <filename>  the output (filename) of chrmap information.\n");
   fprintf(stdout, "-l --lbias   <filename>  the output (filename) of locus bias (must set, no default).\n");
   fprintf(stdout, "-q --unique              only calculate for uniquely mapped reads (you may not set this when the bam files only contain unique reads).\n");
+  fprintf(stdout, "-n --nochr               change 'chrX' to 'X' and 'chrM' to 'MT' to be compatible to the bam files generated in CUMC.\n");
   fprintf(stdout, "-t --type    <p/s>       current no use\n");
   fprintf(stdout, "\n");
 }

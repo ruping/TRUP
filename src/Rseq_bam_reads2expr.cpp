@@ -12,12 +12,12 @@
   ruping@molgen.mpg.de
 
 
-g++ 
--I /scratch/ngsvin2/RNA-seq/ruping/Tools/bamtools/include/ 
-   /bips/lib/packages/NGS_tools/bamtools-1.0.2/include/
--L /scratch/ngsvin2/RNA-seq/ruping/Tools/bamtools/lib/
-   /bips/lib/packages/NGS_tools/bamtools-1.0.2/lib/ 
--lbamtools -lz -static
+g++ Rseq_bam_reads2expr.cpp
+-I/ifs/home/c2b2/ac_lab/rs3412/tools/bamtools/include/
+-I/ifs/home/c2b2/ac_lab/rs3412/tools/zlib-1.2.8/include/
+-L/ifs/home/c2b2/ac_lab/rs3412/tools/bamtools/lib/
+-L/ifs/home/c2b2/ac_lab/rs3412/tools/zlib-1.2.8/lib/
+-lbamtools -lz -static -o 
 ******************************************************************************/
 
 #include <api/BamReader.h>
@@ -64,7 +64,7 @@ unsigned int read_length = 0;
 
 inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, vector<int> &blockEnds, unsigned int &alignmentEnd);
 inline void splitstring(const string &str, vector<string> &elements, const string &delimiter);
-inline void eatline(const string &str, deque <struct region> &region_ref);
+inline void eatline(const string &str, deque <struct region> &region_ref, bool &noChr);
 inline string int2str(unsigned int &i);
 inline string float2str(float &f);
 inline void gene_processing(struct region &gene, vector <struct lb> &locusb);
@@ -176,17 +176,22 @@ int main ( int argc, char *argv[] ) {
     chrmap_f.open(param->chrmap);
   }
 
+  bool noChr;
+  if ( param->nochr == 1 ){
+    noChr = true;
+  } else {
+    noChr = false;
+  }
+
   //regions for the input of region file
   deque <struct region> regions;
 
   getline(region_f, line); //get the first line
-  eatline(line,regions);
+  eatline(line,regions,noChr);
   
   deque <struct region>::iterator it = regions.begin();
 
   while ( it->chr != old_chr ) {
-
-    //cout << old_chr << "\t" << it->chr << endl;
 
     old_chr = it->chr;  // set the current chr as old chr
 
@@ -205,7 +210,7 @@ int main ( int argc, char *argv[] ) {
           cerr << "finished: end of region file, zone 0" << endl;
           break;
         }
-        eatline(line, regions);
+        eatline(line, regions,noChr);
         it = regions.begin();
         if (it->chr == old_chr){  
           gene_processing(*it,locus_b);      
@@ -326,7 +331,7 @@ int main ( int argc, char *argv[] ) {
           if ( regions.empty() ) { 
             getline(region_f, line);                        // get a line of region file
             if ( ! region_f.eof() ) {
-              eatline(line, regions);                         // eat a line and put it into the duque
+              eatline(line, regions, noChr);                         // eat a line and put it into the duque
               iter = regions.begin();
             }
             else {  // it's reaching the end of the region file
@@ -358,7 +363,7 @@ int main ( int argc, char *argv[] ) {
         else {                                              // the last element
           getline(region_f, line);                          // get a line of region file
           if ( ! region_f.eof() ){
-            eatline(line, regions);                         // eat a line and put it into the duque
+            eatline(line, regions, noChr);                         // eat a line and put it into the duque
             iter = regions.end();
             iter--;
           }
@@ -396,7 +401,7 @@ int main ( int argc, char *argv[] ) {
 	}
         exit(0);
       }
-      eatline(line, regions);
+      eatline(line, regions, noChr);
       it = regions.begin();
       if (it->chr == old_chr){
         gene_processing(*it, locus_b);      
@@ -443,7 +448,7 @@ inline void splitstring(const string &str, vector<string> &elements, const strin
 }
 
 
-inline void eatline(const string &str, deque <struct region> &region_ref) {
+inline void eatline(const string &str, deque <struct region> &region_ref, bool &noChr) {
   
    vector <string> line_content;
    //split line and then put it into a deque
@@ -458,8 +463,12 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
      switch (i) {
      case 1:  // chr
        tmp.chr = *iter;
-       //if(*iter == "chrMT")
-	 //tmp.chr = "chrM";
+       if (noChr == true){
+         tmp.chr = (*iter).substr(3);
+         if (tmp.chr == "M"){
+           tmp.chr = "MT";
+         }
+       }
        continue;
      case 2:  // start
        tmp.start = atoi((*iter).c_str()) + 1;

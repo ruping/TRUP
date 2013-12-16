@@ -1,4 +1,5 @@
-BAMTOOLS_ROOT=/scratch/ngsvin2/RNA-seq/ruping/Tools/bamtools/
+BAMTOOLS_ROOT=/ifs/home/c2b2/ac_lab/rs3412/tools/bamtools/
+ZLIB_ROOT=/ifs/home/c2b2/ac_lab/rs3412/tools/zlib-1.2.8/
 CXX=g++
 BAMFLAGS=-lbamtools
 CXXFLAGS=-lz -static -Wall -O3
@@ -24,21 +25,21 @@ all: Rseq_bam_stats Rseq_bam_reads2expr reads_in_region discordant perl_scripts 
 Rseq_bam_stats:
 	@mkdir -p $(PREFIX)/$(BIN)
 	@echo "* compiling" $(SOURCE_STA)
-	@$(CXX) $(SRC)/$(SOURCE_STA) -o $(PREFIX)/$(BIN)/$(STA) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ 
+	@$(CXX) $(SRC)/$(SOURCE_STA) -o $(PREFIX)/$(BIN)/$(STA) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -I $(ZLIB_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ -L $(ZLIB_ROOT)/lib/
 
 Rseq_bam_reads2expr:
 	@echo "* compiling" $(SOURCE_EXP)
-	@$(CXX) $(SRC)/$(SOURCE_EXP) -o $(PREFIX)/$(BIN)/$(EXP) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
+	@$(CXX) $(SRC)/$(SOURCE_EXP) -o $(PREFIX)/$(BIN)/$(EXP) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -I $(ZLIB_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ -L $(ZLIB_ROOT)/lib/
 
 reads_in_region:
 	@echo "* compiling" $(SOURCE_RIR)
-	@$(CXX) $(SRC)/$(SOURCE_RIR) -o $(PREFIX)/$(BIN)/$(RIR) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
+	@$(CXX) $(SRC)/$(SOURCE_RIR) -o $(PREFIX)/$(BIN)/$(RIR) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -I $(ZLIB_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ -L $(ZLIB_ROOT)/lib/
 
 discordant:
 	@echo "* compiling" $(SOURCE_DC)
-	@$(CXX) $(SRC)/$(SOURCE_DC) -o $(PREFIX)/$(BIN)/$(DC) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
+	@$(CXX) $(SRC)/$(SOURCE_DC) -o $(PREFIX)/$(BIN)/$(DC) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -I $(ZLIB_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ -L $(ZLIB_ROOT)/lib/
 	@echo "* compiling" $(SOURCE_DM)
-	@$(CXX) $(SRC)/$(SOURCE_DM) -o $(PREFIX)/$(BIN)/$(DM) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/
+	@$(CXX) $(SRC)/$(SOURCE_DM) -o $(PREFIX)/$(BIN)/$(DM) $(BAMFLAGS) $(CXXFLAGS) -I $(BAMTOOLS_ROOT)/include/ -I $(ZLIB_ROOT)/include/ -L $(BAMTOOLS_ROOT)/lib/ -L $(ZLIB_ROOT)/lib/
 
 perl_scripts:
 	@echo "* copying perl scripts"

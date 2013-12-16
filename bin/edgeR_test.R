@@ -25,7 +25,7 @@ pair2
 
 #data preparation
 targets = read.delim(file="targets",stringsAsFactors=FALSE,row.names="label")
-targets$tissue <- factor(targets$tissue)
+targets$tissue <- factor(targets$tissue, levels=c(pair1, pair2))
 targets$patient <- factor(targets$patient)
 
 d <- readDGE(targets,comment.char="#")

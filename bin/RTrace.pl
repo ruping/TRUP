@@ -120,6 +120,7 @@ my $gene_annotation_gtf = "$anno/$species/$species\.transcripts\_Ensembl\.gtf";
 my $ensembl_gene_bed = "$anno/$species/$species\.genes\_Ensembl\.bed12";
 my $gencode_genemap = "$anno/$species/$species\.gencode/gencode\.v14\.genemap" if ($species eq 'hg19');
 my $gencode_gene_bed = "$anno/$species/$species\.gencode/gencode\.v14\.annotation\.gene\.bed12" if ($species eq 'hg19');
+my $ensembl_genemap = "$anno/$species/$species\.biomart\.txt";
 my $refseq_gene = "$anno/$species/$species\.genes\_RefSeq\.bed12";
 my $refseq_gene_gtf = "$anno/$species/$species\.refGene\.gtf";
 my $gmap_index = "$anno/$species/$species\.gmap\_index/";
@@ -212,7 +213,7 @@ if (defined $sampleName) {
 
   if (scalar(@lanefile) == 0) {
     print STDERR "no read files are available, please make sure that they are available under the dir of $readpool.\n";
-    exit 22;
+    exit 22 unless ($force);
   }
 
   if ($runID ne '') {
@@ -232,7 +233,7 @@ if (defined $sampleName) {
   if (scalar(@lanefile) > 0) {
     if ($runID ne '') {
       foreach my $read_file (@lanefile) {
-        if ($read_file =~ /($sampleName\_R?[12]\_$runID)\.f.+?\.([gb]z2?)$/) {
+        if ($read_file =~ /($sampleName\_R?[123]\_$runID)\.f.+?\.([gb]z2?)$/) {
           my $prefix = $1;
           my $suffix = $2;
           my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
@@ -241,7 +242,7 @@ if (defined $sampleName) {
       }
     } else {
       foreach my $read_file (@lanefile) {
-        if ($read_file =~ /($sampleName\_R?[12])\.f.+?\.([gb]z2?)$/) {
+        if ($read_file =~ /($sampleName\_R?[123])\.f.+?\.([gb]z2?)$/) {
           my $prefix = $1;
           my $suffix = $2;
           my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
@@ -252,7 +253,7 @@ if (defined $sampleName) {
   }
 
   if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
-     my @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix");
+     my @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
      my $first_second_line = `$decompress "$original_read_files[0]" | head -2 | grep -v "^@"`;
      $readlen = length($first_second_line) - 1;
      $trimedlen = $readlen;
@@ -305,7 +306,7 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix");
+  my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
   (my $qc_out1 = $qc_files[0]) =~ s/\.$zipSuffix$/\.qc/;
   (my $qc_out2 = $qc_files[1]) =~ s/\.$zipSuffix$/\.qc/;
 
@@ -326,7 +327,7 @@ if (exists $runlevel{$runlevels}) {
   if ( $trimedlen != $readlen ) {  #trimming
     my @trimed_read_files = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.$zipSuffix");
     if ( scalar(@trimed_read_files) == 0 ) {
-      my @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix");
+      my @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
       foreach my $read_file (@ori_read_files) {
         my $read_out = $read_file;
         $read_out =~ s/fq\.$zipSuffix$/trimed\.fq\.$zipSuffix/;
@@ -345,7 +346,7 @@ if (exists $runlevel{$runlevels}) {
       @read_files = &mateorder(\@read_files, $runID);
     }
   } else {
-    @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix");
+    @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
     @read_files = mateorder(\@read_files, $runID);
   }
 
@@ -410,7 +411,7 @@ if (defined $sampleName) {
   printtime();
   print STDERR "####### insert mean and sd calculation #######\n\n";
 
-  my @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.qc");
+  my @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.qc");
   if ( scalar(@quality_check_files) == 2 ) { #decide the quality shift
     open QC, "<$quality_check_files[0]";
     my $qual_min = -1;
@@ -485,7 +486,7 @@ if (exists $runlevel{$runlevels}) {
     @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.$zipSuffix");   #trimmed reads
   }
   else {
-    @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix");    #original reads
+    @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");    #original reads
   }
   @reads = &mateorder(\@reads, $runID);
 
@@ -654,6 +655,53 @@ if (exists $runlevel{$runlevels}) {
     close ENSEMBL_GENE_COUNT;
   }
 
+  #for RPKM normalization of ensembl genes##################################
+  unless (-s "$lanepath/03_STATS/$sampleName\.ensembl\_gene\.rpkm") {
+    my $N_mapped_reads = 0;
+    my $mapped = 0;
+    my $singleton = 0;
+    open MAPPING_STATS, "$lanepath/03_STATS/$sampleName.mapping.stats" || die "can not open $lanepath/03_STATS/$sampleName.mapping.stats";
+    while ( <MAPPING_STATS> ) {
+      chomp;
+      if ($_ =~ /^Mapped\:\s+(\d+)$/) {
+        $mapped = $1;
+      }
+      if ($_ =~ /^singletons\:\s+(\d+)$/) {
+        $singleton = $1;
+      }
+    }
+    print STDERR "mapped pairs equal to zero!!!\n" if ($mapped == 0);
+    print STDERR "singletons equal to zero!!!\n" if ($singleton == 0);
+    $N_mapped_reads = 2*$mapped - $singleton;
+    exit if ($N_mapped_reads == 0);
+    close MAPPING_STATS;
+
+    open ENSEMBL_GENEMAP, "$ensembl_genemap";
+    my %ensembl_genemap;
+    while ( <ENSEMBL_GENEMAP> ) {
+      chomp;
+      my ($gene_id, $gene_name, $gene_type, $gene_desc, $entrez, $wiki_name, $wiki_desc) = split /\t/;
+      $ensembl_genemap{$gene_id} = $gene_type."\t".$gene_name;
+    }
+    close ENSEMBL_GENEMAP;
+
+    open ENSEMBL_GENE_EXPR, "$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr.sorted" || die "can not open $lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr.sorted";
+    open ENSEMBL_RPKM, ">$lanepath/03_STATS/$sampleName\.ensembl\_gene\.rpkm";
+    printf ENSEMBL_RPKM ("%s\n", join("\t", "#ensembl_id","count", "RPKM", "gene_type", "gene_name"));
+    while ( <ENSEMBL_GENE_EXPR> ) {
+      chomp;
+      my @cols = split /\t/;
+      my $ensembl_name = $cols[3];
+      my $counts_dblength = $cols[4];
+      my $counts = round($cols[7]);
+      my $rpkm = sprintf("%.3f", $counts_dblength * 1e9/$N_mapped_reads);
+      print ENSEMBL_RPKM "$ensembl_name\t$counts\t$rpkm\t$ensembl_genemap{$ensembl_name}\n";
+    }
+    close ENSEMBL_GENE_EXPR;
+    close ENSEMBL_RPKM;
+  }
+
+
   #refseq gene##############################################################
   unless (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr.sorted") {
     unless (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr") {
@@ -749,14 +797,14 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$lanepath/03_STATS/$sampleName\.report/$sampleName\.report\.html") {
-    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.qc");
+    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.qc");
     @qc_files = mateorder(\@qc_files, $runID);
     my $qcmatesuffix1;
     my $qcmatesuffix2;
-    if ($qc_files[0] =~ /(\_R?[12](\_$runID)?\.fq\.qc)$/){
+    if ($qc_files[0] =~ /(\_R?[123](\_$runID)?\.fq\.qc)$/){
        $qcmatesuffix1 = $1;
     }
-    if ($qc_files[1] =~ /(\_R?[12](\_$runID)?\.fq\.qc)$/){
+    if ($qc_files[1] =~ /(\_R?[123](\_$runID)?\.fq\.qc)$/){
        $qcmatesuffix2 = $1;
     }
     my $cmd = "$Rbinary CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" species=\"$species\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
@@ -936,8 +984,8 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute,$quiet);
       }
 
-      my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
-      my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq\.gz");
+      my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq");
+      my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz");
       unless ( scalar(@RAssembly_reads) == 2 or scalar(@RAssembly_reads_gz) == 2 ) { #get raw reads
 
         #need to do something here
@@ -956,13 +1004,13 @@ if (exists $runlevel{$runlevels}) {
             }
           } #if merge
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
           @reads = mateorder(\@reads, $runID);
           if (scalar(@merge) != 0){
             foreach my $mergeC (@merge) {
               next if ($mergeC eq $runID);
               my $cRunPath = "$root/$sampleName"."\_$mergeC";
-              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[12]{\_$mergeC,}\.fq\.$zipSuffix");
+              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
               @readsMerge = mateorder(\@readsMerge, $mergeC);
               $reads[0] .= ",".$readsMerge[0];
               $reads[1] .= ",".$readsMerge[1];
@@ -985,8 +1033,8 @@ if (exists $runlevel{$runlevels}) {
 
       if ($RA == 1) {
 
-        my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
-        my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq\.gz");
+        my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq");
+        my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz");
 
         if ($#RAssembly_reads != 1) {
           if ($#RAssembly_reads_gz == 1) {
@@ -999,7 +1047,7 @@ if (exists $runlevel{$runlevels}) {
             print STDERR "Error: RA read files are not correctly generated...\n\n";
             exit 22;
           }
-          @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.RAssembly\.fq");
+          @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq");
         }
 
         @RAssembly_reads = mateorder(\@RAssembly_reads, $runID);
@@ -1187,13 +1235,13 @@ if (exists $runlevel{$runlevels}) {
             }
           } #if merge
        } else {
-          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[12]{\_$runID,}\.fq\.$zipSuffix"); #original reads
+          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
           @reads = mateorder(\@reads, $runID);
           if (scalar(@merge) != 0){
             foreach my $mergeC (@merge) {
               next if ($mergeC eq $runID);
               my $cRunPath = "$root/$sampleName"."\_$mergeC";
-              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[12]{\_$mergeC,}\.fq\.$zipSuffix");
+              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
               @readsMerge = mateorder(\@readsMerge, $mergeC);
               $reads[0] .= ",".$readsMerge[0];
               $reads[1] .= ",".$readsMerge[1];
@@ -1590,12 +1638,11 @@ sub mateorder {
   foreach my $m (@{$r}){
     if ($m =~ /_R?1(\_$laneid)?\./) {
       $tmp[0] = $m;
-    }
-    elsif ($m =~ /_R?2(\_$laneid)?\./) {
+    } elsif ($m =~ /_R?[23](\_$laneid)?\./) {
       $tmp[1] = $m;
     }
     else {
-      print STDERR "the mate read file dosen't contain _1 _2 information, exit.\n";
+      print STDERR "the mate read file dosen't contain _1 _2 or _3 information, exit.\n";
       exit 1;
     }
   }
