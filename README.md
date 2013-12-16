@@ -24,10 +24,10 @@ All the annotation files and directories should be put under an central annotati
 
 Example:
 
-         TRUP_ANNOTATION     /     hg19   /    hg19.SelfChain_UCSC.txt
-         TRUP_ANNOTATION     /     hg19   /    hg19.bowtie2_index   /     ...
-               |                    |                     |
-central_anntation_directory ---> version ---> annotation files and directories
+         TRUP_ANNOTATION      /     hg19   /    hg19.SelfChain_UCSC.txt
+         TRUP_ANNOTATION      /     hg19   /    hg19.bowtie2_index   /     ...
+               |                     |                     |
+  central_anntation_directory /   version  / annotation files and directories
 
 If users choose to prepare annotation directories and files by themselves, it can be achieved in the following way (using hg19 as an example):
 
