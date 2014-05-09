@@ -54,6 +54,8 @@ my $merge = ''; #whether merge for multiple runs
 my @merge;
 my $bzip;  #to allow bzip compressed fastq files
 my $Rbinary = 'R';
+my $customMappedBam = '';
+my $seqType = 'p';   #whether paired-end or single-end
 
 
 if (@ARGV == 0) {
@@ -67,6 +69,7 @@ GetOptions(
            "runID=s"      => \$runID,
            "merge=s"      => \$merge,
            "runlevel=s"   => \$runlevels,
+           "seqType=s"    => \$seqType,
            "noexecute"    => \$noexecute,
            "quiet"        => \$quiet,
            "readlen=i"    => \$readlen,
@@ -104,6 +107,7 @@ GetOptions(
            "bzip"         => \$bzip,
            "Rbinary=s"    => \$Rbinary,
            "help|h"       => \$help,
+           "customBam=s"  => \$customMappedBam,
           );
 
 #print help
@@ -129,6 +133,10 @@ my $chromosomeSize = "$anno/$species/$species\.chromosome\_size\.txt";
 my $repeatMasker = "$anno/$species/$species\.repeats\_UCSC\.gff";
 my $selfChain = "$anno/$species/$species\.SelfChain\_UCSC\.txt";
 my $blatDatabase = "$anno/$species/$species\.genome\_UCSC\.2bit";
+#-------------------------------------------------------------------------
+
+### Frequently used names-------------------------------------------------
+my $mappedBam = "accepted_hits\.mapped\.sorted\.bam";
 #-------------------------------------------------------------------------
 
 #decompression option-----------------------------------------------------
@@ -199,17 +207,20 @@ if (defined $sampleName) {
 
   my @lanefile;
   if ($bzip) {
-    @lanefile = bsd_glob("$readpool/$sampleName*fq\.bz2");
+    @lanefile = bsd_glob("$readpool/*$sampleName*fq\.bz2");
     if (scalar(@lanefile) == 0) {
-      @lanefile = bsd_glob("$readpool/$sampleName*fastq\.bz2");
+      @lanefile = bsd_glob("$readpool/*$sampleName*fastq\.bz2");
     }
   } else {
-    @lanefile = bsd_glob("$readpool/$sampleName*fq\.gz");
+    @lanefile = bsd_glob("$readpool/*$sampleName*fq\.gz");
     if (scalar(@lanefile) == 0) {
-      @lanefile = bsd_glob("$readpool/$sampleName*fastq\.gz");
+      @lanefile = bsd_glob("$readpool/*$sampleName*fastq\.gz");
     }
   }
 
+  foreach my $lfile (@lanefile){
+     print STDERR "lanefile:\t$lfile\n";
+  }
 
   if (scalar(@lanefile) == 0) {
     print STDERR "no read files are available, please make sure that they are available under the dir of $readpool.\n";
@@ -231,29 +242,65 @@ if (defined $sampleName) {
   }
 
   if (scalar(@lanefile) > 0) {
-    if ($runID ne '') {
-      foreach my $read_file (@lanefile) {
-        if ($read_file =~ /($sampleName\_R?[123]\_$runID)\.f.+?\.([gb]z2?)$/) {
-          my $prefix = $1;
-          my $suffix = $2;
-          my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
-          RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
+    if ($seqType =~ /^p/) {
+      if ($runID ne '') {
+        foreach my $read_file (@lanefile) {
+          if ($read_file =~ /[^a-zA-Z0-9]($sampleName\_R?[123]\_$runID)\.f.+?\.([gb]z2?)$/) {
+            my $prefix = $1;
+            my $suffix = $2;
+            my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
+            RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
+          }
+        }
+      } else {
+        foreach my $read_file (@lanefile) {
+          if ($read_file =~ /[^a-zA-Z0-9]($sampleName\_R?[123])\.f.+?\.([gb]z2?)$/) {
+            my $prefix = $1;
+            my $suffix = $2;
+            my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
+            RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
+          }
         }
       }
-    } else {
-      foreach my $read_file (@lanefile) {
-        if ($read_file =~ /($sampleName\_R?[123])\.f.+?\.([gb]z2?)$/) {
-          my $prefix = $1;
-          my $suffix = $2;
-          my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
-          RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
+    }                           #paired-end
+    elsif ($seqType =~ /^s/) {
+      if (scalar(@lanefile) == 1) {
+        if ($runID ne '') {
+          if ($lanefile[0] =~ /$sampleName.*?$runID.*?\.([gb]z2?)$/) {
+            my $prefix = $sampleName.'_'.$runID;
+            my $suffix = $1;
+            my $cmd = "ln -s $lanefile[0] $lanepath/01_READS/$prefix\.fq\.$suffix";
+            RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
+          } else {
+            print STDER "Error: the single-end read fastq file is wierd: $lanefile[0]\n";
+            exit 22;
+          }
+        } else {
+          if ($lanefile[0] =~ /$sampleName.*?\.([gb]z2?)$/) {
+            my $prefix = $sampleName;
+            my $suffix = $1;
+            my $cmd = "ln -s $lanefile[0] $lanepath/01_READS/$prefix\.fq\.$suffix";
+            RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
+          } else {
+            print STDER "Error: the single-end read fastq file is wierd: $lanefile[0]\n";
+            exit 22;
+          }
         }
+      } else {
+        print STDERR "Error: multiple fastq files for single-end sequencing type.\n";
+        exit 22;
       }
+    }                           #single-end
+    else {
+      print STDERR "Error: option --seqType must be set to p or s.\n";
+      exit 22;
     }
   }
 
   if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
-     my @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
+     my @original_read_files;
+     @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^p/);
+     @original_read_files = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^s/);
      my $first_second_line = `$decompress "$original_read_files[0]" | head -2 | grep -v "^@"`;
      $readlen = length($first_second_line) - 1;
      $trimedlen = $readlen;
@@ -283,7 +330,7 @@ if (defined $sampleName) {
     open MERGE_LIST, ">>$merge_list";
     foreach my $mergeC (@merge) {
       my $cRunPath = "$root/$sampleName"."\_$mergeC";
-      my $cRunBam =  "$cRunPath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+      my $cRunBam =  "$cRunPath/02_MAPPING/accepted_hits\.mapped\.sorted\.bam";
       if ( ($merge ne $runID) and !(-s $cRunBam) ) {
         print STDERR "runID $mergeC: the bam file $cRunBam does not exist!!!\n";
         exit 22;
@@ -297,7 +344,7 @@ if (defined $sampleName) {
 }
 
 ###
-###runlevel1: trim the reads and insert size detection using spiked in reads
+###runlevel1: trim the reads if necessary and insert size detection using spiked in reads
 ###
 
 $runlevels = 1;
@@ -306,15 +353,26 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
-  (my $qc_out1 = $qc_files[0]) =~ s/\.$zipSuffix$/\.qc/;
-  (my $qc_out2 = $qc_files[1]) =~ s/\.$zipSuffix$/\.qc/;
+  my @qc_files;
+  my $qc_out1;
+  my $qc_out2;
+  if ($seqType =~ /^p/){
+    @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
+    ($qc_out1 = $qc_files[0]) =~ s/\.$zipSuffix$/\.qc/;
+    ($qc_out2 = $qc_files[1]) =~ s/\.$zipSuffix$/\.qc/;
+  } elsif ($seqType =~ /^s/) {
+    @qc_files = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix");
+    ($qc_out1 = $qc_files[0]) =~ s/\.$zipSuffix$/\.qc/;
+  } else {
+    print STDERR "seqType must be set starting with p:paired-end or s:single-end";
+    exit 22;
+  }
 
   unless (-e "$qc_out1") {
     my $cmd = "$decompress $qc_files[0] | $bin/fastx_quality_stats -Q33 -o $qc_out1";
     RunCommand($cmd,$noexecute,$quiet) unless ($qcOFF);
   }
-  unless (-e "$qc_out2") {
+  unless (($seqType =~ /^s/) or (-e "$qc_out2")) {
     my $cmd = "$decompress $qc_files[1] | $bin/fastx_quality_stats -Q33 -o $qc_out2";
     RunCommand($cmd,$noexecute,$quiet) unless ($qcOFF);
   }
@@ -327,27 +385,30 @@ if (exists $runlevel{$runlevels}) {
   if ( $trimedlen != $readlen ) {  #trimming
     my @trimed_read_files = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.$zipSuffix");
     if ( scalar(@trimed_read_files) == 0 ) {
-      my @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
+      my @ori_read_files;
+      @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^p/);
+      @ori_read_files = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^s/);
       foreach my $read_file (@ori_read_files) {
         my $read_out = $read_file;
         $read_out =~ s/fq\.$zipSuffix$/trimed\.fq\.$zipSuffix/;
-        if ($read_file =~ /\_R?1(\_$runID)?\./) {
-          $read_files[0] = $read_out;
-        }
-        else {
-          $read_files[1] = $read_out;
+        if ($seqType =~ /^p/) {
+          if ($read_file =~ /\_R?1(\_$runID)?\./) {
+            $read_files[0] = $read_out;
+          } else {
+            $read_files[1] = $read_out;
+          }
         }
         my $cmd = "$decompress $read_file | $bin/fastx_trimmer -l $trimedlen -z -Q33 -o $read_out";
         RunCommand($cmd,$noexecute,$quiet);
       }
-    }
-    else { #if trimed read file exists
+    } else {                    #if trimed read file exists
       @read_files = @trimed_read_files;
-      @read_files = &mateorder(\@read_files, $runID);
+      @read_files = &mateorder(\@read_files, $runID) if ($seqType =~ /^p/);
     }
-  } else {
-    @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");
-    @read_files = mateorder(\@read_files, $runID);
+  } else {  #no trimming
+    @read_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^p/);
+    @read_files = mateorder(\@read_files, $runID) if ($seqType =~ /^p/);
+    @read_files = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^s/);
   }
 
   my $total_reads = `$decompress $read_files[0] | wc -l`;
@@ -375,27 +436,29 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  my @spiked_in = bsd_glob("$lanepath/01_READS/$sampleName*spikedin.fq");
-  if (scalar(@spiked_in) == 0) {
-    foreach my $read_file (@read_files) {
-      my $spiked_in = $read_file;
-      $spiked_in =~ s/fq\.$zipSuffix$/spikedin\.fq/;
-      push(@spiked_in, $spiked_in);
+  if ($seqType =~ /^p/) {
+    my @spiked_in = bsd_glob("$lanepath/01_READS/$sampleName*spikedin.fq");
+    if (scalar(@spiked_in) == 0) {
+      foreach my $read_file (@read_files) {
+        my $spiked_in = $read_file;
+        $spiked_in =~ s/fq\.$zipSuffix$/spikedin\.fq/;
+        push(@spiked_in, $spiked_in);
+      }
+      my $cmd = "perl $bin/select_reads_with_no_n.pl $read_files[0] $read_files[1] 200000 >$spiked_in[0] 2>$spiked_in[1]";
+      RunCommand($cmd,$noexecute,$quiet);
     }
-    my $cmd = "perl $bin/select_reads_with_no_n.pl $read_files[0] $read_files[1] 200000 >$spiked_in[0] 2>$spiked_in[1]";
-    RunCommand($cmd,$noexecute,$quiet);
-  }
 
-  #do the pair-end mapping of spiked_in reads
-  unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.hits") {
-    my $cmd= "bowtie2 -p $threads --no-unal --no-hd --score-min L,-2,-0.15 -x $tophat2_trans_index -1 $spiked_in[0] -2 $spiked_in[1] >$lanepath/00_TEST/$sampleName\.spikedin\.hits";
-    RunCommand($cmd,$noexecute,$quiet);
-  }
+    #do the pair-end mapping of spiked_in reads
+    unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.hits") {
+      my $cmd= "bowtie2 -p $threads --no-unal --no-hd --score-min L,-2,-0.15 -x $tophat2_trans_index -1 $spiked_in[0] -2 $spiked_in[1] >$lanepath/00_TEST/$sampleName\.spikedin\.hits";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
 
-  unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength") {
-    my $real_len = $trimedlen;
-    my $cmd = "perl $bin/spike_in.pl $lanepath/00_TEST/$sampleName\.spikedin\.hits >$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength";
-    RunCommand($cmd,$noexecute,$quiet);
+    unless (-s "$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength") {
+      my $real_len = $trimedlen;
+      my $cmd = "perl $bin/spike_in.pl $lanepath/00_TEST/$sampleName\.spikedin\.hits >$lanepath/00_TEST/$sampleName\.spikedin\.fragmentlength";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
   }
 
   printtime();
@@ -411,8 +474,10 @@ if (defined $sampleName) {
   printtime();
   print STDERR "####### insert mean and sd calculation #######\n\n";
 
-  my @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.qc");
-  if ( scalar(@quality_check_files) == 2 ) { #decide the quality shift
+  my @quality_check_files;
+  @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.qc") if ($seqType =~ /^p/);
+  @quality_check_files = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.qc") if ($seqType =~ /^s/);
+  if ( scalar(@quality_check_files) == 2 or (scalar(@quality_check_files) == 1 and $seqType =~ /^s/)) { #decide the quality shift
     open QC, "<$quality_check_files[0]";
     my $qual_min = -1;
     my $qual_max = -1;
@@ -435,7 +500,7 @@ if (defined $sampleName) {
     }
   }
 
-  if ($ins_mean == 0) {
+  if ($ins_mean == 0 and $seqType =~ /^p/) {
 
     my $fraginfo = `$Rbinary --no-save --slave \'--args path=\"$lanepath/00_TEST/\" lane=\"$sampleName\.spikedin\"\' < $bin/fragment_length.R`;
     $fraginfo =~ /^(.+)\s(.+)/;
@@ -486,9 +551,10 @@ if (exists $runlevel{$runlevels}) {
     @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.$zipSuffix");   #trimmed reads
   }
   else {
-    @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix");    #original reads
+    @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^p/);    #original reads
+    @reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix") if ($seqType =~ /^s/);
   }
-  @reads = &mateorder(\@reads, $runID);
+  @reads = &mateorder(\@reads, $runID) if ($seqType =~ /^p/);
 
   my $real_len = $trimedlen;
 
@@ -506,11 +572,13 @@ if (exists $runlevel{$runlevels}) {
   } #tophat1
 
   elsif ($mapper eq 'tophat2') {
-    unless (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
-       my $cmd = "tophat2 --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat2_trans_index $bowtie2_index $reads[0] $reads[1]";
-       RunCommand($cmd,$noexecute,$quiet);
-     }
-  } #tophat2
+    unless (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/$mappedBam") {
+      my $cmd;
+      $cmd = "tophat2 --output-dir $lanepath/02_MAPPING --mate-inner-dist $real_ins_mean --mate-std-dev $ins_sd --library-type fr-unstranded -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat2_trans_index $bowtie2_index $reads[0] $reads[1]" if ($seqType =~ /^p/);
+      $cmd = "tophat2 --output-dir $lanepath/02_MAPPING -p $threads --segment-length $seg_len --no-sort-bam --transcriptome-index $tophat2_trans_index $bowtie2_index $reads[0]" if ($seqType =~ /^s/);
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+  }                             #tophat2
 
   elsif ($mapper eq 'gsnap') {
 
@@ -525,17 +593,19 @@ if (exists $runlevel{$runlevels}) {
      if ($bzip) {
        $zipOption = "--bunzip2";
      }
-     unless (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" or -s "$lanepath/02_MAPPING/accepted_hits\.sam") {
-        my $cmd = "gsnap -d $species -D $gmap_index $zipOption --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=5 $quality_options $reads[0] $reads[1] >$lanepath/02_MAPPING/accepted_hits\.sam";
+     unless (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/$mappedBam" or -s "$lanepath/02_MAPPING/accepted_hits\.sam") {
+        my $cmd;
+        $cmd = "gsnap -d $species -D $gmap_index $zipOption --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=5 $quality_options $reads[0] $reads[1] >$lanepath/02_MAPPING/accepted_hits\.sam" if ($seqType =~ /^p/);
+        $cmd = "gsnap -d $species -D $gmap_index $zipOption --format=sam --nthreads=$threads -s $gmap_splicesites --npaths=5 $quality_options $reads[0] >$lanepath/02_MAPPING/accepted_hits\.sam" if ($seqType =~ /^s/);
         RunCommand($cmd,$noexecute,$quiet);
      }
 
-     if (-s "$lanepath/02_MAPPING/accepted_hits\.sam" and (! -s "$lanepath/02_MAPPING/accepted_hits\.bam" and ! -s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam")){
+     if (-s "$lanepath/02_MAPPING/accepted_hits\.sam" and (! -s "$lanepath/02_MAPPING/accepted_hits\.bam" and ! -s "$lanepath/02_MAPPING/$mappedBam")) {
         my $cmd = "samtools view -Sb -@ $threads $lanepath/02_MAPPING/accepted_hits\.sam -o $lanepath/02_MAPPING/accepted_hits\.bam";
         RunCommand($cmd,$noexecute,$quiet);
      }
 
-     if (-s "$lanepath/02_MAPPING/accepted_hits\.sam" and (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam")){
+     if (-s "$lanepath/02_MAPPING/accepted_hits\.sam" and (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/$mappedBam")) {
         my $cmd  = "rm $lanepath/02_MAPPING/accepted_hits\.sam -f";
         RunCommand($cmd,$noexecute,$quiet);
      }
@@ -543,7 +613,7 @@ if (exists $runlevel{$runlevels}) {
   } #gsnap
 
   else {
-     print STDERR "Error: --mapper option should only be gsnap, tophat1 or tophat2. \n\n";
+     print STDERR "Error: --mapper option should only be gsnap or tophat2. \n\n";
      exit 22;
   }
 
@@ -555,13 +625,22 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$lanepath/03_STATS/$sampleName\.mapping\.stats") {
-    my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam --readlength $trimedlen --writer $lanepath/02_MAPPING/accepted_hits\.unique\.bam --arp $lanepath/03_STATS/$sampleName\.arp --breakpoint $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.mapping\.stats";
+    my $typeop = ($seqType =~ /^s/)? "--type s" : "--type p";
+    my $arpop = ($seqType =~ /^p/)? "--arp $lanepath/03_STATS/$sampleName\.arp" : "";
+    my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam $typeop --readlength $trimedlen --writer $lanepath/02_MAPPING/accepted_hits\.mapped\.bam --unmapped $lanepath/02_MAPPING/unmapped $arpop --breakpoint $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.mapping\.stats";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
   unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" ) {
     if (-s "$lanepath/03_STATS/$sampleName\.breakpoints") {
        my $cmd = "gzip $lanepath/03_STATS/$sampleName\.breakpoints";
+       RunCommand($cmd,$noexecute,$quiet);
+    }
+  }
+
+  unless (-s "$lanepath/03_STATS/unmapped\.gz" ) {
+    if (-s "$lanepath/03_STATS/unmapped") {
+       my $cmd = "gzip $lanepath/03_STATS/unmapped";
        RunCommand($cmd,$noexecute,$quiet);
     }
   }
@@ -577,18 +656,18 @@ if (exists $runlevel{$runlevels}) {
     close STATS;
   }
 
-  unless (-s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam") {
-    my $cmd = "samtools sort -@ $threads $lanepath/02_MAPPING/accepted_hits\.unique\.bam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted";
+  unless (-s "$lanepath/02_MAPPING/$mappedBam") {
+    my $cmd = "samtools sort -@ $threads $lanepath/02_MAPPING/accepted_hits\.mapped\.bam $lanepath/02_MAPPING/accepted_hits\.mapped\.sorted";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  if (-s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" and -s "$lanepath/02_MAPPING/accepted_hits\.unique\.bam") {
-    my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.unique\.bam -f";
+  if (-s "$lanepath/02_MAPPING/$mappedBam" and -s "$lanepath/02_MAPPING/accepted_hits\.mapped\.bam") {
+    my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.mapped\.bam -f";
     RunCommand($cmd,$noexecute,$quiet);
   }
-  if (-s "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam" and -s "$lanepath/02_MAPPING/accepted_hits\.bam") {
+  if (-s "$lanepath/02_MAPPING/$mappedBam" and -s "$lanepath/02_MAPPING/accepted_hits\.bam") {
     my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.bam -f";
-    #RunCommand($cmd,$noexecute,$quiet); CURRENTLY KEEP
+    RunCommand($cmd,$noexecute,$quiet);
   }
 
   if ($bigWig) { #generate wiggle file
@@ -598,7 +677,7 @@ if (exists $runlevel{$runlevels}) {
          RunCommand($cmd,$noexecute,$quiet);
       }
       else {
-         my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam -bg -split -g $chromosomeSize >$lanepath/03_STATS/$sampleName\.bedgraph";
+         my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize >$lanepath/03_STATS/$sampleName\.bedgraph";
          RunCommand($cmd,$noexecute,$quiet);
          $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.bw";
          RunCommand($cmd,$noexecute,$quiet);
@@ -611,7 +690,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   #for expression extimation;
-  my $readingBam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+  my $readingBam = "$lanepath/02_MAPPING/$mappedBam";
   if ($merge) {
     if (-s "$lanepath/$sampleName\.merge\_list") {
       $readingBam = "$lanepath/$sampleName\.merge\_list";
@@ -624,7 +703,12 @@ if (exists $runlevel{$runlevels}) {
   #ensembl gene#############################################################
   unless (-s "$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr\.sorted") {
     unless (-s "$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr") {
-      my $cmd1 = "$bin/Rseq_bam_reads2expr --region $ensembl_gene_bed --mapping $readingBam --posc $lanepath/03_STATS/$sampleName\.pos\.gff --chrmap $lanepath/03_STATS/$sampleName\.chrmap --lbias $lanepath/03_STATS/$sampleName\.lbias >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr";
+      my $cmd1;
+      if ($seqType =~ /^p/){
+        $cmd1 = "$bin/Rseq_bam_reads2expr --type p --region $ensembl_gene_bed --mapping $readingBam --posc $lanepath/03_STATS/$sampleName\.pos\.gff --chrmap $lanepath/03_STATS/$sampleName\.chrmap --lbias $lanepath/03_STATS/$sampleName\.lbias >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr";
+      } else {
+        $cmd1 = "$bin/Rseq_bam_reads2expr --type s --region $ensembl_gene_bed --mapping $readingBam --posc $lanepath/03_STATS/$sampleName\.pos\.gff --chrmap $lanepath/03_STATS/$sampleName\.chrmap --lbias $lanepath/03_STATS/$sampleName\.lbias >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr";
+      }
       RunCommand($cmd1,$noexecute,$quiet);
     }
     my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr >$lanepath/03_STATS/$sampleName\.ensembl\_gene\.expr.sorted";
@@ -671,8 +755,9 @@ if (exists $runlevel{$runlevels}) {
       }
     }
     print STDERR "mapped pairs equal to zero!!!\n" if ($mapped == 0);
-    print STDERR "singletons equal to zero!!!\n" if ($singleton == 0);
-    $N_mapped_reads = 2*$mapped - $singleton;
+    print STDERR "singletons equal to zero!!!\n" if ($singleton == 0 and $seqType =~ /^p/);
+    $N_mapped_reads = 2*$mapped - $singleton if ($seqType =~ /^p/);
+    $N_mapped_reads = $mapped if ($seqType =~ /^s/);
     exit if ($N_mapped_reads == 0);
     close MAPPING_STATS;
 
@@ -695,33 +780,28 @@ if (exists $runlevel{$runlevels}) {
       my $counts_dblength = $cols[4];
       my $counts = round($cols[7]);
       my $rpkm = sprintf("%.3f", $counts_dblength * 1e9/$N_mapped_reads);
-      print ENSEMBL_RPKM "$ensembl_name\t$counts\t$rpkm\t$ensembl_genemap{$ensembl_name}\n";
+      if (exists($ensembl_genemap{$ensembl_name})){
+        print ENSEMBL_RPKM "$ensembl_name\t$counts\t$rpkm\t$ensembl_genemap{$ensembl_name}\n";
+      } else {
+        print ENSEMBL_RPKM "$ensembl_name\t$counts\t$rpkm\t\n";
+      }
     }
     close ENSEMBL_GENE_EXPR;
     close ENSEMBL_RPKM;
   }
 
 
-  #refseq gene##############################################################
-  unless (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr.sorted") {
-    unless (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr") {
-      my $cmd = "$bin/Rseq_bam_reads2expr --region $refseq_gene --mapping $readingBam >$lanepath/03_STATS/$sampleName\.RefSeq\.expr";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
-    my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.RefSeq\.expr >$lanepath/03_STATS/$sampleName\.RefSeq\.expr.sorted";
-    RunCommand($cmd2,$noexecute,$quiet);
-    if (-s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr.sorted" and -s "$lanepath/03_STATS/$sampleName\.RefSeq\.expr") {
-      my $cmd3 = "rm $lanepath/03_STATS/$sampleName\.RefSeq\.expr -rf";
-      RunCommand($cmd3,$noexecute,$quiet);
-    }
-  }
-
   #gencode if it is human transcriptome
   if ($species eq 'hg19') {
     #gencode gene#############################################################
     unless (-s "$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr.sorted") {
       unless (-s "$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr") {
-        my $cmd1 = "$bin/Rseq_bam_reads2expr --region $gencode_gene_bed --mapping $readingBam >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr";
+        my $cmd1;
+        if ($seqType =~ /^p/){
+          $cmd1 = "$bin/Rseq_bam_reads2expr --type p --region $gencode_gene_bed --mapping $readingBam >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr";
+        } else {
+          $cmd1 = "$bin/Rseq_bam_reads2expr --type s --region $gencode_gene_bed --mapping $readingBam >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr";
+        }
         RunCommand($cmd1,$noexecute,$quiet);
       }
       my $cmd2 = "sort -k 1,1d -k 2,2n -k 3,3n $lanepath/03_STATS/$sampleName\.gencode\_gene\.expr >$lanepath/03_STATS/$sampleName\.gencode\_gene\.expr.sorted";
@@ -748,8 +828,9 @@ if (exists $runlevel{$runlevels}) {
         }
       }
       print STDERR "mapped pairs equal to zero!!!\n" if ($mapped == 0);
-      print STDERR "singletons equal to zero!!!\n" if ($singleton == 0);
-      $N_mapped_reads = 2*$mapped - $singleton;
+      print STDERR "singletons equal to zero!!!\n" if ($singleton == 0 and $seqType =~ /^p/);
+      $N_mapped_reads = 2*$mapped - $singleton if ($seqType =~ /^p/);
+      $N_mapped_reads = $mapped if ($seqType =~ /^s/);
       exit if ($N_mapped_reads == 0);
       close MAPPING_STATS;
 
@@ -785,29 +866,47 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  unless (-s "$lanepath/03_STATS/$sampleName\.ins\.gz") {
-    unless (-s "$lanepath/03_STATS/$sampleName\.ins") {
-       my $cmd = "samtools view -f 0x2 $lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam | cut -f 9 | awk \'\$1\>0 \&\& \$1\<500\' >$lanepath/03_STATS/$sampleName\.ins";
-       RunCommand($cmd,$noexecute,$quiet);
+  if ($seqType =~ /^p/) { #do the insert size only if it is paired-end
+    unless (-s "$lanepath/03_STATS/$sampleName\.ins\.gz") {
+      unless (-s "$lanepath/03_STATS/$sampleName\.ins") {
+         my $cmd = "samtools view -f 0x2 $lanepath/02_MAPPING/$mappedBam | cut -f 9 | awk \'\$1\>0 \&\& \$1\<500\' >$lanepath/03_STATS/$sampleName\.ins";
+         RunCommand($cmd,$noexecute,$quiet);
+      }
+      if (-s "$lanepath/03_STATS/$sampleName\.ins") {
+         my $cmd = "gzip $lanepath/03_STATS/$sampleName\.ins";
+         RunCommand($cmd,$noexecute,$quiet);
+      }
     }
-    if (-s "$lanepath/03_STATS/$sampleName\.ins") {
-       my $cmd = "gzip $lanepath/03_STATS/$sampleName\.ins";
-       RunCommand($cmd,$noexecute,$quiet);
-    }
-  }
+  } #insert size
 
   unless (-s "$lanepath/03_STATS/$sampleName\.report/$sampleName\.report\.html") {
-    my @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.qc");
-    @qc_files = mateorder(\@qc_files, $runID);
+    my @qc_files;
+    if ($seqType =~ /^p/) {
+       @qc_files = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.qc");
+       @qc_files = mateorder(\@qc_files, $runID);
+    } else {
+       @qc_files = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.qc");
+    }
     my $qcmatesuffix1;
     my $qcmatesuffix2;
-    if ($qc_files[0] =~ /(\_R?[123](\_$runID)?\.fq\.qc)$/){
-       $qcmatesuffix1 = $1;
+    if ($seqType =~ /^p/){
+      if ($qc_files[0] =~ /(\_R?[123](\_$runID)?\.fq\.qc)$/) {
+         $qcmatesuffix1 = $1;
+      }
+      if ($qc_files[1] =~ /(\_R?[123](\_$runID)?\.fq\.qc)$/) {
+         $qcmatesuffix2 = $1;
+      }
+    } else {
+      if ($qc_files[0] =~ /((\_$runID)?\.fq\.qc)$/) {
+         $qcmatesuffix1 = $1;
+       }
     }
-    if ($qc_files[1] =~ /(\_R?[123](\_$runID)?\.fq\.qc)$/){
-       $qcmatesuffix2 = $1;
+    my $cmd;
+    if ($seqType =~ /^p/){
+      $cmd  = "$Rbinary CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" species=\"$species\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\" type=\"p\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
+    } else {
+      $cmd  = "$Rbinary CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" species=\"$species\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" type=\"s\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
     }
-    my $cmd = "$Rbinary CMD BATCH --no-save --no-restore "."\'--args path=\"$lanepath\" lane=\"$sampleName\" anno=\"$anno\" species=\"$species\" src=\"$bin\" readlen=$real_len gf=\"$gf\" qcsuffix1=\"$qcmatesuffix1\" qcsuffix2=\"$qcmatesuffix2\"' $bin/html_report.R $lanepath/03_STATS/R\_html\.out";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -886,7 +985,8 @@ if (exists $runlevel{$runlevels}) {
     #breakpoint Source is defined
 
     unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed") {
-      my $cmd = "perl $bin/breakpoint\_processing.pl $breakpointSource >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
+      my $typeop = ($seqType =~ /^p/)? "p":"s";
+      my $cmd = "perl $bin/breakpoint\_processing.pl $breakpointSource $typeop >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
@@ -900,34 +1000,9 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
 
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco"){
-      my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
-      die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
-      if ($merge) {
-        if (-s "$lanepath/$sampleName\.merge\_list") {
-          $mapping_bam = "$lanepath/$sampleName\.merge\_list";
-        } else {
-          print STDERR "$lanepath/$sampleName\.merge\_list does not exit or has no content!!!\n";
-          exit 22;
-        }
-      }
-      my $cmd = "$bin/discordant_consistency --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
-
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted"){
-      my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
-
-    unless (-e "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter"){
-      my $cmd = "perl $bin/breakpoint_final_prepare.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
-
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
-      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
-        my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+    if ($seqType =~ /^p/) {
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco") {
+        my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
         if ($merge) {
           if (-s "$lanepath/$sampleName\.merge\_list") {
@@ -937,40 +1012,75 @@ if (exists $runlevel{$runlevels}) {
             exit 22;
           }
         }
-        my $largestBPID = `tail -1 $lanepath/04_ASSEMBLY/$sampleName.breakpoints.processed | cut -f 1`;
-        $largestBPID =~ s/\n//;
-        my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
+        my $cmd = "$bin/discordant_consistency --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco";
         RunCommand($cmd,$noexecute,$quiet);
       }
-      if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
-        my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted";
+
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted"){
+        my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted";
         RunCommand($cmd,$noexecute,$quiet);
       }
-    }
 
-    if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate" and -s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
-      my $cmd = "rm $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate -f";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-e "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter"){
+        my $cmd = "perl $bin/breakpoint_final_prepare.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter") {
-      my $cmd = "perl $bin/discordant_mate_processing.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted $repeatMasker $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
+        unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
+          my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
+          die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
+          if ($merge) {
+            if (-s "$lanepath/$sampleName\.merge\_list") {
+              $mapping_bam = "$lanepath/$sampleName\.merge\_list";
+            } else {
+              print STDERR "$lanepath/$sampleName\.merge\_list does not exit or has no content!!!\n";
+              exit 22;
+            }
+          }
+          my $largestBPID = `tail -1 $lanepath/04_ASSEMBLY/$sampleName.breakpoints.processed | cut -f 1`;
+          $largestBPID =~ s/\n//;
+          my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
+          RunCommand($cmd,$noexecute,$quiet);
+        }
+        if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
+          my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted";
+          RunCommand($cmd,$noexecute,$quiet);
+        }
+      }
 
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined") {
-      my $cmd = "cat $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate" and -s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
+        my $cmd = "rm $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate -f";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
 
-    unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted") {
-      my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";
-      RunCommand($cmd,$noexecute,$quiet);
-    }
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter") {
+        my $cmd = "perl $bin/discordant_mate_processing.pl $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted $repeatMasker $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined") {
+        my $cmd = "cat $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted\.filter $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted") {
+        my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    } #if it is paired-end reads
+
+    else {  #it is single-end reads
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted") {
+        my $cmd = "awk \'\(\$2 == \"s\" && \$5 >= 5 && \$8 == \"N\") || \(\$2 == \"p\"\)' $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+    } #single-end reads
+
 
     if ($RA == 1) { #independent regional assembly
       unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads") {
-        my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+        my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
         if ($merge) {
           if (-s "$lanepath/$sampleName\.merge\_list") {
             $mapping_bam = "$lanepath/$sampleName\.merge\_list";
@@ -980,45 +1090,64 @@ if (exists $runlevel{$runlevels}) {
           }
         }
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
-        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
+        my $typeop = ($seqType =~ /^p/)? "--type p":"--type s";
+        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam $typeop >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
-      my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq");
-      my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz");
-      unless ( scalar(@RAssembly_reads) == 2 or scalar(@RAssembly_reads_gz) == 2 ) { #get raw reads
+      my @RAssembly_reads;
+      @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^p/);
+      @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^s/);
+      my @RAssembly_reads_gz;
+      @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^p/);
+      @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^s/);
+      unless ( ($seqType =~ /^p/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) or ($seqType =~ /^s/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) ) { #get raw reads
 
-        #need to do something here
+        #need to do get raw reads here
         my @reads;
         if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.$zipSuffix"); #trimmed reads
-          @reads = mateorder(\@reads, $runID);
-          if (scalar(@merge) != 0){
+          @reads = mateorder(\@reads, $runID) if ($seqType =~ /^p/);
+          if (scalar(@merge) != 0) {
             foreach my $mergeC (@merge) {
               next if ($mergeC eq $runID);
               my $cRunPath = "$root/$sampleName"."\_$mergeC";
               my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName*trimed\.fq\.$zipSuffix");
-              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              @readsMerge = mateorder(\@readsMerge, $mergeC) if ($seqType =~ /^p/);
               $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1];
+              $reads[1] .= ",".$readsMerge[1] if ($seqType =~ /^p/);
             }
           } #if merge
         } else {
-          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
-          @reads = mateorder(\@reads, $runID);
+          if ($seqType =~ /^p/){ #paired-end
+            @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
+            @reads = mateorder(\@reads, $runID);
+          } else { #single-end
+            @reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix"); #original reads
+          }
           if (scalar(@merge) != 0){
             foreach my $mergeC (@merge) {
               next if ($mergeC eq $runID);
               my $cRunPath = "$root/$sampleName"."\_$mergeC";
-              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
-              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              my @readsMerge;
+              if ($seqType =~ /^p/){
+                @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
+                @readsMerge = mateorder(\@readsMerge, $mergeC);
+              } else {
+                @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName*{\_$mergeC,}\.fq\.$zipSuffix");
+              }
               $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1];
+              $reads[1] .= ",".$readsMerge[1] if ($seqType =~ /^p/);
             }
           } #if merge
         }
 
-        my $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
+        my $cmd;
+        if ($seqType =~ /^p/){
+          $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
+        } else {
+          $cmd = "perl $bin/pick_ARP.pl --arpfile $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --RA";
+        }
         RunCommand($cmd,$noexecute,$quiet);
       }
     } else {
@@ -1033,11 +1162,15 @@ if (exists $runlevel{$runlevels}) {
 
       if ($RA == 1) {
 
-        my @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq");
-        my @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz");
+        my @RAssembly_reads;
+        @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^p/);
+        @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^s/);
+        my @RAssembly_reads_gz;
+        @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^p/);
+        @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^s/);
 
-        if ($#RAssembly_reads != 1) {
-          if ($#RAssembly_reads_gz == 1) {
+        if (($seqType =~ /^p/ and $#RAssembly_reads != 1) or ($seqType =~ /^s/ and $#RAssembly_reads != 0)) {
+          if (($seqType =~ /^p/ and $#RAssembly_reads_gz == 1) or ($seqType =~ /^s/ and $#RAssembly_reads_gz == 0)) {
             foreach my $RA_read_file_gz (@RAssembly_reads_gz) {
                (my $RA_read_file = $RA_read_file_gz) =~ s/\.gz$//;
                my $cmd = "gzip -d -c $RA_read_file_gz >$RA_read_file";
@@ -1047,29 +1180,30 @@ if (exists $runlevel{$runlevels}) {
             print STDERR "Error: RA read files are not correctly generated...\n\n";
             exit 22;
           }
-          @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq");
+          @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^p/);
+          @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^s/);
         }
 
-        @RAssembly_reads = mateorder(\@RAssembly_reads, $runID);
+        @RAssembly_reads = mateorder(\@RAssembly_reads, $runID) if ($seqType =~ /^p/);
         my $ra_reads1_file = $RAssembly_reads[0];
-        my $ra_reads2_file = $RAssembly_reads[1];
+        my $ra_reads2_file = $RAssembly_reads[1] if ($seqType =~ /^p/);
 
         my %ra_reads1_jumpers;
         my %ra_reads2_jumpers;
 
         find_jumpers($ra_reads1_file, \%ra_reads1_jumpers);
-        find_jumpers($ra_reads2_file, \%ra_reads2_jumpers);
+        find_jumpers($ra_reads2_file, \%ra_reads2_jumpers) if ($seqType =~ /^p/);
 
         my $n_ids_ra_reads1 = scalar(keys %ra_reads1_jumpers);
-        my $n_ids_ra_reads2 = scalar(keys %ra_reads2_jumpers);
-        if ($n_ids_ra_reads1 != $n_ids_ra_reads2) {
-          print STDERR "Error: the numbers of breakpoints are inconsistant between reads ($n_ids_ra_reads1 vs $n_ids_ra_reads2).\n";
+        my $n_ids_ra_reads2 = scalar(keys %ra_reads2_jumpers) if ($seqType =~ /^p/);
+        if ($seqType =~ /^p/ and ($n_ids_ra_reads1 != $n_ids_ra_reads2)) {
+          print STDERR "Error: the numbers of breakpoints are inconsistant between read pairs ($n_ids_ra_reads1 vs $n_ids_ra_reads2).\n";
           exit 22;
         }
 
         #now should do regional assembly one by one
         open RA_READS1, "$ra_reads1_file";
-        open RA_READS2, "$ra_reads2_file";
+        open RA_READS2, "$ra_reads2_file" if ($seqType =~ /^p/);
         my $speed_count = 0;
         my %printed_speed;
         foreach my $bp_id (sort {$a<=>$b} keys %ra_reads1_jumpers) {
@@ -1082,10 +1216,15 @@ if (exists $runlevel{$runlevels}) {
           RunCommand($cmd,$noexecute,1);
 
           regional_assembly(\*RA_READS1, $ra_reads1_jumpers{$bp_id}, $bp_id, "$lanepath/04_ASSEMBLY/$bp_id/reads_1.fq");
-          regional_assembly(\*RA_READS2, $ra_reads2_jumpers{$bp_id}, $bp_id, "$lanepath/04_ASSEMBLY/$bp_id/reads_2.fq");
+          regional_assembly(\*RA_READS2, $ra_reads2_jumpers{$bp_id}, $bp_id, "$lanepath/04_ASSEMBLY/$bp_id/reads_2.fq") if ($seqType =~ /^p/);
 
           unless (-s "$lanepath/04_ASSEMBLY/$bp_id/Roadmaps") {
-            my $cmd = "velveth $lanepath/04_ASSEMBLY/$bp_id/ 21 -fastq -shortPaired -separate $lanepath/04_ASSEMBLY/$bp_id/reads_1.fq $lanepath/04_ASSEMBLY/$bp_id/reads_2.fq";
+            my $cmd;
+            if ($seqType =~ /^p/){
+              $cmd = "velveth $lanepath/04_ASSEMBLY/$bp_id/ 21 -fastq -shortPaired -separate $lanepath/04_ASSEMBLY/$bp_id/reads_1.fq $lanepath/04_ASSEMBLY/$bp_id/reads_2.fq";
+            } else {
+              $cmd = "velveth $lanepath/04_ASSEMBLY/$bp_id/ 21 -fastq -short $lanepath/04_ASSEMBLY/$bp_id/reads_1.fq";
+            }
             RunCommand($cmd,$noexecute,1);
           }
 
@@ -1130,10 +1269,10 @@ if (exists $runlevel{$runlevels}) {
         print STDERR "\n";
         #close BP_REGION;
         close RA_READS1;
-        close RA_READS2;
+        close RA_READS2 if ($seqType =~ /^p/);
 
-        if ($#RAssembly_reads_gz != 1) { #gz file does not exist
-          if ($#RAssembly_reads == 1) {
+        if (($seqType =~ /^p/ and $#RAssembly_reads_gz != 1) or ($seqType =~ /^s/ and $#RAssembly_reads_gz != 0)) { #gz file does not exist
+          if (($seqType =~ /^p/ and $#RAssembly_reads == 1) or ($seqType =~ /^s/ and $#RAssembly_reads == 0)) {
             foreach my $RA_read_file (@RAssembly_reads) {
               my $cmd = "gzip $RA_read_file";
               RunCommand($cmd,$noexecute,$quiet);
@@ -1223,33 +1362,43 @@ if (exists $runlevel{$runlevels}) {
       my @reads;
       if ($trimedlen != $readlen) {
           @reads = bsd_glob("$lanepath/01_READS/$sampleName*trimed\.fq\.$zipSuffix"); #trimmed reads
-          @reads = mateorder(\@reads, $runID);
+          @reads = mateorder(\@reads, $runID) if ($seqType =~ /^p/);
           if (scalar(@merge) != 0) {
             foreach my $mergeC (@merge) {
               next if ($mergeC eq $runID);
               my $cRunPath = "$root/$sampleName"."\_$mergeC";
               my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName*trimed\.fq\.$zipSuffix");
-              @readsMerge = mateorder(\@readsMerge, $mergeC);
+              @readsMerge = mateorder(\@readsMerge, $mergeC) if ($seqType =~ /^p/);
               $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1];
+              $reads[1] .= ",".$readsMerge[1] if ($seqType =~ /^p/);
             }
           } #if merge
        } else {
-          @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
-          @reads = mateorder(\@reads, $runID);
-          if (scalar(@merge) != 0){
-            foreach my $mergeC (@merge) {
-              next if ($mergeC eq $runID);
-              my $cRunPath = "$root/$sampleName"."\_$mergeC";
-              my @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
-              @readsMerge = mateorder(\@readsMerge, $mergeC);
-              $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1];
-            }
-          } #if merge
-       }
+         if ($seqType =~ /^p/){
+           @reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
+           @reads = mateorder(\@reads, $runID);
+         } else {
+           @reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix");
+         }
+         if (scalar(@merge) != 0) {
+           foreach my $mergeC (@merge) {
+             next if ($mergeC eq $runID);
+             my $cRunPath = "$root/$sampleName"."\_$mergeC";
+             my @readsMerge;
+             if ($seqType =~ /^p/) {
+               @readsMerge= bsd_glob("$cRunPath/01_READS/$sampleName\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
+               @readsMerge = mateorder(\@readsMerge, $mergeC);
+             } else {
+               @readsMerge= bsd_glob("$cRunPath/01_READS/$sampleName*{\_$mergeC,}\.fq\.$zipSuffix");
+             }
+             $reads[0] .= ",".$readsMerge[0];
+             $reads[1] .= ",".$readsMerge[1] if ($seqType =~ /^p/);
+           }
+         } #if merge
+       } #original read length
 
-      my $cmd = "bowtie2 -k 22 -p $threads --no-unal --score-min L,-2,-0.15 -x $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index -1 $reads[0] -2 $reads[1] >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam";
+      my $readsop = ($seqType =~ /^p/)? "-1 $reads[0] -2 $reads[1]":"-U $reads[0]";
+      my $cmd = "bowtie2 -k 22 -p $threads --no-unal --score-min L,-2,-0.15 -x $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq\.index $readsop >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam";
       RunCommand($cmd,$noexecute,$quiet);
 
       $cmd = "samtools view -Sb $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.sam -o $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2.bam";
@@ -1267,12 +1416,15 @@ if (exists $runlevel{$runlevels}) {
     my $gfc_opts = '';
     $gfc_opts = "--genomeBlatPred $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration";
 
-    my $readingBam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+    my $readingBam = "$lanepath/02_MAPPING/$mappedBam";
+    if ($customMappedBam ne ''){
+       $readingBam = $customMappedBam;
+    }
     if ($merge) {
       foreach my $mergeC (@merge) {
          next if ($mergeC eq $runID);
          my $cRunPath = "$root/$sampleName"."\_$mergeC";
-         my $cRunBam = "$cRunPath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+         my $cRunBam = "$cRunPath/02_MAPPING/$mappedBam";
          if (-s $cRunBam){
            $readingBam .= ",".$cRunBam;
          } else {
@@ -1282,7 +1434,12 @@ if (exists $runlevel{$runlevels}) {
       }
     } #if merge
 
-    my $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+    my $cmd;
+    if ($seqType =~ /^p/) { #paired-end
+      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+    } else { #single-end
+      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type single --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+    }
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1290,7 +1447,8 @@ if (exists $runlevel{$runlevels}) {
   unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis") {
     my $fpv_opts = '';
     $fpv_opts = "--genomeBlatPred";
-    my $cmd = "perl $bin/further_processing_for_read_visualization.pl $fpv_opts --fusionseqfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq --coveragefile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov --readlength $trimedlen >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis";
+    my $typeop = ($seqType =~ /^p/)? "--seqType p":"--seqType s";
+    my $cmd = "perl $bin/further_processing_for_read_visualization.pl $fpv_opts $typeop --fusionseqfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq --coveragefile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov --readlength $trimedlen >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1348,7 +1506,7 @@ if (exists $runlevel{$runlevels}) {
       $cufflinks_options .= "--upper-quartile-norm";
     }
 
-    my $mapping_bam = "$lanepath/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+    my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
     if (-s $mapping_bam){
       my $cmd = "cufflinks -o $lanepath/06_CUFFLINKS -p $threads $cufflinks_options --quiet $mapping_bam";
       RunCommand($cmd,$noexecute,$quiet);
@@ -1440,7 +1598,7 @@ if (exists $runlevel{$runlevels}) {
        chomp;
        next if /^label/;
        my ($cu_sample, $cu_expr_count, $tissue, $patient) = split /\t/;
-       my $cu_bam_file = "$root/$cu_sample/02_MAPPING/accepted_hits\.unique\.sorted\.bam";
+       my $cu_bam_file = "$root/$cu_sample/02_MAPPING/$mappedBam";
        push (@{$bam_files_cd{$tissue}}, $cu_bam_file);
     }
     close TARGETS;
@@ -1556,6 +1714,7 @@ sub RunCommand {
 sub helpm {
   print STDERR "\nGENERAL OPTIONS (MUST SET):\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl. See below for options for each runlevel.\n";
   print STDERR "\t--sampleName\tthe name of the lane needed to be processed (must set for runlevel 1-5)\n";
+  print STDERR "\t--seqType\tset to 's' if it is a single-end sequencing experiment, or 'p' for paired-end (default).\n";
   print STDERR "\t--runID\t\tthe ID of the run needed to be processed (default not set, must set if fastq files are ended with _R1_00X.fq)\n";
   print STDERR "\t--merge\t\ta comma-separated list of runIDs that are needed to be merged, the output will be written to the defined runID\n";
   print STDERR "\t--root\t\tthe root directory of the pipeline (default is \$bin/../PIPELINE/, MUST set using other dir)\n";

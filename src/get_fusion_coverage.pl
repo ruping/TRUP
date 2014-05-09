@@ -103,7 +103,6 @@ if ($genomeBlatPred eq 'SRP') {
     }
     close ENS;
 
-
     open LOC, "$locnamefile";
     while (<LOC>){
 	next if /^Gene/;
@@ -155,12 +154,12 @@ my %transcript2gene;
 my @rs2;          #start array for each chr
 my $old_chr2;     #checking the chr
 my $ptr2;         #pointer for repeatmask sub
-while ( <GA> ){
+while ( <GA> ) {
    next if /^#/;
    chomp;
    my ($chr,$source,$type,$start,$end,$score,$strand,$phase,$tag) = split /\t/;
 
-   if ($type eq 'gene'){
+   if ($type eq 'gene') {
 
      $tag =~ /^ID=(.+?);Name=(.+?);/;
      my $ensemble = $1;
@@ -248,7 +247,7 @@ foreach my $ensGene (keys %gene2exon) {
 my %genomeBlatPred;
 if ($genomeBlatPred ne 'SRP') {
   open GBP, "$genomeBlatPred";
-  while ( <GBP> ){
+  while ( <GBP> ) {
     chomp;
     my ($transcript, $id, $length, $bp, $blat1, $blat2, $chimeric_score) = split /\t/;
     my $blatInfo;
@@ -268,14 +267,14 @@ if ($genomeBlatPred ne 'SRP') {
 open IN, "samtools view $mapping |";
 my %for_rm;
 my %coverage;
-my %for_encompass;
+my %for_encompass if ($type =~ /pair/);
 while ( <IN> ){
 
    next if /^\@/;
    chomp;
    #my @cols = split /\t/;
 
-   if ($type =~ /pair/) { #bowtie
+   if ($type =~ /pair/ or $type =~ /single/) { #bowtie
 
       my ($read, $flag, $candidate, $start, $mapQ, $cigar, $mateR, $matePos, $insert, $read_seq, $read_qual, @tags) = split /\t/;
 
@@ -294,7 +293,7 @@ while ( <IN> ){
       my @transcript;
       my $transcript;
 
-      if ($candidate =~ /^(.+?Confidence_([10]\.\d+).*?)\|(\d+)\|(.+?)\+(.+?)\|(.+?)\|(\d+)\.\.(\d+)\|(.+?)\|(.+?)\|(.+)$/){
+      if ($candidate =~ /^(.+?Confidence_([10]\.\d+).*?)\|(\d+)\|(.+?)\+(.+?)\|(.+?)\|(\d+)\.\.(\d+)\|(.+?)\|(.+?)\|(.+)$/) {
          $transcript->{'name'} = $1;
          $transcript->{'confidence'} = $2;
          $transcript->{'length'} = $3;
@@ -511,15 +510,17 @@ while ( <IN> ){
 
       #store read mapping information
 
-      #$read =~ /(.+?)[\/\s]([12])/;
+      $read =~ s/\/[123](\w)?$//;
       my $read_root = $read;
-      my $read_end;
+      my $read_end = '1';
 
-      if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
-      elsif ($flag & 128){$read_end = '2';} #the read is the second in the pair
-      else {
-         print STDERR "error: there is a read alignment ( $read ) seems not to be any mate end!!!!!!\n";
-         exit 22;
+      if ($type =~ /pair/){
+        if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
+        elsif ($flag & 128){$read_end = '2';} #the read is the second in the pair
+        else {
+           print STDERR "error: there is a read alignment ( $read ) seems not to be any mate end!!!!!!\n";
+           exit 22;
+        }
       }
 
       #$start += 1;
@@ -529,7 +530,7 @@ while ( <IN> ){
         $coverage{$transcript_name}{$read_root}{$read_end}{$start} = $_;
       }
 
-   } #pair type
+   } #pair or single type
 }
 
 close IN;
@@ -602,7 +603,7 @@ foreach my $chr (sort keys %for_rm) {
 
 
 #find the gene name, orientation and strands if genome Blat
-if ($genomeBlatPred ne 'SRP'){
+if ($genomeBlatPred ne 'SRP') {
     foreach my $chr (sort keys %for_rm) {
 	foreach my $pos (sort {$a<=>$b} keys %{$for_rm{$chr}}) {
 
@@ -662,45 +663,47 @@ if ($genomeBlatPred ne 'SRP'){
           next;
        }
 
-       #also should do for emcompassing
-       if ( $ensembl1 ne 'IGR' ){
-         $for_encompass{$transcript_name}{'chr1'}   = $gene{$ensembl1}{'chr'};
-         if ($blat1_st eq '+'){
-           $for_encompass{$transcript_name}{'start1'} = $gene{$ensembl1}{'start'};
-           $for_encompass{$transcript_name}{'end1'}   = $blat1_te;
+       #also should do for emcompassing for paired-end reads
+       if ($type =~ /pair/) {
+         if ( $ensembl1 ne 'IGR' ) {
+           $for_encompass{$transcript_name}{'chr1'}   = $gene{$ensembl1}{'chr'};
+           if ($blat1_st eq '+'){
+             $for_encompass{$transcript_name}{'start1'} = $gene{$ensembl1}{'start'};
+             $for_encompass{$transcript_name}{'end1'}   = $blat1_te;
+           } else {
+             $for_encompass{$transcript_name}{'start1'} = $blat1_ts;
+             $for_encompass{$transcript_name}{'end1'}   = $gene{$ensembl1}{'end'};
+           }
          } else {
-           $for_encompass{$transcript_name}{'start1'} = $blat1_ts;
-           $for_encompass{$transcript_name}{'end1'}   = $gene{$ensembl1}{'end'};
+           $for_encompass{$transcript_name}{'chr1'}   = $blat1_chr;
+           if ($blat1_st eq '+'){
+             $for_encompass{$transcript_name}{'start1'} = $blat1_ts - 10000;
+             $for_encompass{$transcript_name}{'end1'}   = $blat1_te;
+           } else {
+             $for_encompass{$transcript_name}{'start1'} = $blat1_ts;
+             $for_encompass{$transcript_name}{'end1'}   = $blat1_te + 10000;
+           }
          }
-       } else {
-         $for_encompass{$transcript_name}{'chr1'}   = $blat1_chr;
-         if ($blat1_st eq '+'){
-           $for_encompass{$transcript_name}{'start1'} = $blat1_ts - 10000;
-           $for_encompass{$transcript_name}{'end1'}   = $blat1_te;
+         if ( $ensembl2 ne 'IGR' ) {
+           $for_encompass{$transcript_name}{'chr2'}   = $gene{$ensembl2}{'chr'};
+           if ($blat2_st eq '+') {
+             $for_encompass{$transcript_name}{'start2'} = $blat2_ts;
+             $for_encompass{$transcript_name}{'end2'}   = $gene{$ensembl2}{'end'};
+           } else {
+             $for_encompass{$transcript_name}{'start2'} = $gene{$ensembl2}{'start'};
+             $for_encompass{$transcript_name}{'end2'}   = $blat2_te;
+           }
          } else {
-           $for_encompass{$transcript_name}{'start1'} = $blat1_ts;
-           $for_encompass{$transcript_name}{'end1'}   = $blat1_te + 10000;
+            $for_encompass{$transcript_name}{'chr2'}   = $blat2_chr;
+            if ($blat2_st eq '+') {
+              $for_encompass{$transcript_name}{'start2'} = $blat2_ts;
+              $for_encompass{$transcript_name}{'end2'}   = $blat2_te + 10000;
+            } else {
+              $for_encompass{$transcript_name}{'start2'} = $blat2_ts - 10000;
+              $for_encompass{$transcript_name}{'end2'}   = $blat2_te;
+            }
          }
-       }
-       if ( $ensembl2 ne 'IGR' ) {
-         $for_encompass{$transcript_name}{'chr2'}   = $gene{$ensembl2}{'chr'};
-         if ($blat2_st eq '+') {
-           $for_encompass{$transcript_name}{'start2'} = $blat2_ts;
-           $for_encompass{$transcript_name}{'end2'}   = $gene{$ensembl2}{'end'};
-         } else {
-           $for_encompass{$transcript_name}{'start2'} = $gene{$ensembl2}{'start'};
-           $for_encompass{$transcript_name}{'end2'}   = $blat2_te;
-         }
-       } else {
-          $for_encompass{$transcript_name}{'chr2'}   = $blat2_chr;
-          if ($blat2_st eq '+') {
-            $for_encompass{$transcript_name}{'start2'} = $blat2_ts;
-            $for_encompass{$transcript_name}{'end2'}   = $blat2_te + 10000;
-          } else {
-            $for_encompass{$transcript_name}{'start2'} = $blat2_ts - 10000;
-            $for_encompass{$transcript_name}{'end2'}   = $blat2_te;
-          }
-       }
+       } #if it is paired-end reads
     }
     foreach my $transcript_name (keys %coverage){
        my $gene1 = $coverage{$transcript_name}{'info'}->{'gene1'};
@@ -718,7 +721,8 @@ if ($genomeBlatPred ne 'SRP'){
 #sort out the encompassing chr and positions
 my %encoposA;
 my %encoposB;
-foreach my $transcript_name (keys %for_encompass) {
+if ($type =~ /pair/) { #paired-end reads
+  foreach my $transcript_name (keys %for_encompass) {
 
        my $chr1    = $for_encompass{$transcript_name}{'chr1'};
        my $start1  = $for_encompass{$transcript_name}{'start1'};
@@ -730,6 +734,13 @@ foreach my $transcript_name (keys %for_encompass) {
        push (@{$encoposA{$chr1}{$start1}{$end1}}, [$transcript_name, $start2, $end2]);
        push (@{$encoposB{$chr2}{$start2}{$end2}}, [$transcript_name, $start1, $end1]);
 
+  }
+} #paired-end reads
+
+
+
+if ($type =~ /single/){
+  goto SINGLE;               #jump out the encompassing read calculation
 }
 
 my @mergehits = split(/,/, $accepthits);
@@ -815,7 +826,10 @@ foreach my $transcript_name (keys %buffer1){
 
 #end of encompassing cov
 
+
 open ENCOMCOV, ">$encomcov";
+
+SINGLE:
 
 foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage{$a}{'info'}->{'con'} } keys %coverage){
 
@@ -937,21 +951,30 @@ foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage
      $spanScore -= $balancePen;
    }
    $spanScore = sprintf("%.1f", $spanScore);
-   my $enco = scalar (keys %{$coverage{$transcript_name}{'encompass'}}); #pile-up frags only count once
-   my $cov  = $span.'('.$span.'+'.$enco.')';
-   my $real_enco = scalar(keys (%{$for_encompass{$transcript_name}{'cov'}}));
-   my $all  = $span + $real_enco;
+
+   my $enco = 0;
+   my $cov;
+   my $real_enco = 0;
+   my $all;
+   if ($type =~ /pair/) { #paired-end
+     $enco = scalar (keys %{$coverage{$transcript_name}{'encompass'}}); #pile-up frags only count once
+     $real_enco = scalar(keys (%{$for_encompass{$transcript_name}{'cov'}}));
+   }
+   $cov  = $span.'('.$span.'+'.$enco.')';
+   $all  = $span + $real_enco;
 
    next if ($all <= 1);
 
    my $newtitle = join("\t", $transcript_name, $cScore, $length, $gene1.'-'.$gene2, $ori, $bps.'..'.$bpe, $bpr, $bpsc, $flag, $ron, $blat1, $blat2, $cov, $real_enco, $all, $spanAll, $spanScore);
-   print "#$newtitle\n";
-   print ENCOMCOV "#$newtitle\n";
-   foreach my $razers (@{$coverage{$transcript_name}{'reads'}}){
-      print "$razers\n";
+   if ($type =~ /pair/) {
+     print ENCOMCOV "#$newtitle\n";
+     foreach my $hits (@{$for_encompass{$transcript_name}{'hits'}}) {
+       print ENCOMCOV "$hits\n";
+     }
    }
-   foreach my $hits (@{$for_encompass{$transcript_name}{'hits'}}){
-      print ENCOMCOV "$hits\n";
+   print "#$newtitle\n";
+   foreach my $razers (@{$coverage{$transcript_name}{'reads'}}) {
+     print "$razers\n";
    }
 }
 
@@ -1126,7 +1149,7 @@ sub breakpointInGene {
            } #non-coding
 
          } #seems overlapping
-      } #foreach gene end
+      } #foeach gene end
 
       $off++;
 

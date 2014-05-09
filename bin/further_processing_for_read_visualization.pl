@@ -7,17 +7,20 @@ my $fusionseqfile;
 my $coveragefile;
 my $read_length;
 my $genomeBlatPred;
+my $seqType;
 
 GetOptions (
               "fusionseqfile|f=s"  => \$fusionseqfile,
               "coveragefile|c=s"   => \$coveragefile,
               "readlength|r=i"     => \$read_length,
               "genomeBlatPred"     => \$genomeBlatPred,
+              "seqType=s"          => \$seqType,
               "help|h" => sub{
                              print "usage: $0 [options]\n\nOptions:\n\t--fusionseqfile\t\tthe file fusion after filteration seq\n";
                              print "\t--coveragefile\tthe coverage file of fusion candidates\n";
                              print "\t--readlength\tthe length of the read\n";
                              print "\t--genomeBlatPred\tusing genome Blat.\n";
+                             print "\t--seqType\tthe sequencing type (p)aired-end or (s)ingle-end.\n";
                              print "\t--help\t\tprint this help message\n\n";
                              exit 0;
                             }
@@ -79,13 +82,14 @@ while ( <IN> ){
      $spanScore{$transcript} = $spanScore;
   }
   else {
-     #my ($read, $strand, $candidate, $start, $read_seq, $read_qual, $multi, $mismatch) = split /\t/;
      my ($read, $flag, $candidate, $start, $mapQ, $cigar, $mateR, $matePos, $insert, $read_seq, $read_qual, @tags) = split /\t/;
      my $strand = '+';
-     my $read_end;
+     my $read_end = 1;
      if ($flag & 16) {$strand = '-';} #the read strand -
-     if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
-     elsif ($flag & 128) {$read_end = '2';} #the read is the second in the pair
+     if ($seqType =~ /^p/){
+       if ($flag & 64) {$read_end = '1';} #the read is the first in the pair
+       elsif ($flag & 128) {$read_end = '2';} #the read is the second in the pair
+     }
      $read .= '/'.$read_end;
 
      my $end;

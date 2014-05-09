@@ -7,7 +7,8 @@
   Max-Planck-Institute for Molecular Genetics
   Ihnestr. 73, D-14195, Berlin, Germany   
 
-  ruping@molgen.mpg.de
+  current: Department of Systems Biology, Columbia University, NY, USA
+  rs3412@c2b2.columbia.edu
 
 
 g++ 
@@ -306,12 +307,14 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
     case ('M') :                           // matching
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('I') : break;                    // insertion
     case ('S') :                           // soft-clipping
       break;
-    case ('D') : break;                    // deletion
+    case ('D') :                           // deletion
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('P') : break;                    // padding
     case ('N') :                           // skipped region
       blockStarts.push_back(currPosition + cigItr->Length);

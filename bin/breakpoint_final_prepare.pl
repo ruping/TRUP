@@ -3,7 +3,9 @@
 use strict;
 use Data::Dumper;
 
-open IN, shift;
+my $file = shift;
+
+open IN, "$file";
 
 my %remember;
 my @data;

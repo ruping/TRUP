@@ -7,6 +7,7 @@ use File::Glob ':glob';
 use File::Basename;
 
 my $breakpoint_file = shift;  # a sorted breakpoint file
+my $type = shift;
 
 open BP, "gzip -d -c $breakpoint_file |";
 
@@ -57,9 +58,9 @@ close BP;
 
 my %tag_bp;
 foreach my $chr (sort keys %breakpoints){
-  foreach my $bp (sort {$a <=> $b} keys %{$breakpoints{$chr}}){
+  foreach my $bp (sort {$a <=> $b} keys %{$breakpoints{$chr}}) {
     my $bpc = $chr."\t".$bp;
-    foreach my $tag (keys %{$breakpoints{$chr}{$bp}}){
+    foreach my $tag (keys %{$breakpoints{$chr}{$bp}}) {
        push (@{$tag_bp{$tag}}, $bpc);
     }
   }
@@ -82,7 +83,7 @@ foreach my $tag (keys %tag_bp) {
 
   if (@{$tag_bp{$tag}} == 1) {
     my $bp_now = ${$tag_bp{$tag}}[0];
-    if ( $breakpoints_coor{$bp_now} > 0 ) {
+    if ( ($type =~ /^p/ and $breakpoints_coor{$bp_now} > 0) or $type =~ /^s/ ) {
       if ( exists ($bp_single{$bp_now}) ) {
         $bp_single{$bp_now}++;
       }

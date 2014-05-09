@@ -9,8 +9,8 @@
   Max-Planck-Institute for Molecular Genetics
   Ihnestr. 73, D-14195, Berlin, Germany   
 
-  ruping@molgen.mpg.de
-
+  current: Department of Systems Biology, Columbia University, NY, USA
+  email: rs3412@c2b2.columbia.edu
 
 g++ Rseq_bam_reads2expr.cpp
 -I/ifs/home/c2b2/ac_lab/rs3412/tools/bamtools/include/
@@ -248,7 +248,7 @@ int main ( int argc, char *argv[] ) {
       unsigned int unique;
       bam.GetTag("NH", unique);
       if (param->unique == 1) {
-        if (unique != 1) {                         // skipe uniquelly mapped reads
+        if (unique != 1) {                       // skipe uniquelly mapped reads
           continue;
         }
       }
@@ -263,7 +263,8 @@ int main ( int argc, char *argv[] ) {
       if (bam.IsReverseStrand()) strand = "-";
 
       unsigned int alignmentStart =  bam.Position+1;
-      unsigned int mateStart = bam.MatePosition+1;
+      unsigned int mateStart;
+      if (type == "p") mateStart = bam.MatePosition+1;
       unsigned int alignmentEnd = bam.GetEndPosition();
       unsigned int cigarEnd;
       vector <int> blockLengths;
@@ -272,23 +273,30 @@ int main ( int argc, char *argv[] ) {
       ParseCigar(bam.CigarData, blockStarts, blockLengths, cigarEnd);
 
 
-      // position check (because is paired-end reads, shoule base on fragment level)
-      if (posc == true) {
+      // position check for unique mapped reads (because is paired-end reads, shoule base on fragment level for paired end reads)
+      if (posc == true && unique == 1) {
 
-        if (fragment.count(bam.Name) > 0) 
+        if (type == "p" && fragment.count(bam.Name) > 0) 
           fragment.erase(bam.Name);
 
         else {
 
           total_tags++;
-          fragment.insert(bam.Name);
-          string alignSum = int2str(alignmentStart) + "\t" + int2str(mateStart) + "\t.\t" + strand;
+          if (type == "p"){
+            fragment.insert(bam.Name);
+          }
+          string alignSum;
+          if (type == "p") {
+             alignSum = int2str(alignmentStart) + "\t" + int2str(mateStart) + "\t.\t" + strand;
+          } else {
+             alignSum = int2str(alignmentStart) + "\t" + int2str(alignmentEnd) + "\t.\t" + strand;
+          }
 
           if ( alignmentStart != old_start ) {
             isposPileup = false;
             map <string, unsigned int>::iterator pit = pileup.begin();            
             for (; pit != pileup.end(); pit++) {
-              posc_f << chrom << "\truping\tpileup\t" << pit->first << "\t.\t" << "Pileup=" << pit->second << endl;
+              posc_f << chrom << "\truping\tpileup\t" << pit->first << "\t.\t" << "Pileup=" << pit->second << endl;     //print pileup
             }
             pileup.clear();           //clear pileup set
             pileup.insert( pair <string, unsigned int> (alignSum, 1) );  //insert the new read
@@ -315,8 +323,8 @@ int main ( int argc, char *argv[] ) {
 
 
       float incre = 1.;
-      if (blockStarts.size() > 1) incre = 0.5;   // incre half for junction reads
-
+      if (blockStarts.size() > 1) incre = 0.5;     // incre half for junction reads
+      incre /= static_cast < float >(unique);        // for multi aligned reads
 
       deque <struct region>::iterator iter = regions.begin();
 
@@ -526,11 +534,13 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
     case ('M') :                           // matching
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('I') : break;                    // insertion
     case ('S') : break;                    // soft-clipping
-    case ('D') : break;                    // deletion
+    case ('D') :                           // deletion
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('P') : break;                    // padding
     case ('N') :                           // skipped region
       blockStarts.push_back(currPosition + cigItr->Length);

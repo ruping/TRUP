@@ -96,7 +96,7 @@ void usage()
   fprintf(stdout, "-r --region  <filename>  UCSC gene annotation file in 12 column bed format (should be sorted according to chromosomes and coordinates)\n");
   fprintf(stdout, "-m --mapping <filename>  mapping_file (RNA-seq bam file, chromosomes and coordinates sorted also)\n");
   fprintf(stdout, "-q --unique              only calculate for uniquely mapped reads (you may not set this when the bam files only contain unique reads).\n");
-  fprintf(stdout, "-t --type    <p/s>       current no use\n");
+  fprintf(stdout, "-t --type    <p/s>       paired-end or single-end\n");
   fprintf(stdout, "\n");
 }
 

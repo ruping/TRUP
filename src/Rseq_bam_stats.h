@@ -9,6 +9,7 @@ struct parameters {
   char* pileup;
   char* type;
   char* writer;
+  char* unmapped;
   char* arp;
   char* breakpoint;
   unsigned int readlength;
@@ -35,7 +36,8 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   param->pileup = new char;
   param->mapping_f = new char;
   param->type = new char;
-  param->writer = new char; 
+  param->writer = new char;
+  param->unmapped = new char; 
   param->arp = new char;
   param->breakpoint = new char;
 
@@ -44,6 +46,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
     {"pileup",1,0,'p'},
     {"type",1,0,'t'},
     {"writer",1,0,'w'},
+    {"unmapped",1,0,'u'},
     {"arp",1,0,'a'},
     {"breakpoint",1,0,'b'},
     {"readlength",1,0,'l'},
@@ -55,7 +58,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hm:t:p:w:a:b:l:",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hm:t:p:w:u:a:b:l:",long_options, &option_index);
 
     if (c == -1){
       break;
@@ -75,6 +78,9 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
       break;
     case 'w':
       param->writer = optarg;
+      break;
+    case 'u':
+      param->unmapped = optarg;
       break;
     case 'a':
       param->arp = optarg;
@@ -111,14 +117,15 @@ void usage()
   fprintf(stdout, "\nRseq_bam_stats, Copyright (C) 2011 Sun Ruping <ruping@molgen.mpg.de>\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "Usage: %s options [inputfile] \n\n", program_name);
-  fprintf(stdout, "-h --help    print the help message\n");
-  fprintf(stdout, "-m --mapping mapping_file (bam file)\n");
-  fprintf(stdout, "-p --pileup  <forget it, currently it is no use> yes: allow pileup, no: skip redundant reads \n");
-  fprintf(stdout, "-w --writer  the bam output name (for unique ailgnments).\n");
-  fprintf(stdout, "-a --arp     filename of the arp read name (for fusion assembly use, default not write).\n");
+  fprintf(stdout, "-h --help        print the help message\n");
+  fprintf(stdout, "-m --mapping     mapping_file (bam file)\n");
+  fprintf(stdout, "-p --pileup      <forget it, currently it is no use> yes: allow pileup, no: skip redundant reads \n");
+  fprintf(stdout, "-w --writer      the bam output name (for mapped ailgnments).\n");
+  fprintf(stdout, "-u --unmapped    write the unmapped tag names into this file.\n");
+  fprintf(stdout, "-a --arp         filename of the arp read name (for fusion assembly use, default not write).\n");
   fprintf(stdout, "-b --breakpoint  the file for output of potential breakpoint.\n");
   fprintf(stdout, "-l --readlength  the length of the reads.\n");
-  fprintf(stdout, "-t --type    (p)aired-end or (s)ingle-end.\n");
+  fprintf(stdout, "-t --type        (p)aired-end or (s)ingle-end.\n");
   fprintf(stdout, "\n");
 }
 
@@ -129,6 +136,7 @@ void delete_param(struct parameters* param)
   delete(param->type);
   delete(param->pileup);
   delete(param->writer);
+  delete(param->unmapped);
   delete(param->arp);
   delete(param->breakpoint);
   delete(param);

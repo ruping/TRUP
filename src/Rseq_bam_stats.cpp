@@ -7,7 +7,7 @@
   2) also calculate paired-end mapping to generate "best" alignment of a fragment
   (based on flag containing "Primary" Record), write the uniquely mapped reads into a new bam file
   
-  solely based on paired-end sequencing (fragment level)
+  supports both paired-end (fragment level) and single-end sequencing
 
   (c) 2011 - Sun Ruping
   Dept. Vingron (Computational Mol. Bio.)
@@ -162,6 +162,13 @@ int main (int argc, char *argv[]) {
     exit(0);
   }
 
+  // attempt to write unmapped reads
+  ofstream unmapped_f;
+  string unmapped = param->unmapped;
+  if ( unmapped != "") {
+    unmapped_f.open(param->unmapped);
+  }
+
   // attempt to write arp reads
   ofstream arp_f;
   string arp = param->arp;
@@ -191,7 +198,6 @@ int main (int argc, char *argv[]) {
 
     BamAlignment cBAM;
 
-    //unsigned int readlen = bam.Length;
     unsigned int unique = 0;
     string XS = "SRP";
     bool jc = false;
@@ -212,6 +218,9 @@ int main (int argc, char *argv[]) {
 
     
     if ( bam.IsMapped() == true) {
+
+      writer.SaveAlignment(bam);                    // write mapped tags to a new bam
+
       bam.GetTag("NH", unique);                     // uniqueness
 
       blockStarts.push_back(0);
@@ -226,20 +235,20 @@ int main (int argc, char *argv[]) {
 
         if (chimeric == true) {
 
-          if ( bam.IsMateMapped() == true){
-            mateChr = refs.at(bam.MateRefID).RefName;
-            matePos = bam.MatePosition;
-            int mateDistance = matePos-alignmentStart;
-            if (mateChr != chrom || abs(mateDistance) > 230000) 
-              mateStatus = "w";
+          if (type == "p"){
+            if ( bam.IsMateMapped() == true){
+              mateChr = refs.at(bam.MateRefID).RefName;
+              matePos = bam.MatePosition;
+              int mateDistance = matePos-alignmentStart;
+              if (mateChr != chrom || abs(mateDistance) > 230000) 
+                mateStatus = "w";
+            }
           }
 
           if (hoe  == false) {
-            //bp_f << "e\t";
             breakpoint =  alignmentStart;
           }
           else if (hoe == true) {
-            //bp_f << "s\t";
             vector<int>::iterator bsiter = blockStarts.end();
             vector<int>::iterator bliter = blockLengths.end();
             breakpoint = alignmentStart + *(bsiter-1) + *(bliter-1);
@@ -250,345 +259,348 @@ int main (int argc, char *argv[]) {
         }
 
       } // check breakpoint reads
-    }
-    unsigned int mate = 1;
-    if ( bam.IsFirstMate() == false ) mate = 2;           // second mate
 
-    if ( bam.Name != old_frag ) {  // new frag
-
-      if (old_frag != "SRP") {
-        fragment.erase(old_frag);    // remove old_frag
+    } else {
+      if ( unmapped != "" ) {
+        unmapped_f << bam.Name << endl;
       }
+    }
 
-      if ( bam.IsMapped() == false && bam.IsMateMapped() == false ) {  // unmapped
+    if (type == "s") {  //single-end
+      if ( bam.Name != old_frag ) {  // new frag
+
         ++BAMSTATS.num_Reads;
-        ++BAMSTATS.num_Unmapped;
-        struct Alignment tmp = {"UM", 0, 0, "UM", 0, 0, 1, jc, cBAM, cBAM};
-        fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-      } // unmapped
-      else if ( bam.IsMapped() == false && bam.IsMateMapped() == true ) {  // one end is not mappable
-        if (mate == 1){
-          struct Alignment tmp = {"UM", 0, 0, "SRP", 0, 0, 5, jc, bam, cBAM};
-          fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-        }
-        else {
-          struct Alignment tmp = {"SRP", 0, 0, "UM", 0, 0, 5, jc, cBAM, bam};
-          fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-        }
-      } // undecided one end not mappable
-      else if ( bam.IsMapped() == true && bam.IsMateMapped() == false ) {  // one other end is not mappable
-
-        if (unique > 1) {  // one end multiple mapped, the other end not mappable
-          ++BAMSTATS.num_Reads;
+        if ( bam.IsMapped() ) { //mapped
           ++BAMSTATS.num_Mapped;
-          ++BAMSTATS.num_Multi;
-          if (mate == 1) {
-            struct Alignment tmp = {"MM", 0, 0, "UM", 0, 0, 2, jc, cBAM, cBAM};
-            fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-          }
-          else {
-            struct Alignment tmp = {"UM", 0, 0, "MM", 0, 0, 2, jc, cBAM, cBAM};
-            fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-          }
-        } // one end multiple mapped, the other end not mappable
-        else { // Singletons (it should be output here, since TopHat does not output the alignment of other mate)
-           ++BAMSTATS.num_Reads;
-           ++BAMSTATS.num_Mapped;
-           ++BAMSTATS.num_Unique;
-           ++BAMSTATS.num_Singletons;
-           ++BAMSTATS.num_WrongPair;
-           if (jc == true) ++BAMSTATS.num_spliced;
-           if (mate == 1) {
-             struct Alignment tmp = {chrom, alignmentStart, alignmentEnd, "UM", 0, 0, 3, jc, bam, cBAM};
-             fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-           }
-           else {
-             struct Alignment tmp = {"UM", 0, 0, chrom, alignmentStart, alignmentEnd, 3, jc, cBAM, bam};
-             fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-           }
-           writer.SaveAlignment(bam);                        // write
-           if ( arp != "" ) arp_f << bam.Name << endl;       // write arp
-        } // Singletons
+          if ( unique == 1 ) ++BAMSTATS.num_Unique;
+          else               ++BAMSTATS.num_Multi;
+        } else { //unmapped
+           ++BAMSTATS.num_Unmapped;
+        }
+        if ( bam.IsDuplicate() ) ++BAMSTATS.num_Duplicates;
+        if (  bam.IsFailedQC() ) ++BAMSTATS.num_FailedQC;
+        if (jc == true)          ++BAMSTATS.num_spliced;
 
-      } //one another end is not mappable
+        old_frag = bam.Name; // reset old frag
+      } else {  // IT IS AN OLD FRAGMENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      }
+    } else { // paired-end
+      unsigned int mate = 1;
+      if ( bam.IsFirstMate() == false ) mate = 2;           // second mate
 
-      else {  // both ends mapped
-        if ( unique == 1 ) {  // current end is uniquelly mapped
-          if (mate == 1) {
-            struct Alignment tmp = {chrom, alignmentStart, alignmentEnd, refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, 6, jc, bam, cBAM};
-            fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-          }
-          else {
-            struct Alignment tmp = {refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, chrom, alignmentStart, alignmentEnd, 7, jc, cBAM, bam};
-            fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-          }
-        } // current unique
-        else {  // current end is not unique
-          if (mate == 1) {
-            if ( bam.IsPrimaryAlignment() == true ){
-               struct Alignment tmp = {chrom, alignmentStart, alignmentEnd, refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, 8, jc, bam, cBAM};
-               fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-            }
-            else {
-               struct Alignment tmp = {"SRP", 0, 0, "SRP", 0, 0, 8, jc, cBAM, cBAM};
-               fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-            }
-          }
-          else { // mate 2
-            if ( bam.IsPrimaryAlignment() == true ){
-               struct Alignment tmp = {refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, chrom, alignmentStart, alignmentEnd, 9, jc, cBAM, bam};
-               fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-            }
-            else {
-               struct Alignment tmp = {"SRP", 0, 0, "SRP", 0, 0, 9, jc, cBAM, cBAM};
-               fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
-            }
-          }
-        } // current multi
-      } // both ends mapped;
+      if ( bam.Name != old_frag ) {  // new frag
 
-      old_frag = bam.Name; // reset old frag
+        if (old_frag != "SRP") {
+          fragment.erase(old_frag);    // remove old_frag
+        }
 
-    } // a new frag;
-
-    else {  // IT IS AN OLD FRAGMENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-      if (fragment[bam.Name].cate == 5) { // one end mapped the other end not, but the mapped end is not decided;
-         if ( unique > 1 ) {  // one end multiple mapped, the other end not mappable
+        if ( bam.IsMapped() == false && bam.IsMateMapped() == false ) {  // unmapped
           ++BAMSTATS.num_Reads;
-          ++BAMSTATS.num_Mapped;
-          ++BAMSTATS.num_Multi;
+          ++BAMSTATS.num_Unmapped;
+          struct Alignment tmp = {"UM", 0, 0, "UM", 0, 0, 1, jc, cBAM, cBAM};
+          fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+        } // unmapped
+        else if ( bam.IsMapped() == false && bam.IsMateMapped() == true ) {  // one end is not mappable
           if (mate == 1){
-            fragment[bam.Name].chr1 = "MM";          
+            struct Alignment tmp = {"UM", 0, 0, "SRP", 0, 0, 5, jc, bam, cBAM};
+            fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
           }
           else {
-            fragment[bam.Name].chr2 = "MM";
+            struct Alignment tmp = {"SRP", 0, 0, "UM", 0, 0, 5, jc, cBAM, bam};
+            fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
           }
-          fragment[bam.Name].cate = 2;
-        } // one end multiple mapped, the other end not mappable
-        else { // Singletons
-           ++BAMSTATS.num_Reads;
-           ++BAMSTATS.num_Mapped;
-           ++BAMSTATS.num_Unique;
-           ++BAMSTATS.num_Singletons;
-           ++BAMSTATS.num_WrongPair;
-           if (jc == true) ++BAMSTATS.num_spliced;
-           if (mate == 1){
-             fragment[bam.Name].chr1 = chrom;
-             fragment[bam.Name].start1 = alignmentStart;
-             fragment[bam.Name].end1 = alignmentEnd;
-             fragment[bam.Name].junction = jc;
-             fragment[bam.Name].mate1 = bam;
-             writer.SaveAlignment(bam);                        // write
-             writer.SaveAlignment(fragment[bam.Name].mate2);   // write
-             if ( arp != "" ) arp_f << bam.Name << endl;       // write arp
-           }
-           else {
-             fragment[bam.Name].chr2 = chrom;
-             fragment[bam.Name].start2 = alignmentStart;
-             fragment[bam.Name].end2 = alignmentEnd;
-             fragment[bam.Name].junction = jc;
-             fragment[bam.Name].mate2 = bam;
-             writer.SaveAlignment(fragment[bam.Name].mate1);   // write
-             writer.SaveAlignment(bam);                        // write
-             if ( arp != "" ) arp_f << bam.Name << endl;       // write arp
-           }
-           fragment[bam.Name].cate = 3;
-        } // Singletons
-      } //cate == 5
+        } // undecided one end not mappable
+        else if ( bam.IsMapped() == true && bam.IsMateMapped() == false ) {  // one other end is not mappable
 
-      else if (fragment[bam.Name].cate == 6) { // mate 1 is unique
-        if (mate == 1) {
-          if (bam.CigarData.size() == 1){
-            cerr << "mate1 unique inconsistency, exit\n"; cerr << "problem reads: " << bam.Name << endl; cerr << "cigar: " << bam.CigarData.size() << endl; exit(0);
-          }
-          else { //print out the current alignment
-            writer.SaveAlignment(bam);                          // write
-            if ( arp != "" ) {
-              arp_f << bam.Name << endl;
-            }
-            continue;
-          }
-        } 
-        if (unique == 1) { // both ends are unique VERY GOOD
-           ++BAMSTATS.num_Reads;
-           ++BAMSTATS.num_Mapped;
-           ++BAMSTATS.num_Unique;
-           if ( bam.IsDuplicate() ) ++BAMSTATS.num_Duplicates;
-           if (  bam.IsFailedQC() ) ++BAMSTATS.num_FailedQC;
-           if ( bam.IsProperPair()) ++BAMSTATS.num_ProperPair;
-           else                     ++BAMSTATS.num_WrongPair;
-           if (jc == true || fragment[bam.Name].junction == true) ++BAMSTATS.num_spliced;
-           fragment[bam.Name].end2 = alignmentEnd;
-           fragment[bam.Name].cate = 4;  //unique
-           fragment[bam.Name].mate2 = bam;
-           writer.SaveAlignment(fragment[bam.Name].mate1);     // write
-           writer.SaveAlignment(bam);                          // write
-           if ( arp != "" ) {
-             int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-             if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
-               arp_f << bam.Name << endl;
-             //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
-           }
-
-        } // both ends are unique
-        else { // the mate 2 is multi, try to figure out the "primary" record
-          if ( bam.IsPrimaryAlignment() == true ) { // if this is a primary result
-            ++BAMSTATS.num_Reads;
-            ++BAMSTATS.num_Mapped;
-            ++BAMSTATS.num_UniqueHalf;
-            fragment[bam.Name].chr2   = chrom;
-            fragment[bam.Name].start2 = alignmentStart;
-            fragment[bam.Name].end2   = alignmentEnd;
-            fragment[bam.Name].cate   = 10;
-            fragment[bam.Name].mate2 = bam;
-            writer.SaveAlignment(fragment[bam.Name].mate1);    // write
-            writer.SaveAlignment(bam);                         // write
-            if ( arp != "" ) {
-              int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
-                arp_f << bam.Name << endl;
-              //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
-            }
-          }
-        }
-      } // cate == 6         
-      else if (fragment[bam.Name].cate == 7) { // mate 2 is unique
-        if (mate == 2) {
-          if (bam.CigarData.size() == 1){
-            cerr << "mate2 unique inconsistency, exit\n"; cerr << "problem reads: " << bam.Name << endl; cerr << "cigar: " << bam.CigarData.size() << endl; exit(0);
-          }
-          else { //print out the current alignment
-            writer.SaveAlignment(bam);                          // write
-            if ( arp != "" ) {
-              arp_f << bam.Name << endl;
-            }
-            continue;
-          }
-        }
-        if (unique == 1) { // both ends are unique VERY GOOD
-          ++BAMSTATS.num_Reads;
-          ++BAMSTATS.num_Mapped;
-          ++BAMSTATS.num_Unique;
-          if ( bam.IsDuplicate() ) ++BAMSTATS.num_Duplicates;
-          if (  bam.IsFailedQC() ) ++BAMSTATS.num_FailedQC;
-          if ( bam.IsProperPair()) ++BAMSTATS.num_ProperPair;
-          else                     ++BAMSTATS.num_WrongPair;
-          if (jc == true || fragment[bam.Name].junction == true) ++BAMSTATS.num_spliced;
-          fragment[bam.Name].end1 = alignmentEnd;
-          fragment[bam.Name].cate = 4;  //unique
-          fragment[bam.Name].mate1 = bam;
-          writer.SaveAlignment(bam);                           // write
-          writer.SaveAlignment(fragment[bam.Name].mate2);      // write
-          if ( arp != "" ) {
-            int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-            if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
-              arp_f << bam.Name << endl;
-            //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
-          }
-        } // both ends are unique
-        else { // the mate 1 is multi
-          if ( bam.IsPrimaryAlignment() == true ) { // if this is a primary result
-            ++BAMSTATS.num_Reads;
-            ++BAMSTATS.num_Mapped;
-            ++BAMSTATS.num_UniqueHalf;
-            fragment[bam.Name].chr1   = chrom;
-            fragment[bam.Name].start1 = alignmentStart;
-            fragment[bam.Name].end1   = alignmentEnd;
-            fragment[bam.Name].cate   = 10;
-            fragment[bam.Name].mate1 = bam;
-            writer.SaveAlignment(bam);                         // write
-            writer.SaveAlignment(fragment[bam.Name].mate2);    // write
-            if ( arp != "" ) {
-              int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
-                arp_f << bam.Name << endl;
-              //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
-            }
-          }
-        }
-      } // cate == 7
-      else if (fragment[bam.Name].cate == 8) {   // mate 1 is multi
-        if ( fragment[bam.Name].chr1 == "SRP" ){  // meaning it is multi, but the primary is not decided
-          if ( mate == 1 ){
-            if ( bam.IsPrimaryAlignment() == true ){
-              fragment[bam.Name].chr1   = chrom;
-              fragment[bam.Name].start1 = alignmentStart;
-              fragment[bam.Name].end1   = alignmentEnd;
-              fragment[bam.Name].mate1  = bam;
-            }
-          } 
-        }  // the primary is not decided
-
-        if ( mate == 2 ) {     // check mate 2
-          if ( unique == 1 ) { // if mate 2 is unique
-            ++BAMSTATS.num_Reads;
-            ++BAMSTATS.num_Mapped;
-            ++BAMSTATS.num_UniqueHalf;
-            fragment[bam.Name].chr2   = chrom;
-            fragment[bam.Name].start2 = alignmentStart;
-            fragment[bam.Name].end2   = alignmentEnd;
-            fragment[bam.Name].cate   = 10;
-            fragment[bam.Name].mate2  = bam;
-            writer.SaveAlignment(fragment[bam.Name].mate1);    // write
-            writer.SaveAlignment(bam);                         // write
-            if ( arp != "" ) {
-              int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
-                arp_f << bam.Name << endl;
-              //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
-            }
-          }
-          else { // if mate 2 is multi
+          if (unique > 1) {  // one end multiple mapped, the other end not mappable
             ++BAMSTATS.num_Reads;
             ++BAMSTATS.num_Mapped;
             ++BAMSTATS.num_Multi;
+            if (mate == 1) {
+              struct Alignment tmp = {"MM", 0, 0, "UM", 0, 0, 2, jc, cBAM, cBAM};
+              fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+            }
+            else {
+              struct Alignment tmp = {"UM", 0, 0, "MM", 0, 0, 2, jc, cBAM, cBAM};
+              fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+            }
+          } // one end multiple mapped, the other end not mappable
+          else { // Singletons (it should be output here, since TopHat does not output the alignment of other mate)
+            ++BAMSTATS.num_Reads;
+            ++BAMSTATS.num_Mapped;
+            ++BAMSTATS.num_Unique;
+            ++BAMSTATS.num_Singletons;
+            ++BAMSTATS.num_WrongPair;
+            if (jc == true) ++BAMSTATS.num_spliced;
+            if (mate == 1) {
+              struct Alignment tmp = {chrom, alignmentStart, alignmentEnd, "UM", 0, 0, 3, jc, bam, cBAM};
+              fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+            }
+            else {
+              struct Alignment tmp = {"UM", 0, 0, chrom, alignmentStart, alignmentEnd, 3, jc, cBAM, bam};
+              fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+            }
+            if ( arp != "" ) arp_f << bam.Name << endl;       // write arp
+          } // Singletons
+
+        } //one another end is not mappable
+
+        else {  // both ends mapped
+          if ( unique == 1 ) {  // current end is uniquelly mapped
+            if (mate == 1) {
+              struct Alignment tmp = {chrom, alignmentStart, alignmentEnd, refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, 6, jc, bam, cBAM};
+              fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+            }
+            else {
+              struct Alignment tmp = {refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, chrom, alignmentStart, alignmentEnd, 7, jc, cBAM, bam};
+              fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+            }
+          } // current unique
+          else {  // current end is not unique
+            if (mate == 1) {
+              if ( bam.IsPrimaryAlignment() == true ){
+                struct Alignment tmp = {chrom, alignmentStart, alignmentEnd, refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, 8, jc, bam, cBAM};
+                fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+              }
+              else {
+                struct Alignment tmp = {"SRP", 0, 0, "SRP", 0, 0, 8, jc, cBAM, cBAM};
+                fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+              }
+            }
+            else { // mate 2
+              if ( bam.IsPrimaryAlignment() == true ){
+                struct Alignment tmp = {refs.at(bam.MateRefID).RefName, (bam.MatePosition+1), 0, chrom, alignmentStart, alignmentEnd, 9, jc, cBAM, bam};
+                fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+              }
+              else {
+                struct Alignment tmp = {"SRP", 0, 0, "SRP", 0, 0, 9, jc, cBAM, cBAM};
+                fragment.insert( pair<string, struct Alignment>(bam.Name, tmp) );
+              }
+            }
+          } // current multi
+        } // both ends mapped;
+
+        old_frag = bam.Name; // reset old frag
+
+      } // a new frag;
+
+      else {  // IT IS AN OLD FRAGMENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        if (fragment[bam.Name].cate == 5) { // one end mapped the other end not, but the mapped end is not decided;
+          if ( unique > 1 ) {  // one end multiple mapped, the other end not mappable
+            ++BAMSTATS.num_Reads;
+            ++BAMSTATS.num_Mapped;
+            ++BAMSTATS.num_Multi;
+            if (mate == 1){
+              fragment[bam.Name].chr1 = "MM";          
+            }
+            else {
+              fragment[bam.Name].chr2 = "MM";
+            }
             fragment[bam.Name].cate = 2;
-          }
-        } // check mate 2  
-      } // cate == 8
-      else if (fragment[bam.Name].cate == 9) { // mate 2 is multi
-        if ( fragment[bam.Name].chr2 == "SRP" ) {  // meaning it is multi, but the primary is not decided
-          if ( mate == 2 ){
-            if ( bam.IsPrimaryAlignment() == true ){
+          } // one end multiple mapped, the other end not mappable
+          else { // Singletons
+            ++BAMSTATS.num_Reads;
+            ++BAMSTATS.num_Mapped;
+            ++BAMSTATS.num_Unique;
+            ++BAMSTATS.num_Singletons;
+            ++BAMSTATS.num_WrongPair;
+            if (jc == true) ++BAMSTATS.num_spliced;
+            if (mate == 1){
+              fragment[bam.Name].chr1 = chrom;
+              fragment[bam.Name].start1 = alignmentStart;
+              fragment[bam.Name].end1 = alignmentEnd;
+              fragment[bam.Name].junction = jc;
+              fragment[bam.Name].mate1 = bam;
+              if ( arp != "" ) arp_f << bam.Name << endl;       // write arp
+            }
+            else {
+              fragment[bam.Name].chr2 = chrom;
+              fragment[bam.Name].start2 = alignmentStart;
+              fragment[bam.Name].end2 = alignmentEnd;
+              fragment[bam.Name].junction = jc;
+              fragment[bam.Name].mate2 = bam;
+              if ( arp != "" ) arp_f << bam.Name << endl;       // write arp
+            }
+            fragment[bam.Name].cate = 3;
+          } // Singletons
+        } //cate == 5
+
+        else if (fragment[bam.Name].cate == 6) { // mate 1 is unique
+          if (mate == 1) {
+            if (bam.CigarData.size() == 1){
+              cerr << "mate1 unique inconsistency, exit\n"; cerr << "problem reads: " << bam.Name << endl; cerr << "cigar: " << bam.CigarData.size() << endl; exit(0);
+            }
+            else { //print out the current alignment
+              //writer.SaveAlignment(bam);                          // write
+              if ( arp != "" ) {
+                arp_f << bam.Name << endl;
+              }
+              continue;
+            }
+          } 
+          if (unique == 1) { // both ends are unique VERY GOOD
+            ++BAMSTATS.num_Reads;
+            ++BAMSTATS.num_Mapped;
+            ++BAMSTATS.num_Unique;
+            if ( bam.IsDuplicate() ) ++BAMSTATS.num_Duplicates;
+            if (  bam.IsFailedQC() ) ++BAMSTATS.num_FailedQC;
+            if ( bam.IsProperPair()) ++BAMSTATS.num_ProperPair;
+            else                     ++BAMSTATS.num_WrongPair;
+            if (jc == true || fragment[bam.Name].junction == true) ++BAMSTATS.num_spliced;
+            fragment[bam.Name].end2 = alignmentEnd;
+            fragment[bam.Name].cate = 4;  //unique
+            fragment[bam.Name].mate2 = bam;
+            if ( arp != "" ) {
+              int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                arp_f << bam.Name << endl;
+            }
+
+          } // both ends are unique
+          else { // the mate 2 is multi, try to figure out the "primary" record
+            if ( bam.IsPrimaryAlignment() == true ) { // if this is a primary result
+              ++BAMSTATS.num_Reads;
+              ++BAMSTATS.num_Mapped;
+              ++BAMSTATS.num_UniqueHalf;
               fragment[bam.Name].chr2   = chrom;
               fragment[bam.Name].start2 = alignmentStart;
               fragment[bam.Name].end2   = alignmentEnd;
-              fragment[bam.Name].mate2  = bam;
+              fragment[bam.Name].cate   = 10;
+              fragment[bam.Name].mate2 = bam;
+              if ( arp != "" ) {
+                int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                  arp_f << bam.Name << endl;
+              }
             }
-          } 
-        }  // the primary is not decided
-
-        if ( mate == 1 ) {     // check mate 1
-          if ( unique == 1 ) { // if mate 1 is unique
+          }
+        } // cate == 6         
+        else if (fragment[bam.Name].cate == 7) { // mate 2 is unique
+          if (mate == 2) {
+            if (bam.CigarData.size() == 1){
+              cerr << "mate2 unique inconsistency, exit\n"; cerr << "problem reads: " << bam.Name << endl; cerr << "cigar: " << bam.CigarData.size() << endl; exit(0);
+            }
+            else { //print out the current alignment
+              //writer.SaveAlignment(bam);                          // write
+              if ( arp != "" ) {
+                arp_f << bam.Name << endl;
+              }
+              continue;
+            }
+          }
+          if (unique == 1) { // both ends are unique VERY GOOD
             ++BAMSTATS.num_Reads;
             ++BAMSTATS.num_Mapped;
-            ++BAMSTATS.num_UniqueHalf;
-            fragment[bam.Name].chr1   = chrom;
-            fragment[bam.Name].start1 = alignmentStart;
-            fragment[bam.Name].end1   = alignmentEnd;
-            fragment[bam.Name].cate   = 10;
-            fragment[bam.Name].mate1  = bam;
-            writer.SaveAlignment(bam);                         // write
-            writer.SaveAlignment(fragment[bam.Name].mate2);    // write
+            ++BAMSTATS.num_Unique;
+            if ( bam.IsDuplicate() ) ++BAMSTATS.num_Duplicates;
+            if (  bam.IsFailedQC() ) ++BAMSTATS.num_FailedQC;
+            if ( bam.IsProperPair()) ++BAMSTATS.num_ProperPair;
+            else                     ++BAMSTATS.num_WrongPair;
+            if (jc == true || fragment[bam.Name].junction == true) ++BAMSTATS.num_spliced;
+            fragment[bam.Name].end1 = alignmentEnd;
+            fragment[bam.Name].cate = 4;  //unique
+            fragment[bam.Name].mate1 = bam;
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
               if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
                 arp_f << bam.Name << endl;
-              //if ( fragment[bam.Name].chr1 != fragment[bam.Name].chr2 ) cerr << bam.Name << endl;
+            }
+          } // both ends are unique
+          else { // the mate 1 is multi
+            if ( bam.IsPrimaryAlignment() == true ) { // if this is a primary result
+              ++BAMSTATS.num_Reads;
+              ++BAMSTATS.num_Mapped;
+              ++BAMSTATS.num_UniqueHalf;
+              fragment[bam.Name].chr1   = chrom;
+              fragment[bam.Name].start1 = alignmentStart;
+              fragment[bam.Name].end1   = alignmentEnd;
+              fragment[bam.Name].cate   = 10;
+              fragment[bam.Name].mate1 = bam;
+              if ( arp != "" ) {
+                int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                  arp_f << bam.Name << endl;
+              }
             }
           }
-          else { // if mate 1 is multi
-            ++BAMSTATS.num_Reads;
-            ++BAMSTATS.num_Mapped;
-            ++BAMSTATS.num_Multi;
-            fragment[bam.Name].cate = 2;
-          }
-        } // check mate 1 
+        } // cate == 7
+        else if (fragment[bam.Name].cate == 8) {   // mate 1 is multi
+          if ( fragment[bam.Name].chr1 == "SRP" ){  // meaning it is multi, but the primary is not decided
+            if ( mate == 1 ){
+              if ( bam.IsPrimaryAlignment() == true ){
+                fragment[bam.Name].chr1   = chrom;
+                fragment[bam.Name].start1 = alignmentStart;
+                fragment[bam.Name].end1   = alignmentEnd;
+                fragment[bam.Name].mate1  = bam;
+              }
+            } 
+          }  // the primary is not decided
 
-      } // cate == 9
+          if ( mate == 2 ) {     // check mate 2
+            if ( unique == 1 ) { // if mate 2 is unique
+              ++BAMSTATS.num_Reads;
+              ++BAMSTATS.num_Mapped;
+              ++BAMSTATS.num_UniqueHalf;
+              fragment[bam.Name].chr2   = chrom;
+              fragment[bam.Name].start2 = alignmentStart;
+              fragment[bam.Name].end2   = alignmentEnd;
+              fragment[bam.Name].cate   = 10;
+              fragment[bam.Name].mate2  = bam;
+              if ( arp != "" ) {
+                int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                  arp_f << bam.Name << endl;
+              }
+            }
+            else { // if mate 2 is multi
+              ++BAMSTATS.num_Reads;
+              ++BAMSTATS.num_Mapped;
+              ++BAMSTATS.num_Multi;
+              fragment[bam.Name].cate = 2;
+            }
+          } // check mate 2  
+        } // cate == 8
+        else if (fragment[bam.Name].cate == 9) { // mate 2 is multi
+          if ( fragment[bam.Name].chr2 == "SRP" ) {  // meaning it is multi, but the primary is not decided
+            if ( mate == 2 ){
+              if ( bam.IsPrimaryAlignment() == true ){
+                fragment[bam.Name].chr2   = chrom;
+                fragment[bam.Name].start2 = alignmentStart;
+                fragment[bam.Name].end2   = alignmentEnd;
+                fragment[bam.Name].mate2  = bam;
+              }
+            } 
+          }  // the primary is not decided
 
-    } // old fragment
+          if ( mate == 1 ) {     // check mate 1
+            if ( unique == 1 ) { // if mate 1 is unique
+              ++BAMSTATS.num_Reads;
+              ++BAMSTATS.num_Mapped;
+              ++BAMSTATS.num_UniqueHalf;
+              fragment[bam.Name].chr1   = chrom;
+              fragment[bam.Name].start1 = alignmentStart;
+              fragment[bam.Name].end1   = alignmentEnd;
+              fragment[bam.Name].cate   = 10;
+              fragment[bam.Name].mate1  = bam;
+              if ( arp != "" ) {
+                int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                  arp_f << bam.Name << endl;
+              }
+            }
+            else { // if mate 1 is multi
+              ++BAMSTATS.num_Reads;
+              ++BAMSTATS.num_Mapped;
+              ++BAMSTATS.num_Multi;
+              fragment[bam.Name].cate = 2;
+            }
+          } // check mate 1 
+
+        } // cate == 9
+
+      } // old fragment
+    } // paired-end
 
   }  //  read a bam
       
@@ -634,6 +646,7 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
     case ('M') :
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('I') : break;
     case ('S') :
       if (cigItr->Length >= cliplen) {
@@ -648,9 +661,10 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
         }
       }
       break;
-    case ('D') : break;
+    case ('D') :
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('P') : break;
     case ('N') :
       blockStarts.push_back(currPosition + cigItr->Length);

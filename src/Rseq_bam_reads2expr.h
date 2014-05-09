@@ -123,7 +123,7 @@ void usage()
   fprintf(stdout, "-l --lbias   <filename>  the output (filename) of locus bias (must set, no default).\n");
   fprintf(stdout, "-q --unique              only calculate for uniquely mapped reads (you may not set this when the bam files only contain unique reads).\n");
   fprintf(stdout, "-n --nochr               change 'chrX' to 'X' and 'chrM' to 'MT' to be compatible to the bam files generated in CUMC.\n");
-  fprintf(stdout, "-t --type    <p/s>       current no use\n");
+  fprintf(stdout, "-t --type    <p/s>       paired-end or single-end reads\n");
   fprintf(stdout, "\n");
 }
 

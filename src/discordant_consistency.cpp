@@ -1,5 +1,4 @@
-/*****************************************************************************
-  
+/*****************************************************************************  
   get the discordant consistency of paired-end reads
 
   (c) 2011 - Sun Ruping
@@ -7,8 +6,8 @@
   Max-Planck-Institute for Molecular Genetics
   Ihnestr. 73, D-14195, Berlin, Germany   
 
-  ruping@molgen.mpg.de
-
+  current: Department of Systems Biology, Columbia University, NY, USA
+  rs3412@c2b2.columbia.edu
 
 g++ 
 -I /scratch/ngsvin2/RNA-seq/ruping/Tools/bamtools/include/ 
@@ -62,7 +61,7 @@ int main ( int argc, char *argv[] ) {
 
   //region file input (the region file should be sorted as the same way as the bam file)
   ifstream region_f;
-  region_f.open(param->region_f, ios_base::in);  // the region file is opened
+  region_f.open(param->region_f, ios_base::in);            // the region file is opened
 
   //bam input and generate index if not yet
   //-------------------------------------------------------------------------------------------------------+
@@ -86,7 +85,7 @@ int main ( int argc, char *argv[] ) {
     IN=fopen(fof,"rt");
     if (IN!=NULL) {
       long linecount=0;
-      while (fgets(linefof,5000-1,IN)!=NULL) {
+      while ( fgets(linefof,5000-1,IN) != NULL ) {
         linecount++;
         if (linefof[0]!='#' && linefof[0]!='\n') {
           char *ptr=strchr(linefof,'\n');
@@ -95,11 +94,11 @@ int main ( int argc, char *argv[] ) {
           }
           FILE *dummy=NULL;
           dummy=fopen(linefof,"rt");
-          if (dummy!=NULL) {     // seems to be a file of filenames...
+          if (dummy!=NULL) {                                // seems to be a file of filenames...
             fclose(dummy);
             fnames.push_back(linefof);
             filecount++;
-          } else if (filecount==0 || linecount>=1000-1) {  // seems to be a single file
+          } else if (filecount==0 || linecount>=1000-1) {   // seems to be a single file
             fnames.push_back(fof);
             filecount++;
             break;
@@ -160,13 +159,13 @@ int main ( int argc, char *argv[] ) {
   
       while ( regions.empty() ) {    
         getline(region_f, line);
-        if ( region_f.eof() ){
+        if ( region_f.eof() ) {
           cerr << "finished: end of region file, zone 0" << endl;
           break;
         }
         eatline(line, regions);
         it = regions.begin();
-        if (it->chr == old_chr){  
+        if (it->chr == old_chr) {  
           output_processing(*it);      
           regions.clear();
           continue;
@@ -415,6 +414,7 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
     case ('M') :                           // matching
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('I') : break;                    // insertion
     case ('S') :                           // soft-clipping
       break;

@@ -215,11 +215,11 @@ int main ( int argc, char *argv[] ) {
 
       string mateChr = "SRP";
       unsigned int matePos = 0;
-      if ( bam.IsMateMapped() == true) {
+      if ( type == "p" && bam.IsMateMapped() == true ) {
         mateChr = refs.at(bam.MateRefID).RefName;
         matePos = bam.MatePosition;
         int mateDistance = matePos-alignmentStart;
-        if (mateChr != chrom || abs(mateDistance) > 230000){
+        if (mateChr != chrom || abs(mateDistance) > 230000) {
           if (keep == false){
             keep = true;
           }
@@ -382,7 +382,7 @@ inline void eatline(const string &str, deque <struct region> &region_ref) {
      case 6:  // pw
        tmp.pw = atof((*iter).c_str());
        continue;
-     case 7:  // pw
+     case 7:  // ct
        tmp.ct = atof((*iter).c_str());
        continue;
      default:
@@ -408,14 +408,16 @@ inline void ParseCigar(const vector<CigarOp> &cigar, vector<int> &blockStarts, v
     case ('M') :                           // matching
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('I') : break;                    // insertion
     case ('S') :                           // soft-clipping
       if (cigItr->Length >= 8)
         keep = true;
       break;
-    case ('D') : break;                    // deletion
+    case ('D') :                           // deletion
       blockLength  += cigItr->Length;
       currPosition += cigItr->Length;
+      break;
     case ('P') : break;                    // padding
     case ('N') :                           // skipped region
       blockStarts.push_back(currPosition + cigItr->Length);
