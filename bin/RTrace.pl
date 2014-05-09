@@ -245,18 +245,18 @@ if (defined $sampleName) {
     if ($seqType =~ /^p/) {
       if ($runID ne '') {
         foreach my $read_file (@lanefile) {
-          if ($read_file =~ /[^a-zA-Z0-9]($sampleName\_R?[123]\_$runID)\.f.+?\.([gb]z2?)$/) {
-            my $prefix = $1;
-            my $suffix = $2;
+          if ($read_file =~ /[^a-zA-Z0-9]($sampleName)*(\_R?[123]\_$runID)\.f.+?\.([gb]z2?)$/) {
+            my $prefix = $1.$2;
+            my $suffix = $3;
             my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
             RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
           }
         }
       } else {
         foreach my $read_file (@lanefile) {
-          if ($read_file =~ /[^a-zA-Z0-9]($sampleName\_R?[123])\.f.+?\.([gb]z2?)$/) {
-            my $prefix = $1;
-            my $suffix = $2;
+          if ($read_file =~ /[^a-zA-Z0-9]($sampleName)*(\_R?[123])\.f.+?\.([gb]z2?)$/) {
+            my $prefix = $1.$2;
+            my $suffix = $3;
             my $cmd = "ln -s $read_file $lanepath/01_READS/$prefix\.fq\.$suffix";
             RunCommand($cmd,$noexecute,$quiet) unless (-s "$lanepath/01_READS/$prefix\.fq\.$suffix");
           }
