@@ -1101,7 +1101,7 @@ if (exists $runlevel{$runlevels}) {
       my @RAssembly_reads_gz;
       @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^p/);
       @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^s/);
-      unless ( ($seqType =~ /^p/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) or ($seqType =~ /^s/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) ) { #get raw reads
+      unless ( ($seqType =~ /^p/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) or ($seqType =~ /^s/ and ($#RAssembly_reads == 0 or $#RAssembly_reads_gz == 0)) ) { #get raw reads
 
         #need to do get raw reads here
         my @reads;
