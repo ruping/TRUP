@@ -141,7 +141,7 @@ foreach my $breakpoint_coor ( keys %breakpoints_coor ){
 
   if ( exists ($bp_single{$breakpoint_coor}) ) {
       my $support_c = $bp_single{$breakpoint_coor};
-      print "$id\ts\t$breakpoint_coor\t$support_c\t$wrong_add\t$ct\n";
+      print "$id\ts\t$breakpoint_coor\t$support_c\t$wrong_add\t$ct\n" unless ($support_c > 1000000);
       $id++;
   }
 

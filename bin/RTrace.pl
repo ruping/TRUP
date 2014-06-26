@@ -56,7 +56,7 @@ my $bzip;  #to allow bzip compressed fastq files
 my $Rbinary = 'R';
 my $customMappedBam = '';
 my $seqType = 'p';   #whether paired-end or single-end
-
+my $tmpDir = '';
 
 if (@ARGV == 0) {
   helpm();
@@ -108,6 +108,7 @@ GetOptions(
            "Rbinary=s"    => \$Rbinary,
            "help|h"       => \$help,
            "customBam=s"  => \$customMappedBam,
+           "tmpDir=s"     => \$tmpDir,
           );
 
 #print help
@@ -424,8 +425,11 @@ if (exists $runlevel{$runlevels}) {
          my $cmd = "perl $bin/fqreid.pl $read_file | $compress >$reid_file";
          RunCommand($cmd,$noexecute,$quiet);
        }
-       if (-e $read_file and -e $reid_file){
+       if (-e $read_file and (-s $reid_file) > 1000) {
          my $cmd = "mv -f $reid_file $read_file";
+         RunCommand($cmd,$noexecute,$quiet);
+       } elsif (-e $reid_file and (-s $reid_file) <= 1000) {
+         my $cmd = "rm $reid_file -f";              #the original fastq file looks good
          RunCommand($cmd,$noexecute,$quiet);
        }
     } #foreach read file
@@ -945,7 +949,8 @@ if (exists $runlevel{$runlevels}) {
         exit 22;
       }
       unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted"){
-        my $cmd = "gzip -d -c $lanepath/03_STATS/$sampleName\.breakpoints\.gz | sort -k 1,1d -k 2,2n >$lanepath/03_STATS/$sampleName\.breakpoints.sorted";
+        my $tmpOpt = ($tmpDir eq '')? "":"-T $tmpDir";
+        my $cmd = "gzip -d -c $lanepath/03_STATS/$sampleName\.breakpoints\.gz | sort $tmpOpt -k 1,1d -k 2,2n >$lanepath/03_STATS/$sampleName\.breakpoints.sorted";
         RunCommand($cmd,$noexecute,$quiet);
       }
       if ( -s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" and -s "$lanepath/03_STATS/$sampleName\.breakpoints.sorted" ){
@@ -977,7 +982,8 @@ if (exists $runlevel{$runlevels}) {
       }
       $breakpointSource = "$lanepath/03_STATS/$sampleName\.breakpoints\.merged\.sorted\.gz";
       unless (-s $breakpointSource) {
-        my $cmd = "gzip -d -c $bpMerged |sort -k 1,1d -k 2,2n | gzip >$breakpointSource";
+        my $tmpOpt = ($tmpDir eq '')? "":"-T $tmpDir";
+        my $cmd = "gzip -d -c $bpMerged |sort $tmpOpt -k 1,1d -k 2,2n | gzip >$breakpointSource";
         RunCommand($cmd,$noexecute,$quiet);
       }
     } #if merge,then redefine breakpointSource
@@ -991,7 +997,8 @@ if (exists $runlevel{$runlevels}) {
     }
 
     unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted"){
-      my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted";
+      my $tmpOpt = ($tmpDir eq '')? "":"-T $tmpDir";
+      my $cmd = "sort $tmpOpt -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
@@ -1098,9 +1105,11 @@ if (exists $runlevel{$runlevels}) {
       my @RAssembly_reads;
       @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^p/);
       @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^s/);
+      @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($seqType =~ /^s/);
       my @RAssembly_reads_gz;
       @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^p/);
       @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^s/);
+      @RAssembly_reads_gz = uniqueArray(\@RAssembly_reads_gz) if ($seqType =~ /^s/);
       unless ( ($seqType =~ /^p/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) or ($seqType =~ /^s/ and ($#RAssembly_reads == 0 or $#RAssembly_reads_gz == 0)) ) { #get raw reads
 
         #need to do get raw reads here
@@ -1124,6 +1133,7 @@ if (exists $runlevel{$runlevels}) {
             @reads = mateorder(\@reads, $runID);
           } else { #single-end
             @reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.fq\.$zipSuffix"); #original reads
+            @reads = uniqueArray(\@reads);
           }
           if (scalar(@merge) != 0){
             foreach my $mergeC (@merge) {
@@ -1135,6 +1145,7 @@ if (exists $runlevel{$runlevels}) {
                 @readsMerge = mateorder(\@readsMerge, $mergeC);
               } else {
                 @readsMerge = bsd_glob("$cRunPath/01_READS/$sampleName*{\_$mergeC,}\.fq\.$zipSuffix");
+                @readsMerge = uniqueArray(\@readsMerge);
               }
               $reads[0] .= ",".$readsMerge[0];
               $reads[1] .= ",".$readsMerge[1] if ($seqType =~ /^p/);
@@ -1165,9 +1176,11 @@ if (exists $runlevel{$runlevels}) {
         my @RAssembly_reads;
         @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^p/);
         @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^s/);
+        @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($seqType =~ /^s/);
         my @RAssembly_reads_gz;
         @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^p/);
         @RAssembly_reads_gz = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq\.gz") if ($seqType =~ /^s/);
+        @RAssembly_reads_gz = uniqueArray(\@RAssembly_reads_gz) if ($seqType =~ /^s/);
 
         if (($seqType =~ /^p/ and $#RAssembly_reads != 1) or ($seqType =~ /^s/ and $#RAssembly_reads != 0)) {
           if (($seqType =~ /^p/ and $#RAssembly_reads_gz == 1) or ($seqType =~ /^s/ and $#RAssembly_reads_gz == 0)) {
@@ -1182,6 +1195,7 @@ if (exists $runlevel{$runlevels}) {
           }
           @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^p/);
           @RAssembly_reads = bsd_glob("$lanepath/01_READS/$sampleName*{\_$runID,}\.RAssembly\.fq") if ($seqType =~ /^s/);
+          @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($seqType =~ /^s/);
         }
 
         @RAssembly_reads = mateorder(\@RAssembly_reads, $runID) if ($seqType =~ /^p/);
@@ -1767,6 +1781,7 @@ sub helpm {
   print STDERR "\t--quiet\t\tdo not print the command line calls and time information\n";
   print STDERR "\t--threads\tthe number of threads used for the mapping (default 1)\n";
   print STDERR "\t--help\t\tprint this help message\n";
+  print STDERR "\t--tmpDir\ttmp dir for generating large tmp files\n";
   print STDERR "\t--bzip\t\tthe read fastq files are bziped, rather than gziped (default).\n";
 
   print STDERR "\nSynopsis: RTrace.pl --runlevel 1 --sampleName <sample1> --runID <ID> --root <dir_root> --anno <dir_anno> 2>>run.log\n";
@@ -1816,6 +1831,16 @@ sub round {
       $tmp++;
     }
     return $tmp;
+}
+
+sub uniqueArray {
+   my $array = shift;
+   my %arraytmp;
+   foreach my $item (@{$array}){
+     $arraytmp{$item} = '';
+   }
+   my @arraytmp = keys %arraytmp;
+   return @arraytmp;
 }
 
 sub find_jumpers {
