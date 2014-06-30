@@ -136,7 +136,7 @@ my $repeatMasker = "$anno/$species/$species\.repeats\_UCSC\.gff";
 my $selfChain = "$anno/$species/$species\.SelfChain\_UCSC\.txt";
 my $blatDatabase = "$anno/$species/$species\.genome\_UCSC\.2bit";
 my $annovarDB = "/ifs/scratch/c2b2/ngs_lab/sz2317/softwares/annovar/humandb/";    #this is a DB for annovar
-my $vcfheader = "$anno/$species.vcfheader_forAnnovar";                            #this is a header file for annovar
+my $vcfheader = "$anno/$species/$species.vcfheader_forAnnovar";                            #this is a header file for annovar
 #-------------------------------------------------------------------------
 
 ### Frequently used names-------------------------------------------------
