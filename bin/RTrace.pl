@@ -40,6 +40,7 @@ my $anno = "$RealBin/../ANNOTATION";
 my $species = 'hg19';
 my $readpool = 'SRP';
 my $bin  = "$RealBin/";
+my $annovarbin = "$bin/../annovar/";
 my $qual_zero = 33;
 my $qual_move = 0;
 my $fq_reid; #rename fastq read id (for gsnap)
@@ -134,6 +135,8 @@ my $chromosomeSize = "$anno/$species/$species\.chromosome\_size\.txt";
 my $repeatMasker = "$anno/$species/$species\.repeats\_UCSC\.gff";
 my $selfChain = "$anno/$species/$species\.SelfChain\_UCSC\.txt";
 my $blatDatabase = "$anno/$species/$species\.genome\_UCSC\.2bit";
+my $annovarDB = "/ifs/scratch/c2b2/ngs_lab/sz2317/softwares/annovar/humandb/";    #this is a DB for annovar
+my $vcfheader = "$anno/$species.vcfheader_forAnnovar";                            #this is a header file for annovar
 #-------------------------------------------------------------------------
 
 ### Frequently used names-------------------------------------------------
@@ -296,7 +299,7 @@ if (defined $sampleName) {
       print STDERR "Error: option --seqType must be set to p or s.\n";
       exit 22;
     }
-  }
+  } #@lanefile non empty
 
   if ($readlen == 0 or $trimedlen == 0) { #read length or trimed length not set
      my @original_read_files;
@@ -1710,6 +1713,84 @@ if (exists $runlevel{$runlevels}) {
 }
 
 
+###
+###runlevel8: SNV/INDEL calling from bam file
+###
+
+$runlevels = 8;
+if (exists $runlevel{$runlevels}) {
+
+  printtime();
+  print STDERR "####### runlevel $runlevels now #######\n\n";
+
+  unless (-e "$lanepath/08_VARIANTS") {
+    my $cmd = "mkdir -p $lanepath/08_VARIANTS";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf") {
+
+    unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.vcf"){
+      my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
+      if (-s $mapping_bam){
+        my $cmd = "samtools mpileup -DSEugd 1000 -q 1 -C 50 -f $genome_fasta $mapping_bam | bcftools view -p 0.9 -vcg - >$lanepath/08_VARIANTS/$sampleName\.transcriptome.vcf";
+        RunCommand($cmd,$noexecute,$quiet);
+      }
+      else {
+        print STDERR "$mapping_bam does not exist, please do the mapping first.\n";
+        exit;
+      }
+    }
+
+    if (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.vcf"){
+      my $cmd = "cat $lanepath/08_VARIANTS/$sampleName\.transcriptome.vcf | vcf-sort >$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    if (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.vcf" and -s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf"){
+      my $cmd = "rm $lanepath/08_VARIANTS/$sampleName\.transcriptome.vcf";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+  }
+
+  #do annovar
+  unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf") {
+
+    unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar"){
+      my $cmd = "perl $annovarbin/convert2annovar.pl --format vcf4 --includeinfo --allallele $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf >$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv") {
+      my $cmd = "perl $annovarbin/summarize_annovar1.pl -outfile $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary -ver1000g 1000g2012feb -verdbsnp 135 -genetype=refgene --buildver hg19 $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar $annovarDB";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf") {
+      my $cmd = "perl $annovarbin/convert_annovar_vcf-all-samples.pl $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf $vcfheader";
+      #my $cmd = "perl $bin/convert_annovar_vcf-all-samples.pl $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.exome_summary.csv $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf $vcfheader";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+
+    if (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf") {
+      my $needtobedeleted .= "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.hg19_* ";
+      $needtobedeleted .= "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.exonic_variant_function ";
+      $needtobedeleted .= "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.variant_function ";
+      $needtobedeleted .= "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar ";
+      $needtobedeleted .= "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.exome_summary.csv ";
+      $needtobedeleted .= "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv ";
+      my $cmd = "rm $needtobedeleted -f";
+      RunCommand($cmd,$noexecute,$quiet);
+    }
+  } #do annovar
+
+  printtime();
+  print STDERR "####### runlevel $runlevels done #######\n\n";
+
+} #runevel 8 SNV/INDEL calling
+
+
+
 ###------------###################################################################################################
 ##  sub-region  #################################################################################################
 ###------------###################################################################################################
@@ -1726,7 +1807,7 @@ sub RunCommand {
 }
 
 sub helpm {
-  print STDERR "\nGENERAL OPTIONS (MUST SET):\n\t--runlevel\tthe steps of runlevel, from 1-7, either rl1-rl2 or rl. See below for options for each runlevel.\n";
+  print STDERR "\nGENERAL OPTIONS (MUST SET):\n\t--runlevel\tthe steps of runlevel, from 1-8, either rl1-rl2 or rl. See below for options for each runlevel.\n";
   print STDERR "\t--sampleName\tthe name of the lane needed to be processed (must set for runlevel 1-5)\n";
   print STDERR "\t--seqType\tset to 's' if it is a single-end sequencing experiment, or 'p' for paired-end (default).\n";
   print STDERR "\t--runID\t\tthe ID of the run needed to be processed (default not set, must set if fastq files are ended with _R1_00X.fq)\n";
@@ -1775,6 +1856,8 @@ sub helpm {
   print STDERR "\t--spaired\twhether the experiment is a paired normal-disease design, 1 means yes (default), 0 for no.\n";
   print STDERR "\t--pairDE1\tspecify the name of the groups to be compared, e.g., Normal. (pairDE2 \-\> pairedDE1)\n";
   print STDERR "\t--pairDE2\tspecify the name of the groups to be compared, e.g., Tumour. (pairDE2 \-\> pairedDE1)\n";
+
+  print STDERR "\nrunlevel 8: call SNV/INDEL from the mapping bam files using samtools\n";
 
   print STDERR "\nOTHER OPTIONS\n";
   print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
