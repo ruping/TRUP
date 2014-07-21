@@ -1784,6 +1784,16 @@ if (exists $runlevel{$runlevels}) {
     }
   } #do annovar
 
+  unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf.snv") {
+    my $cmd = "grep -v \"\^\#\" $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf \| awk -F\'\t\' \'\$8 \!\~ \/INDEL\/\' > $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf.snv";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-s "$lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf.indel") {
+    my $cmd = "grep -v \"\^\#\" $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf \| awk -F\'\t\' \'\$8 \~ \/INDEL\/\' > $lanepath/08_VARIANTS/$sampleName\.transcriptome.sorted.vcf.annovar.summary.genome_summary.csv.vcf.indel";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
   printtime();
   print STDERR "####### runlevel $runlevels done #######\n\n";
 
