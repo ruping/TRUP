@@ -12,6 +12,7 @@ my %opts = (
             'unique'=>10,
             'extension'=>20,
             'transcripts'=>'',
+            'final'=>'',
            );
 
 GetOptions (
@@ -21,12 +22,14 @@ GetOptions (
                "unique|u=i"   => \$opts{'unique'},
                "extension|e=i"=> \$opts{'extension'},
                "transcripts|t=s" => \$opts{'transcripts'},
+               "final=i" => \$opts{'final'},
                "help|h" => sub{
                                 print "usage: $0 [options]\n\nOptions:\n\t--transcripts\tthe assembled transcript file in fasta format.\n";
-                                print "\t--score\tminimum score cutoff for BLAT hits, default: $opts{'score'}.\n";
+                                print "\t--score\t\tminimum score cutoff for BLAT hits, default: $opts{'score'}.\n";
                                 print "\t--identity\tminimum percentage identity for a valid segment hits, default: $opts{'identity'}.\n";
                                 print "\t--overlap\tmaximum overlapping bases between two connecting segments, default: $opts{'overlap'}.\n";
                                 print "\t--unique\tminimum unique bases a segment has to have after masking hits, default: $opts{'unique'}.\n";
+                                print "\t--final\t\tfor final filtration, set it to 1.\n";
                                 print "\t--help\t\tprint this help message\n\n";
                                 exit 0;
                               }
@@ -36,9 +39,9 @@ GetOptions (
 open TRANS, "$opts{'transcripts'}";
 my %transcripts_fasta;
 my $transcript_fasta;
-while ( <TRANS> ){
+while ( <TRANS> ) {
    chomp;
-   if ($_ =~ /^>(.+)$/){
+   if ($_ =~ /^>(.+)$/) {
       $transcript_fasta = $1;
    }
    else {
@@ -50,6 +53,7 @@ close TRANS;
 
 my %blat;
 while ( <> ) {
+
    chomp;
    next unless /^\d/;
 
@@ -93,7 +97,7 @@ while ( <> ) {
 
 }
 
-#print Dumper (\@{$blat{'Locus_1_Transcript_3/3_Confidence_0.714_Length_1008_id_51705'}});
+#print Dumper(\%blat);
 
 my $count;
 
@@ -111,56 +115,54 @@ foreach my $transcript (keys %blat) {
         $baseHitCount{$i} += $blat->{'perc_id'};
       }
     }
-    $transLength = $blat->{'qSize'} if( $transLength < $blat->{'qSize'} );
+    $transLength = $blat->{'qSize'} if ( $transLength < $blat->{'qSize'} );
     $max_ratio = $blat->{'ratio'} if ( $max_ratio < $blat->{'ratio'} );
   } # each blat
 
-  next if $max_ratio > 0.90;
+  next if $max_ratio > 0.90;                             #maximum length
 
-#=pod
+
   #mask segments with too many non-unique hits
   my @blat_uniq;
   foreach my $blat (@blat) {
     my $numUniqBase=0;
     for (my $i = $blat->{'qStart'}+1; $i <= $blat->{'qEnd'}; $i++) {
-      if( !defined $baseHitCount{$i} || $baseHitCount{$i} <= 100 ){
+      if( !defined $baseHitCount{$i} || $baseHitCount{$i} <= 100 ) {
         $numUniqBase++;
       }
     }
     push @blat_uniq, $blat if($numUniqBase >= $opts{'unique'});
   }
   @blat = @blat_uniq;
-#=cut
-  #print Dumper (\@blat) if $transcript eq 'Locus_1_Transcript_3/3_Confidence_0.714_Length_1008_id_51705';
 
-  next if ( scalar(@blat) < 2 );
 
-  #get connections
+  next if ( scalar(@blat) < 2 );       #number of blat record
+
+  #get connections between each blat record
   for (my $i=0; $i<=$#blat; $i++) {
     $blat[$i]->{'id'}=$i;
     my $a = $blat[$i];
     next unless ($a->{'perc_id'} >= $opts{'identity'});
 
     #pair-wise connection
-    for(my $j=$i+1; $j<=$#blat; $j++){
+    for(my $j=$i+1; $j<=$#blat; $j++) {
       my $b=$blat[$j];
       if(    $b->{'qStart'} <= $a->{'qEnd'} + 1                   #contiguous: no unmapped base in between
          and $b->{'qEnd'}   >  $a->{'qEnd'} + $opts{'extension'}  #Must extend at least
          and $b->{'qStart'} >= $a->{'qEnd'} - $opts{'overlap'}    #Allow at most $opts{'overlap'} bp overlap
          and $b->{'perc_id'}>= $opts{'identity'}                  #minimum percent_identify
-        ){
+        ) {
         push @{$a->{'next'}},$j;  #connect
         push @{$b->{'prev'}},$i;  #connect
       }
     } #foreach j
   } #foreach i
 
-  #print "$transcript\n";
-  #print Dumper (\@blat);
-
+  #print "$transcript:\n";
+  #print Dumper(\@blat);
   my @paths=&GetAllPaths(@blat);
-  my ($PathBest, $Path2Best) =(0,0);
-  my ($ScoreBest, $Score2Best)=(0,0);
+  my ($PathBest, $Path2Best) = (0,0);
+  my ($ScoreBest, $Score2Best) = (0,0);
   my ($leftMarginBest,$rightMarginBest);
   foreach my $path (@paths) {
     my $score=0;
@@ -194,8 +196,8 @@ foreach my $transcript (keys %blat) {
     }
   }
 
-  #print "$PathBest\t$ScoreBest\n";
-  #print "$Path2Best\t$Score2Best\n";
+  #print "$transcript\t$PathBest\t$ScoreBest\n";
+  #print "$transcript\t$Path2Best\t$Score2Best\n";
 
   my $qRealSize = $transLength;
   $qRealSize -= $leftMarginBest if(defined $leftMarginBest && $leftMarginBest <= $opts{'s'}+1);
@@ -210,8 +212,6 @@ foreach my $transcript (keys %blat) {
 
     my $a = $blat[$idx];
     my $newHit = 1;
-
-    #print Dumper (\$a) if $transcript eq 'Locus_1_Transcript_6/9_Confidence_0.381_Length_566_id_10615';;
 
     $PathBestSize += $a->{'qEnd'} - $a->{'qStart'};
 
@@ -251,7 +251,7 @@ foreach my $transcript (keys %blat) {
 
       my $bktype;
       if( defined $pb ) {
-        if( $b->{'tName'} ne $pb->{'tName'} ){
+        if( $b->{'tName'} ne $pb->{'tName'} ) {
           $bktype='inter_C';
           $blatStart = $a->{'qStart'}+1;             #set new blatStart
           $blatGenomeStart = $b->{'tStart'};
@@ -262,7 +262,7 @@ foreach my $transcript (keys %blat) {
             $blatStart = ($newHit == 1)?($a->{'qStart'}+1):($b->{'qStart'});         #set new blatStart
             $blatGenomeStart = $b->{'tStart'};
           }
-          elsif (scalar(@breakpoints) > 0){
+          elsif (scalar(@breakpoints) > 0) {
             $breakpoints[$#breakpoints]->{'bk2'}->{'blatEnd'} = $b->{'qEnd'};
             $breakpoints[$#breakpoints]->{'bk2'}->{'blatGenomeEnd'} = $b->{'tEnd'};
           }
@@ -294,7 +294,7 @@ foreach my $transcript (keys %blat) {
           $bk->{'bktype'}=$bktype;
           $bk->{'score'} = $chimeric_score;
           $bk->{'perc_id'} = ($b->{'perc_id'} + $pb->{'perc_id'})/2;
-          unless ( $bktype eq 'intra_C' and abs($b->{'tStart'}-$pb->{'tEnd'}) <= 230000 ){ #now you see a "breakpoint"
+          unless ( $bktype eq 'intra_C' and abs($b->{'tStart'}-$pb->{'tEnd'}) <= 230000 ) { #now you see a "breakpoint"
              $bpInner = 1 if ($i > 0);
              push (@breakpoints, $bk) if $i == 0;
           }
@@ -322,7 +322,8 @@ foreach my $transcript (keys %blat) {
     $count++;
   }
 
-  next if ($chimeric_score == 0);
+  next if ($chimeric_score == 0);       #skip chimeric score equal 0 thing
+
   my $print_fasta = 0;
   my $breakpoint_index = 0;
   foreach my $breakpoint (@breakpoints) {
@@ -350,26 +351,22 @@ foreach my $transcript (keys %blat) {
     print "$blat1\t$blat2\t";
     printf "%.3f\n", $chimeric_score;
 
-    #if ($transcript eq 'Locus_3_Transcript_2/2_Confidence_0.667_Length_459_id_20430'){
-    #  print Dumper ( \($breakpoint->{'bk1'}) );
-    #  print Dumper ( \($breakpoint->{'bk2'}) );
-    #}
   }
 
-  if ($print_fasta == 1){
+  if ($print_fasta == 1 and $opts{'final'} eq ''){
      my $seq = $transcripts_fasta{$transcript};
      print STDERR "\>$transcript\n$seq";
   }
 
 } #each transcript
 
-#print "$count\n";
 
 sub calc_percent_identity {
   my @cols = @_;
   my $perc_id = (100.0 - (&pslCalcMilliBad(@cols) * 0.1));
   return $perc_id;
 }
+
 
 sub pslCalcMilliBad { #this function is borrowed and modified from blat wesite
 
@@ -406,16 +403,17 @@ sub pslCalcMilliBad { #this function is borrowed and modified from blat wesite
   return $milliBad;
 }
 
+
 sub round {
     my $number = shift;
     my $tmp = int($number);
-    if ($number >= ($tmp+0.5)){
+    if ($number >= ($tmp+0.5)) {
       $tmp++;
     }
     return $tmp;
 }
 
-sub GetAllPaths{
+sub GetAllPaths {
   my @blat = @_;
   my @allpaths;
   foreach my $blat (@blat) {

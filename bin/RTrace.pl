@@ -1469,10 +1469,32 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
+  #unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list"){
+  #  my $sorting_opts = '';
+  #  $sorting_opts = "-k 16,16nr -k 18,18nr -k 3,3nr -k 8,8d -k 11,11d";
+  #  my $cmd = "grep \"^\#\" $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis \| sort $sorting_opts >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list";
+  #  RunCommand($cmd,$noexecute,$quiet);
+  #}
+
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa") {
+    my $cmd = "perl $bin/vis2fa.pl $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis $readlen >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl"){
+    my $cmd = "blat -maxIntron=230000 $blatDatabase $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass"){
+    my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --identity 93 $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl --final 1 >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
   unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list"){
     my $sorting_opts = '';
     $sorting_opts = "-k 16,16nr -k 18,18nr -k 3,3nr -k 8,8d -k 11,11d";
-    my $cmd = "grep \"^\#\" $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis \| sort $sorting_opts >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list";
+    my $cmd = "perl $bin/fusionFinalGrep.pl $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis | sort $sorting_opts >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.list";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1511,16 +1533,16 @@ if (exists $runlevel{$runlevels}) {
     }
 
     if ( $gtf_guide_assembly ) {
-      $cufflinks_options .= "--GTF-guide $known_trans_file";
+      $cufflinks_options .= "--GTF-guide $known_trans_file ";
     }
     else {
-      $cufflinks_options .= "--GTF $known_trans_file";
+      $cufflinks_options .= "--GTF $known_trans_file ";
     }
     if ( $frag_bias_correct ) {
-      $cufflinks_options .= "--frag-bias-correct";
+      $cufflinks_options .= "--frag-bias-correct ";
     }
     if ( $upper_quantile_norm ){
-      $cufflinks_options .= "--upper-quartile-norm";
+      $cufflinks_options .= "--upper-quartile-norm ";
     }
 
     my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
@@ -1616,7 +1638,18 @@ if (exists $runlevel{$runlevels}) {
        next if /^label/;
        my ($cu_sample, $cu_expr_count, $tissue, $patient) = split /\t/;
        my $cu_bam_file = "$root/$cu_sample/02_MAPPING/$mappedBam";
-       push (@{$bam_files_cd{$tissue}}, $cu_bam_file);
+       if (-e "$cu_bam_file"){
+         push (@{$bam_files_cd{$tissue}}, $cu_bam_file);
+       } else {
+         my $dirname = dirname($cu_expr_count);
+         $cu_bam_file = "$dirname/../02_MAPPING/$mappedBam";
+         if (-e "$cu_bam_file"){
+            push (@{$bam_files_cd{$tissue}}, $cu_bam_file);
+         } else {
+            print STDERR "error: $cu_bam_file does not exist!!!\n";
+            exit 22;
+         }
+       }
     }
     close TARGETS;
 
