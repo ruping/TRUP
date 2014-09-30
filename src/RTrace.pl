@@ -131,6 +131,7 @@ my $refseq_gene = "$anno/$species/$species\.genes\_RefSeq\.bed12";
 my $refseq_gene_gtf = "$anno/$species/$species\.refGene\.gtf";
 my $gmap_index = "$anno/$species/$species\.gmap\_index/";
 my $gmap_splicesites = "$gmap_index/$species/$species\.splicesites\.iit";
+my $star_index = "$anno/$species/$species\.star/";
 my $chromosomeSize = "$anno/$species/$species\.chromosome\_size\.txt";
 my $repeatMasker = "$anno/$species/$species\.repeats\_UCSC\.gff";
 my $selfChain = "$anno/$species/$species\.SelfChain\_UCSC\.txt";
@@ -586,6 +587,43 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$noexecute,$quiet);
     }
   }                             #tophat2
+
+  elsif ($mapper eq 'star') {
+    unless (-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/$mappedBam") {
+      my $cmd;
+      unless (-s "$lanepath/02_MAPPING/starChimeric.out.bam") {
+         my $zipcat = "zcat";
+         $zipcat = "bzcat" if ($bzip);
+         $cmd = "STAR --genomeDir $star_index --readFilesCommand $zipcat --readFilesIn $reads[0] $reads[1] --runThreadN $threads --outFileNamePrefix $lanepath/02_MAPPING/star --chimSegmentMin 18" if ($seqType =~ /^p/);
+         $cmd = "STAR --genomeDir $star_index --readFilesCommand $zipcat --readFilesIn $reads[0] --runThreadN $threads --outFileNamePrefix $lanepath/02_MAPPING/star --chimSegmentMin 18" if ($seqType =~ /^s/);
+         unless (-s "$lanepath/02_MAPPING/starChimeric.out.sam"){
+           RunCommand($cmd,$noexecute,$quiet);
+         }
+         if (-s "$lanepath/02_MAPPING/starAligned.out.sam" and !-s "$lanepath/02_MAPPING/starAligned.out.bam"){
+           $cmd = "samtools view -Sb $lanepath/02_MAPPING/starAligned.out.sam -o $lanepath/02_MAPPING/starAligned.out.bam";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "rm $lanepath/02_MAPPING/starAligned.out.sam -f";
+           RunCommand($cmd,$noexecute,$quiet);
+         }
+         if (-s "$lanepath/02_MAPPING/starChimeric.out.sam" and !-s "$lanepath/02_MAPPING/starChimeric.out.bam"){
+           $cmd = "samtools view -Sb $lanepath/02_MAPPING/starChimeric.out.sam -o $lanepath/02_MAPPING/starChimeric.out.bam";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "rm $lanepath/02_MAPPING/starChimeric.out.sam -f";
+           RunCommand($cmd,$noexecute,$quiet);
+         }
+      }
+      if (-s "$lanepath/02_MAPPING/starChimeric.out.bam" and !-s "$lanepath/02_MAPPING/accepted_hits\.bam") {
+         $cmd = "samtools merge -n $lanepath/02_MAPPING/accepted_hits\.bam $lanepath/02_MAPPING/starAligned.out.bam $lanepath/02_MAPPING/starChimeric.out.bam";
+         RunCommand($cmd,$noexecute,$quiet);
+         $cmd = "rm $lanepath/02_MAPPING/starAligned.out.bam -f";
+         RunCommand($cmd,$noexecute,$quiet);
+      }
+    }
+    if ((-s "$lanepath/02_MAPPING/accepted_hits\.bam" or -s "$lanepath/02_MAPPING/$mappedBam") and -s "$lanepath/02_MAPPING/starAligned.out.sam"){
+       my $cmd = "rm $lanepath/02_MAPPING/starAligned.out.sam -f";
+       RunCommand($cmd,$noexecute,$quiet);
+    }
+  }                             #STAR mapping
 
   elsif ($mapper eq 'gsnap') {
 
@@ -1872,7 +1910,7 @@ sub helpm {
   print STDERR "\t--trimedlen\tthe read length after trimming (default 80). set it the same as readlen for no trimming\n";
 
   print STDERR "\nrunlevel 2: mapping and report of mapping statistics\n";
-  print STDERR "\t--mapper\tthe mapper used in runlevel2, now support \'tophat1\', \'tophat2\' or \'gsnap\' (default).\n";
+  print STDERR "\t--mapper\tthe mapper used in runlevel2, now support \'gsnap\' (default), \'star\' and \'tophat2\' (no fusion detection if chosen).\n";
   print STDERR "\t--seglen\tthe segment length for tophat mapping (default 25)\n";
   print STDERR "\t--gf\t\tthe graphical format in mapping report, \'png\' (default) or \'pdf\' (when a x11 window is not available)\n";
   print STDERR "\t--WIG\t\tgenerate a big wiggle file in run-level 2.\n";
