@@ -677,9 +677,9 @@ if (exists $runlevel{$runlevels}) {
   }
 
   if ($mapper eq 'star'){  #merge breakpoints for star mapper
-    my $cmd = "";
+    my $cmd = "perl $bin/starjunction2bp.pl $lanepath/03_STATS/$sampleName\.breakpoints $lanepath/02_MAPPING/starChimeric\.out\.junction >>$lanepath/03_STATS/$sampleName\.breakpoints";
     RunCommand($cmd,$noexecute,$quiet);
-  }
+  } #merge breakpoints for star mapper
 
   unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" ) {
     if (-s "$lanepath/03_STATS/$sampleName\.breakpoints") {

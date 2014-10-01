@@ -676,6 +676,11 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
+  if ($mapper eq 'star'){  #merge breakpoints for star mapper
+    my $cmd = "perl $bin/starjunction2bp.pl $lanepath/03_STATS/$sampleName\.breakpoints $lanepath/02_MAPPING/starChimeric\.out\.junction >>$lanepath/03_STATS/$sampleName\.breakpoints";
+    RunCommand($cmd,$noexecute,$quiet);
+  } #merge breakpoints for star mapper
+
   unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" ) {
     if (-s "$lanepath/03_STATS/$sampleName\.breakpoints") {
        my $cmd = "gzip $lanepath/03_STATS/$sampleName\.breakpoints";
@@ -1074,7 +1079,7 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$noexecute,$quiet);
       }
 
-      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
+      unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted") {
         unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
           my $mapping_bam = "$lanepath/02_MAPPING/$mappedBam";
           die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
@@ -1091,13 +1096,13 @@ if (exists $runlevel{$runlevels}) {
           my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
           RunCommand($cmd,$noexecute,$quiet);
         }
-        if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate"){
+        if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate") {
           my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted";
           RunCommand($cmd,$noexecute,$quiet);
         }
       }
 
-      if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate" and -s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted"){
+      if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate" and -s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted") {
         my $cmd = "rm $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate -f";
         RunCommand($cmd,$noexecute,$quiet);
       }
@@ -1116,6 +1121,7 @@ if (exists $runlevel{$runlevels}) {
         my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";
         RunCommand($cmd,$noexecute,$quiet);
       }
+
     } #if it is paired-end reads
 
     else {  #it is single-end reads
