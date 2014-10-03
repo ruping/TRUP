@@ -97,7 +97,7 @@ while ( <> ) {
 
 }
 
-#print Dumper(\%blat);
+#print STDERR Dumper(\%blat);
 
 my $count;
 

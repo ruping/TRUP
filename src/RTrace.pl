@@ -1531,7 +1531,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass"){
-    my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --identity 93 $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl --final 1 >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
+    my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --identity 94 $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl --final 1 >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
