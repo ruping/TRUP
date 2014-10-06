@@ -147,9 +147,11 @@ int main (int argc, char *argv[]) {
   cerr << "readlen: " << readlen << endl;
   cerr << "cliplen: " << cliplen << endl;
 
+  unsigned int maxIntron = param->maxIntron;   // maximum intron length
+
   //bam input and generate index if not yet
   BamMultiReader reader;
-  reader.Open(fnames);   // the mapping bam file is opened 
+  reader.Open(fnames);                         // the mapping bam file is opened 
 
   // get header & reference information
   string header = reader.GetHeaderText();
@@ -240,7 +242,7 @@ int main (int argc, char *argv[]) {
               mateChr = refs.at(bam.MateRefID).RefName;
               matePos = bam.MatePosition;
               int mateDistance = matePos-alignmentStart;
-              if (mateChr != chrom || abs(mateDistance) > 230000) 
+              if (mateChr != chrom || abs(mateDistance) > maxIntron) 
                 mateStatus = "w";
             }
           }
@@ -453,7 +455,7 @@ int main (int argc, char *argv[]) {
             fragment[bam.Name].mate2 = bam;
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > maxIntron) ) 
                 arp_f << bam.Name << endl;
             }
 
@@ -470,7 +472,7 @@ int main (int argc, char *argv[]) {
               fragment[bam.Name].mate2 = bam;
               if ( arp != "" ) {
                 int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > maxIntron) ) 
                   arp_f << bam.Name << endl;
               }
             }
@@ -503,7 +505,7 @@ int main (int argc, char *argv[]) {
             fragment[bam.Name].mate1 = bam;
             if ( arp != "" ) {
               int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+              if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > maxIntron) ) 
                 arp_f << bam.Name << endl;
             }
           } // both ends are unique
@@ -519,7 +521,7 @@ int main (int argc, char *argv[]) {
               fragment[bam.Name].mate1 = bam;
               if ( arp != "" ) {
                 int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > maxIntron) ) 
                   arp_f << bam.Name << endl;
               }
             }
@@ -549,7 +551,7 @@ int main (int argc, char *argv[]) {
               fragment[bam.Name].mate2  = bam;
               if ( arp != "" ) {
                 int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > maxIntron) ) 
                   arp_f << bam.Name << endl;
               }
             }
@@ -585,7 +587,7 @@ int main (int argc, char *argv[]) {
               fragment[bam.Name].mate1  = bam;
               if ( arp != "" ) {
                 int dis = fragment[bam.Name].start1 - fragment[bam.Name].start2;
-                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > 230000) ) 
+                if ( (fragment[bam.Name].chr1 != fragment[bam.Name].chr2) || (abs(dis) > maxIntron) ) 
                   arp_f << bam.Name << endl;
               }
             }

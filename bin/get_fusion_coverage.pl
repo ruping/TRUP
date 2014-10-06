@@ -21,6 +21,7 @@ my $ucsc_refgene;
 my $repeatmasker;
 my $genomeBlatPred = "SRP";
 my $anchorLen = 12;
+my $maxIntron = 230000;
 
 GetOptions (
               "type|t=s"              => \$type,
@@ -35,6 +36,7 @@ GetOptions (
               "refgene|ref=s"         => \$ucsc_refgene,
               "repeatmasker=s"        => \$repeatmasker,
               "genomeBlatPred=s"      => \$genomeBlatPred,
+              "maxIntron=i"           => \$maxIntron,
 	      "help|h" => sub{
 	                     print "usage: $0 [options]\n\nOptions:\n\t--type\t\tthe type of the reads, either pair or single\n";
                              print "\t--mappingfile\tthe mappingfile of the reads onto the assembled fusion candidates\n";
@@ -45,6 +47,7 @@ GetOptions (
                              print "\t--locname\tloc_gene_name2location file\n";
                              print "\t--refgene\tdownloaded from ucsc the refgene annotation file\n";
                              print "\t--genomeBlatPred\tset to the file produced by analyzing the genome blat result.\n";
+                             print "\t--maxIntron\tthe maximum intron length.\n";
 			     print "\t--help\t\tprint this help message\n\n";
                              exit 0;
 			     }
@@ -763,7 +766,7 @@ while ( <AH> ) {
 
     my ($Qname, $FLAG, $Rname, $Pos, $MAPQ, $CIGAR, $mateRname, $matePos, $ISIZE, $seq, $qual, @tag) = split /\t/;
     next if ($mateRname eq '*');
-    next if ($mateRname eq '=' and abs($matePos - $Pos) < 230000);         #ignore correct pair
+    next if ($mateRname eq '=' and abs($matePos - $Pos) < $maxIntron);         #ignore correct pair
     if ($CIGAR =~ /^(\d+)[SH]/){
       next if ($1 > 8);
     } elsif ($CIGAR =~ /(\d+)[SH]$/) {

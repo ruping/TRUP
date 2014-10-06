@@ -10,6 +10,7 @@ struct parameters {
   unsigned int idstart;
   unsigned int consisCount;
   unsigned int unique;
+  unsigned int maxIntron;
 };
 
 struct parameters* interface(struct parameters* param,int argc, char *argv[]);
@@ -39,6 +40,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
     {"unique",0,0,'u'},
     {"idstart",1,0,'i'},
     {"consisCount",1,0,'c'},
+    {"maxIntron",1,0,'a'},
     {"help",0,0,'h'},
     {0, 0, 0, 0}
   };
@@ -46,7 +48,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hum:t:i:c:",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hum:t:i:c:a:",long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -69,6 +71,9 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
       break;
     case 'c':
       param->consisCount = atoi(optarg);
+      break;
+    case 'a':
+      param->maxIntron = atoi(optarg);
       break;
     case 'h':
       help = 1;
@@ -101,6 +106,7 @@ void usage()
   fprintf(stdout, "-m --idstart INT  starting id\n");
   fprintf(stdout, "-m --consisCount INT  threshold for consistent read pairs with discordant mapping\n");
   fprintf(stdout, "-q --unique              only calculate for uniquely mapped reads (you may not set this when the bam files only contain unique reads).\n");
+  fprintf(stdout, "-a --maxIntron           maximum intron length\n");
   fprintf(stdout, "-t --type    <p/s>       current no use\n");
   fprintf(stdout, "\n");
 }

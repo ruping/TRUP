@@ -137,6 +137,7 @@ int main ( int argc, char *argv[] ) {
   string line;
   string old_chr = "SRP";
   string type = param->type;
+  unsigned int maxIntron = param->maxIntron;
 
   //regions for the input of region file
   deque <struct region> regions;
@@ -219,7 +220,7 @@ int main ( int argc, char *argv[] ) {
         mateChr = refs.at(bam.MateRefID).RefName;
         matePos = bam.MatePosition;
         int mateDistance = matePos-alignmentStart;
-        if (mateChr != chrom || abs(mateDistance) > 230000) {
+        if (mateChr != chrom || abs(mateDistance) > maxIntron) {
           if (keep == false){
             keep = true;
           }

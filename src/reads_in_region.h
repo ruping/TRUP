@@ -9,6 +9,7 @@ struct parameters {
   char* mapping_f;
   char* type;
   unsigned int unique;
+  unsigned int maxIntron;
 };
 
 struct parameters* interface(struct parameters* param,int argc, char *argv[]);
@@ -38,6 +39,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
     {"mapping",1,0,'m'},
     {"type",1,0,'t'},
     {"unique",0,0,'u'},
+    {"maxIntron",1,0,'i'},
     {"help",0,0,'h'},
     {0, 0, 0, 0}
   };
@@ -45,7 +47,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hur:m:t:",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hur:m:t:i",long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -65,6 +67,9 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
       break;
     case 'u':
       param->unique = 1;
+      break;
+    case 'i':
+      param->maxIntron = atoi(optarg);
       break;
     case 'h':
       help = 1;
@@ -96,6 +101,7 @@ void usage()
   fprintf(stdout, "-r --region  <filename>  UCSC gene annotation file in 12 column bed format (should be sorted according to chromosomes and coordinates)\n");
   fprintf(stdout, "-m --mapping <filename>  mapping_file (RNA-seq bam file, chromosomes and coordinates sorted also)\n");
   fprintf(stdout, "-q --unique              only calculate for uniquely mapped reads (you may not set this when the bam files only contain unique reads).\n");
+  fprintf(stdout, "-i --maxIntron  <int>    maximum intron length\n");
   fprintf(stdout, "-t --type    <p/s>       paired-end or single-end\n");
   fprintf(stdout, "\n");
 }

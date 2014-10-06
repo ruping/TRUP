@@ -58,6 +58,9 @@ my $Rbinary = 'R';
 my $customMappedBam = '';
 my $seqType = 'p';   #whether paired-end or single-end
 my $tmpDir = '';
+my $misPen = 2;
+my $uniqueBase = 100;
+my $maxIntron = 230000;
 
 if (@ARGV == 0) {
   helpm();
@@ -110,6 +113,9 @@ GetOptions(
            "help|h"       => \$help,
            "customBam=s"  => \$customMappedBam,
            "tmpDir=s"     => \$tmpDir,
+           "misPen=f"     => \$misPen,
+           "uniqueBase=i" => \$uniqueBase,
+           "maxIntron=i"  => \$maxIntron,
           );
 
 #print help
@@ -672,7 +678,7 @@ if (exists $runlevel{$runlevels}) {
   unless (-s "$lanepath/03_STATS/$sampleName\.mapping\.stats") {
     my $typeop = ($seqType =~ /^s/)? "--type s" : "--type p";
     my $arpop = ($seqType =~ /^p/)? "--arp $lanepath/03_STATS/$sampleName\.arp" : "";
-    my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam $typeop --readlength $trimedlen --writer $lanepath/02_MAPPING/accepted_hits\.mapped\.bam --unmapped $lanepath/02_MAPPING/unmapped $arpop --breakpoint $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.mapping\.stats";
+    my $cmd = "$bin/Rseq_bam_stats --mapping $lanepath/02_MAPPING/accepted_hits\.bam $typeop --readlength $trimedlen --maxIntron $maxIntron --writer $lanepath/02_MAPPING/accepted_hits\.mapped\.bam --unmapped $lanepath/02_MAPPING/unmapped $arpop --breakpoint $lanepath/03_STATS/$sampleName\.breakpoints >$lanepath/03_STATS/$sampleName\.mapping\.stats";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1065,7 +1071,7 @@ if (exists $runlevel{$runlevels}) {
             exit 22;
           }
         }
-        my $cmd = "$bin/discordant_consistency --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot --mapping $mapping_bam >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco";
+        my $cmd = "$bin/discordant_consistency --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot --mapping $mapping_bam --maxIntron $maxIntron >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.disco";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
@@ -1093,7 +1099,7 @@ if (exists $runlevel{$runlevels}) {
           }
           my $largestBPID = `tail -1 $lanepath/04_ASSEMBLY/$sampleName.breakpoints.processed | cut -f 1`;
           $largestBPID =~ s/\n//;
-          my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
+          my $cmd = "$bin/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount --maxIntron $maxIntron >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate";
           RunCommand($cmd,$noexecute,$quiet);
         }
         if (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.sorted\.repornot\.dismate") {
@@ -1145,7 +1151,7 @@ if (exists $runlevel{$runlevels}) {
         }
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
         my $typeop = ($seqType =~ /^p/)? "--type p":"--type s";
-        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam $typeop >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
+        my $cmd = "$bin/reads_in_region --region $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam $typeop --maxIntron $maxIntron >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
         RunCommand($cmd,$noexecute,$quiet);
       }
 
@@ -1383,7 +1389,7 @@ if (exists $runlevel{$runlevels}) {
       }
 
       unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq") {
-        my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $lanepath/04_ASSEMBLY/transcripts.fa $lanepath/05_FUSION/$sampleName\.transcripts\.genome\.gmap >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration 2>$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq";
+        my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $lanepath/04_ASSEMBLY/transcripts.fa --uniqueBase $uniqueBase --misPen $misPen --maxIntron $maxIntron $lanepath/05_FUSION/$sampleName\.transcripts\.genome\.gmap >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration 2>$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq";
         RunCommand($cmd,$noexecute,$quiet);
       }
   } #GMAP
@@ -1395,7 +1401,7 @@ if (exists $runlevel{$runlevels}) {
       }
 
       unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq") {
-        my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $lanepath/04_ASSEMBLY/transcripts.fa $lanepath/05_FUSION/$sampleName\.transcripts\.genome\.blat >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration 2>$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq";
+        my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $lanepath/04_ASSEMBLY/transcripts.fa --uniqueBase $uniqueBase --misPen $misPen --maxIntron $maxIntron $lanepath/05_FUSION/$sampleName\.transcripts\.genome\.blat >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration 2>$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.seq";
         RunCommand($cmd,$noexecute,$quiet);
       }
   } #BLAT
@@ -1497,9 +1503,9 @@ if (exists $runlevel{$runlevels}) {
 
     my $cmd;
     if ($seqType =~ /^p/) { #paired-end
-      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --maxIntron $maxIntron --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     } else { #single-end
-      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type single --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type single --maxIntron $maxIntron --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     }
     RunCommand($cmd,$noexecute,$quiet);
   }
@@ -1530,8 +1536,8 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass"){
-    my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --identity 94 $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl --final 1 >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
+  unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass") {
+    my $cmd = "perl $bin/pick_fusion_transcripts_from_genomeBLAT.pl --identity 94 --final 1 --uniqueBase $uniqueBase --misPen $misPen --maxIntron $maxIntron $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
     RunCommand($cmd,$noexecute,$quiet);
   }
 
@@ -1930,6 +1936,8 @@ sub helpm {
 
   print STDERR "\nrunlevel 4: detection of fusion candidates\n";
   print STDERR "\t--GMAP\t\tset if use GMAP in run-level 4 (default: use BLAT).\n";
+  print STDERR "\t--misPen\tthe penalty for mismatches for scoring each blat record (default: $misPen).\n";
+  print STDERR "\t--uniqueBase\tbase with added identity-score below this would be regarded as unique base for each blat record (default: $uniqueBase).\n";
 
   print STDERR "\nrunlevel 5: run cufflinks for gene/isoform quantification\n";
   print STDERR "runlevel 6: run cuffdiff for diffrential gene/isoform expression analysis\n";
@@ -1947,6 +1955,7 @@ sub helpm {
   print STDERR "\nrunlevel 8: call SNV/INDEL from the mapping bam files using samtools\n";
 
   print STDERR "\nOTHER OPTIONS\n";
+  print STDERR "\t--maxIntron\tthe maximum length of intron, to select for discordant mapping (fusion detection, default: $maxIntron)\n";
   print STDERR "\t--noexecute\tdo not execute the command, for testing purpose\n";
   print STDERR "\t--quiet\t\tdo not print the command line calls and time information\n";
   print STDERR "\t--threads\tthe number of threads used for the mapping (default 1)\n";

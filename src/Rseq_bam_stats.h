@@ -13,6 +13,7 @@ struct parameters {
   char* arp;
   char* breakpoint;
   unsigned int readlength;
+  unsigned int maxIntron;
 };
 
 struct parameters* interface(struct parameters* param,int argc, char *argv[]);
@@ -50,6 +51,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
     {"arp",1,0,'a'},
     {"breakpoint",1,0,'b'},
     {"readlength",1,0,'l'},
+    {"maxIntron",1,0,'i'},
     {"help",0,0,'h'},
     {0, 0, 0, 0}
   };
@@ -58,7 +60,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hm:t:p:w:u:a:b:l:",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hm:t:p:w:u:a:b:l:i:",long_options, &option_index);
 
     if (c == -1){
       break;
@@ -90,6 +92,9 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
       break;
     case 'l':
       param->readlength = atoi(optarg);
+      break;
+    case 'i':
+      param->maxIntron = atoi(optarg);
       break;
     case 'h':
       help = 1;
@@ -125,6 +130,7 @@ void usage()
   fprintf(stdout, "-a --arp         filename of the arp read name (for fusion assembly use, default not write).\n");
   fprintf(stdout, "-b --breakpoint  the file for output of potential breakpoint.\n");
   fprintf(stdout, "-l --readlength  the length of the reads.\n");
+  fprintf(stdout, "-i --maxIntron   the maximum intron length (for breakpoints).\n");
   fprintf(stdout, "-t --type        (p)aired-end or (s)ingle-end.\n");
   fprintf(stdout, "\n");
 }

@@ -8,19 +8,25 @@ use Getopt::Long;
 my %opts = (
             'score'=>20,
             'identity'=>95,
+            'misPen'=>2,
             'overlap'=>20,
             'unique'=>10,
+            'uniqueBase'=>100,
             'extension'=>20,
+            'maxIntron'=>230000,
             'transcripts'=>'',
             'final'=>'',
            );
 
 GetOptions (
-               "score|s=f"    => \$opts{'score'},
-               "identity|i=f" => \$opts{'identity'},
-               "overlap|o=i"  => \$opts{'overlap'},
-               "unique|u=i"   => \$opts{'unique'},
-               "extension|e=i"=> \$opts{'extension'},
+               "score|s=f"       => \$opts{'score'},
+               "identity|i=f"    => \$opts{'identity'},
+               "misPen|p=f"      => \$opts{'misPen'},
+               "overlap|o=i"     => \$opts{'overlap'},
+               "unique|u=i"      => \$opts{'unique'},
+               "uniqueBase|b=i"  => \$opts{'uniqueBase'},
+               "extension|e=i"   => \$opts{'extension'},
+               "maxIntron|m=i"   => \$opts{'maxIntron'},
                "transcripts|t=s" => \$opts{'transcripts'},
                "final=i" => \$opts{'final'},
                "help|h" => sub{
@@ -29,6 +35,8 @@ GetOptions (
                                 print "\t--identity\tminimum percentage identity for a valid segment hits, default: $opts{'identity'}.\n";
                                 print "\t--overlap\tmaximum overlapping bases between two connecting segments, default: $opts{'overlap'}.\n";
                                 print "\t--unique\tminimum unique bases a segment has to have after masking hits, default: $opts{'unique'}.\n";
+                                print "\t--uniqueBase\twhen small than this number, will be count as a uniqueBase, default: $opts{'uniqueBase'}.\n";
+                                print "\t--maxIntron\tthe maximum intron length, used for get breakpoints, default: $opts{'maxIntron'}.\n";
                                 print "\t--final\t\tfor final filtration, set it to 1.\n";
                                 print "\t--help\t\tprint this help message\n\n";
                                 exit 0;
@@ -88,7 +96,7 @@ while ( <> ) {
    $blat->{'confidence'} = $1;
 
    $blat->{'perc_id'} = &calc_percent_identity(@cols);
-   $blat->{'score'}   = ($blat->{'matches'} + ($blat->{'repMatches'} >> 1))-$blat->{'misMatches'}-$blat->{'qCountGap'}-$blat->{'tCountGap'};
+   $blat->{'score'}   = ($blat->{'matches'} + ($blat->{'repMatches'} >> 1)) - $opts{'misPen'}*$blat->{'misMatches'} - $blat->{'qCountGap'} - $blat->{'tCountGap'}; #3 = mismatch penalty
    $blat->{'ratio'}   = ($blat->{'qEnd'} - $blat->{'qStart'} + 1)/$blat->{'qSize'};
 
    unless ( $blat->{'misMatches'}/$blat->{'matches'} >= 0.1 or $blat->{'misMatches'} >= 20 ) {  #if the mismatches are too much fraction
@@ -97,7 +105,7 @@ while ( <> ) {
 
 }
 
-#print STDERR Dumper(\%blat);
+#print Dumper(\%blat);
 
 my $count;
 
@@ -121,13 +129,16 @@ foreach my $transcript (keys %blat) {
 
   next if $max_ratio > 0.90;                             #maximum length
 
+  #if ($transcript =~ /Locus_1_Transcript_2\/4_Confidence_0\.429_Length_490_id_13527/) {
+  #     print STDERR Dumper(\@blat);
+  #}
 
   #mask segments with too many non-unique hits
   my @blat_uniq;
   foreach my $blat (@blat) {
     my $numUniqBase=0;
     for (my $i = $blat->{'qStart'}+1; $i <= $blat->{'qEnd'}; $i++) {
-      if( !defined $baseHitCount{$i} || $baseHitCount{$i} <= 100 ) {
+      if( !defined $baseHitCount{$i} || $baseHitCount{$i} <= $opts{'uniqueBase'} ) {
         $numUniqBase++;
       }
     }
@@ -135,6 +146,10 @@ foreach my $transcript (keys %blat) {
   }
   @blat = @blat_uniq;
 
+  #if ($transcript =~ /Locus_1_Transcript_2\/4_Confidence_0\.429_Length_490_id_13527/){
+  #     print STDERR "after uniquemask\n";
+  #     print STDERR Dumper(\@blat);
+  #}
 
   next if ( scalar(@blat) < 2 );       #number of blat record
 
@@ -150,7 +165,7 @@ foreach my $transcript (keys %blat) {
       if(    $b->{'qStart'} <= $a->{'qEnd'} + 1                   #contiguous: no unmapped base in between
          and $b->{'qEnd'}   >  $a->{'qEnd'} + $opts{'extension'}  #Must extend at least
          and $b->{'qStart'} >= $a->{'qEnd'} - $opts{'overlap'}    #Allow at most $opts{'overlap'} bp overlap
-         and $b->{'perc_id'}>= $opts{'identity'}                  #minimum percent_identify
+         and $b->{'perc_id'} >= $opts{'identity'}                  #minimum percent_identify
         ) {
         push @{$a->{'next'}},$j;  #connect
         push @{$b->{'prev'}},$i;  #connect
@@ -196,13 +211,21 @@ foreach my $transcript (keys %blat) {
     }
   }
 
-  #print "$transcript\t$PathBest\t$ScoreBest\n";
-  #print "$transcript\t$Path2Best\t$Score2Best\n";
+  #if ($transcript =~ /Locus_1_Transcript_2\/4_Confidence_0\.429_Length_490_id_13527/) {
+  #  print STDERR Dumper(\@blat);
+  #  print STDERR Dumper(\@paths);
+  #  print STDERR "$transcript\t$PathBest\t$ScoreBest\n";
+  #  print STDERR "$transcript\t$Path2Best\t$Score2Best\n";
+  #}
 
   my $qRealSize = $transLength;
   $qRealSize -= $leftMarginBest if(defined $leftMarginBest && $leftMarginBest <= $opts{'s'}+1);
   $qRealSize -= $rightMarginBest if(defined $rightMarginBest && $rightMarginBest <= $opts{'s'}+1);
   my $chimeric_score = exp(($ScoreBest-$qRealSize)/10)-exp(($Score2Best-$qRealSize)/10);
+
+  #if ($transcript =~ /Locus_1_Transcript_2\/4_Confidence_0\.429_Length_490_id_13527/) {
+  #  print STDERR "chimeric_score: $chimeric_score\n";
+  #}
 
   my $pb;
   my @breakpoints;
@@ -258,7 +281,7 @@ foreach my $transcript (keys %blat) {
         }
         else {
           $bktype='intra_C';
-          if ( abs($b->{'tStart'} - $pb->{'tEnd'}) > 230000 ) {
+          if ( abs($b->{'tStart'} - $pb->{'tEnd'}) > $opts{'maxIntron'} ) {
             $blatStart = ($newHit == 1)?($a->{'qStart'}+1):($b->{'qStart'});         #set new blatStart
             $blatGenomeStart = $b->{'tStart'};
           }
@@ -294,7 +317,7 @@ foreach my $transcript (keys %blat) {
           $bk->{'bktype'}=$bktype;
           $bk->{'score'} = $chimeric_score;
           $bk->{'perc_id'} = ($b->{'perc_id'} + $pb->{'perc_id'})/2;
-          unless ( $bktype eq 'intra_C' and abs($b->{'tStart'}-$pb->{'tEnd'}) <= 230000 ) { #now you see a "breakpoint"
+          unless ( $bktype eq 'intra_C' and abs($b->{'tStart'}-$pb->{'tEnd'}) <= $opts{'maxIntron'} ) { #now you see a "breakpoint"
              $bpInner = 1 if ($i > 0);
              push (@breakpoints, $bk) if $i == 0;
           }
@@ -317,12 +340,29 @@ foreach my $transcript (keys %blat) {
     } #foreach block of a hit
   } #get breakpoint foreach path node (blat)
 
+  #print STDERR Dumper(\@breakpoints) if ($transcript =~ /Locus_1_Transcript_2\/4_Confidence_0\.429_Length_490_id_13527/);
+
   next if ($PathBestSize/$transLength < 0.5);
   if (scalar(@breakpoints) > 0) {
     $count++;
   }
 
-  next if ($chimeric_score == 0);       #skip chimeric score equal 0 thing
+  if ($chimeric_score == 0){ #skip chimeric score equal 0 thing
+    if ($opts{'final'} eq '') {
+       next;
+    } elsif ($opts{'final'} == 1) {  #need different treatment for final filtration
+       #$transcript =~ /\|\d+\-\d+\([+-]\)(chr\w+)\:(\d+)\-(\d+)\|\d+\-\d+\([+-]\)(chr\w+)\:(\d+)\-(\d+)$/;
+       #my $bpchr1 = $1;
+       #my $bpstart1 = $2;
+       #my $bpend1 = $3;
+       #my $bpchr2 = $4;
+       #my $bpstart2 = $5;
+       #my $bpend2 = $6;
+       #if ($breakpoints[0]->{'bk1'}->{'tName'} eq $breakpoints[0]->{'bk2'}->{'tName'}) {# the same chromosome
+       #} else { #different chromosomes
+       #}
+    }
+  }
 
   my $print_fasta = 0;
   my $breakpoint_index = 0;
@@ -336,12 +376,12 @@ foreach my $transcript (keys %blat) {
     my $bpPos1 = $bp1->{'blatEnd'};
     my $bpPos2 = $bp2->{'blatStart'};
     my ($blat1, $blat2);
-    if ($bp1->{'strand'} eq '+'){
+    if ($bp1->{'strand'} eq '+') {
        $blat1 = $bp1->{'blatStart'}.'-'.$bp1->{'blatEnd'}.'('.$bp1->{'strand'}.')'.$bp1->{'tName'}.':'.$bp1->{'blatGenomeStart'}.'-'.$bp1->{'blatGenomeEnd'};
     } else {
        $blat1 = $bp1->{'blatStart'}.'-'.$bp1->{'blatEnd'}.'('.$bp1->{'strand'}.')'.$bp1->{'tName'}.':'.$bp1->{'blatGenomeEnd'}.'-'.$bp1->{'blatGenomeStart'};
     }
-    if ($bp2->{'strand'} eq '+'){
+    if ($bp2->{'strand'} eq '+') {
        $blat2 = $bp2->{'blatStart'}.'-'.$bp2->{'blatEnd'}.'('.$bp2->{'strand'}.')'.$bp2->{'tName'}.':'.$bp2->{'blatGenomeStart'}.'-'.$bp2->{'blatGenomeEnd'};
     } else {
        $blat2 = $bp2->{'blatStart'}.'-'.$bp2->{'blatEnd'}.'('.$bp2->{'strand'}.')'.$bp2->{'tName'}.':'.$bp2->{'blatGenomeEnd'}.'-'.$bp2->{'blatGenomeStart'};
@@ -441,12 +481,12 @@ sub GetPath {
 
       my $diff = ($#{$ss}==0)?0:1;
       my $s1;
-      foreach my $s2 ( @{$ss} ){
+      foreach my $s2 ( @{$ss} ) {
 	next if ( !defined $s1 || $s2 ne $s1 );
 	$diff = 1;
       }
 
-      if( $diff ) {  #Extension will help distinguish pathes
+      if( $diff ) {  #Extension will help distinguish paths
 	for( my $i=0; $i<=$#{$ps}; $i++ ) {
 	  my $p=$$ps[$i];
 	  my $s=$$ss[$i];
@@ -456,8 +496,10 @@ sub GetPath {
 	}
       }
       else {  #Futher extension makes no difference, terminating
-	push @paths, join('.',$node->{'id'},$id);
-	push @scores,$node->{'score'}+$blat[$id]->{'score'};
+	#push @paths, join('.',$node->{'id'}, $id);
+	#push @scores, $node->{'score'}+$blat[$id]->{'score'};
+        push @paths, join('.',$node->{'id'}, $$ps[0]);
+        push @scores, $node->{'score'} + $$ss[0];
       }
     } #foreach next id
   } #not the last element

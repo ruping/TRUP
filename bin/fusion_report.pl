@@ -14,7 +14,7 @@ while ( <IN> ) {
 
    my ($transcript, $idx, $blatScore, $length, $partner, $dir, $breakpoint, $rep, $selfChain, $type, $strand, $blat1, $blat2, $covSpan, $covEncom, $covAll, $covSpanAll, $spanScore) = split /\t/;
 
-   next if ($selfChain eq 'CC');
+   #next if ($selfChain eq 'CC');
 
    my $trans;
    my $fusion;

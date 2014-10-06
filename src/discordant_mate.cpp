@@ -131,6 +131,7 @@ int main ( int argc, char *argv[] ) {
 
 
   string type = param->type;
+  unsigned int maxIntron = param->maxIntron;
 
   unsigned int consisCountTh = param->consisCount;
   if (consisCountTh == 0){
@@ -185,7 +186,7 @@ int main ( int argc, char *argv[] ) {
       mateChr = refs.at(bam.MateRefID).RefName;
       matePos = bam.MatePosition;
       int mateDistance = matePos-alignmentStart;
-      if (mateChr != chrom || abs(mateDistance) > 230000)
+      if (mateChr != chrom || abs(mateDistance) > maxIntron)
         keep = true;          
     }
 
