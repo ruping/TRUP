@@ -682,11 +682,6 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
-  if ($mapper eq 'star'){  #merge breakpoints for star mapper
-    my $cmd = "perl $bin/starjunction2bp.pl $lanepath/03_STATS/$sampleName\.breakpoints $lanepath/02_MAPPING/starChimeric\.out\.junction >>$lanepath/03_STATS/$sampleName\.breakpoints";
-    RunCommand($cmd,$noexecute,$quiet);
-  } #merge breakpoints for star mapper
-
   unless (-s "$lanepath/03_STATS/$sampleName\.breakpoints\.gz" ) {
     if (-s "$lanepath/03_STATS/$sampleName\.breakpoints") {
        my $cmd = "gzip $lanepath/03_STATS/$sampleName\.breakpoints";
@@ -1127,6 +1122,23 @@ if (exists $runlevel{$runlevels}) {
         my $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";
         RunCommand($cmd,$noexecute,$quiet);
       }
+
+      if ($mapper eq 'star') {  #merge breakpoints for star mapper
+        unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints") {
+          my $largestBPID = `sort -k 1,1n $lanepath/04_ASSEMBLY/$sampleName.breakpoints.processed.sorted.repornot.dismate.sorted | tail -1 | cut -f 1`;
+          $largestBPID =~ s/\n//;
+          my $cmd = "perl $bin/starjunction2bp.pl $largestBPID $lanepath/02_MAPPING/starChimeric\.out\.junction $maxIntron >$lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints";
+          RunCommand($cmd,$noexecute,$quiet);
+        }
+        unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked") {
+          my $cmd = "perl $bin/intersectFiles.pl -o $lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints -oichr 2 -oistart 3 -oiend 3 -m $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted -michr 2 -mistart 3 -miend 3 -t 100 -count >$lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked";
+          RunCommand($cmd,$noexecute,$quiet);
+          $cmd = "awk \-F\"\\t\" \'\$10 \=\= 0\' $lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked | cut -f 1,2,3,4,5,6,7,8,9 >>$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined";    #append star breakpoints
+          RunCommand($cmd,$noexecute,$quiet);
+          $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";                 #re-sort
+          RunCommand($cmd,$noexecute,$quiet);
+        }
+      } #merge breakpoints for star mapper
 
     } #if it is paired-end reads
 
