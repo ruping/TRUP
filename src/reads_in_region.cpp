@@ -447,17 +447,19 @@ inline void output_processing (struct region &region) {
   string current_bp = int2str(region.id)+"\t"+region.chr+"\t"+int2str(region.coor)+"\t"+int2str(region.support_no)+"\t"+int2str(region.pw)+"\t"+region.type;
 
   if ( region.type == "s" || region.type == "D") {
-    cout << current_bp << endl;
-    set <string>::iterator tagit = (region.tags).begin();
-    for (; tagit != (region.tags).end(); tagit++){
-      cout << *tagit << endl;
+    if ( !(region.tags).empty() ){
+      cout << current_bp << endl;
+      set <string>::iterator tagit = (region.tags).begin();
+      for (; tagit != (region.tags).end(); tagit++){
+        cout << *tagit << endl;
+      }
     }
     return;
   }
 
   //rest is for the type of "p"
 
-  if ( rembp.count(region.id) > 0 ){   // the id is already there
+  if ( rembp.count(region.id) > 0 ) {   // the id is already there
     if ( rembp[region.id].size() == 1 ) {  // should add the other
       rembp[region.id].push_back(current_bp);
       set <string>::iterator tagit = (region.tags).begin();
