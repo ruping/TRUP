@@ -4,11 +4,30 @@ use strict;
 my $lastbpid = shift;
 my $starjunction = shift;
 my $maxIntron = shift;
+my $repeatmasker = shift;
 
 if ($maxIntron eq ''){
   print STDERR "error: the maxIntron for starjunction2bp.pl is not set!!!!\n";
   exit 22;
 }
+
+#repeat mask
+my %repeatmask;
+my @rs;       #start array for each chr
+my $old_chr;  #checking the chr
+my $ptr;      #pointer for repeatmask sub
+open REPEAT, "$repeatmasker";
+while ( <REPEAT> ) {
+    next if /^#/;
+    chomp;
+    my @tmp = split /\t/;
+    my $chr = $tmp[0];
+    my $repeat_s = $tmp[3];
+    my $repeat_e = $tmp[4];
+    $repeatmask{$chr}{$repeat_s} = $repeat_e;
+  }
+close REPEAT;
+
 
 #open IN, "$breakpoints";
 #my %breakpoints;
@@ -69,7 +88,9 @@ foreach my $chr (sort {$a cmp $b} keys %starjunction) {
     if ($distance > 200) {
       if ($last_coor != 0) {  #print out
          my $supall = $starbp{$last_coor};
-         printf("%s\n", join("\t", $id, 's', $chr, $last_coor, $supall, $supall, 0, 'A', $supall));
+         my $rmflag = &repeatmask($chr, $last_coor);
+         my $rep = ($rmflag == 1)? 'R':'N';
+         printf("%s\n", join("\t", $id, 's', $chr, $last_coor, $supall, $supall, 0, $rep, $supall));
          delete $starbp{$last_coor};
          $id++;
       }
@@ -86,6 +107,19 @@ foreach my $chr (sort {$a cmp $b} keys %starjunction) {
 exit 0;
 
 
-
-
-
+sub repeatmask {
+    my ($chr, $coor) = @_;
+    my $flag = 0;
+    if ($chr ne $old_chr){
+        @rs = sort {$a <=> $b} keys %{$repeatmask{$chr}};
+        $ptr = 0;
+      }
+    while (($ptr<=$#rs) and ($repeatmask{$chr}{$rs[$ptr]} < $coor)){
+        $ptr++;
+      }
+    if ($rs[$ptr] <= $coor){
+        $flag = 1;
+      }
+    $old_chr = $chr;
+    return $flag;
+}
