@@ -27,7 +27,7 @@ while ( <IN> ) {
 
   #my $pow = 'w';
 
-  if (($chr1 eq $chr2) and (abs($pos1-$pos2) < $maxIntron)) {
+  if (($chr1 eq $chr2) and (abs($pos1-$pos2) <= $maxIntron)) {
      #$pow = 'p';
      next;
   }
@@ -50,17 +50,42 @@ while ( <IN> ) {
   #  }
   #}
 
-  $starjunction{$chr1."\t".$pos1}{$chr2."\t".$pos2} += 1;
+  $starjunction{$chr1}{$pos1} += 1;
+  $starjunction{$chr2}{$pos2} += 1;
 
 }
 close IN;
 
 my $id = $lastbpid+1;
-foreach my $bp1 (sort {$a =~ /^(chr\w+)\t(\d+)$/; my $ca=$1; my $pa=$2; $b =~ /^(chr\w+)\t(\d+)$/; my $cb=$1; my $pb=$2; ($ca cmp $cb) || ($pa <=> $pb)} keys %starjunction) {
-  foreach my $bp2 (sort {$a =~ /^(chr\w+)\t(\d+)$/; my $ca=$1; my $pa=$2; $b =~ /^(chr\w+)\t(\d+)$/; my $cb=$1; my $pb=$2; ($ca cmp $cb) || ($pa <=> $pb)} keys %{$starjunction{$bp1}}) {
-    my $support = $starjunction{$bp1}{$bp2};
-    printf("%s\n", join("\t", $id, 'p', $bp1, $support, $support, 0, 'A', $support));
-    printf("%s\n", join("\t", $id, 'p', $bp2, $support, $support, 0, 'A', $support));
-    $id += 1;
+foreach my $chr (sort {$a cmp $b} keys %starjunction) {
+
+  my $last_coor = 0;
+  my %starbp;
+
+  foreach my $pos (sort {$a <=> $b} keys %{$starjunction{$chr}}) {
+
+    my $support = $starjunction{$chr}{$pos};
+    my $distance = abs($last_coor - $pos);
+    if ($distance > 200) {
+      if ($last_coor != 0) {  #print out
+         my $supall = $starbp{$last_coor};
+         printf("%s\n", join("\t", $id, 's', $chr, $last_coor, $supall, $supall, 0, 'A', $supall));
+         delete $starbp{$last_coor};
+         $id++;
+      }
+      $starbp{$pos} = $support;
+      $last_coor = $pos;
+    } else {
+      $starbp{$last_coor} += $support;
+    }
+
   }
+
 }
+
+exit 0;
+
+
+
+
+

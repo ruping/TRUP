@@ -8,6 +8,7 @@ use File::Basename;
 
 my $breakpoint_file = shift;  # a sorted breakpoint file
 my $type = shift;
+my $maxIntron = shift;
 
 open BP, "gzip -d -c $breakpoint_file |";
 
@@ -102,7 +103,7 @@ foreach my $tag (keys %tag_bp) {
   my $chr2 = $1;
   my $bp2 = $2;
 
-  next if (($chr1 eq $chr2) and (abs($bp1-$bp2) <= 300000 ));
+  next if (($chr1 eq $chr2) and (abs($bp1-$bp2) <= $maxIntron ));
 
   $bp_pair{${$tag_bp{$tag}}[0]}{${$tag_bp{$tag}}[1]} += 1;
   $bp_pair{${$tag_bp{$tag}}[1]}{${$tag_bp{$tag}}[0]} += 1;

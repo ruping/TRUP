@@ -1039,7 +1039,7 @@ if (exists $runlevel{$runlevels}) {
 
     unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed") {
       my $typeop = ($seqType =~ /^p/)? "p":"s";
-      my $cmd = "perl $bin/breakpoint\_processing.pl $breakpointSource $typeop >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
+      my $cmd = "perl $bin/breakpoint\_processing.pl $breakpointSource $typeop $maxIntron >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed";
       RunCommand($cmd,$noexecute,$quiet);
     }
 
@@ -1545,6 +1545,10 @@ if (exists $runlevel{$runlevels}) {
 
   unless (-s "$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl"){
     my $cmd = "blat -maxIntron=230000 $blatDatabase $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
+    if ($GMAP) {
+       my $speciesIndex = (-e "$gmap_index/$species\-all\/$species\-all.genomecomp")? $species."\-all":$species;
+       $cmd = "gmap -D $gmap_index -d $speciesIndex --format=psl -t $threads --intronlength=230000 $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
+    }
     RunCommand($cmd,$noexecute,$quiet);
   }
 
