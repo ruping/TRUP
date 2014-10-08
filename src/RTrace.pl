@@ -1133,7 +1133,7 @@ if (exists $runlevel{$runlevels}) {
         unless (-s "$lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked") {
           my $cmd = "perl $bin/intersectFiles.pl -o $lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints -oichr 2 -oistart 3 -oiend 3 -m $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted -michr 2 -mistart 3 -miend 3 -t 100 -count >$lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked";
           RunCommand($cmd,$noexecute,$quiet);
-          $cmd = "awk \-F\"\\t\" \'$8 \=\= \"N\" \&\& \$10 \=\= 0\' $lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked | cut -f 1,2,3,4,5,6,7,8,9 >>$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined";    #append star breakpoints
+          $cmd = "awk \-F\"\\t\" \'\$8 \=\= \"N\" \&\& \$10 \=\= 0\' $lanepath/04_ASSEMBLY/$sampleName\.star.breakpoints.masked | cut -f 1,2,3,4,5,6,7,8,9 >>$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined";    #append star breakpoints
           RunCommand($cmd,$noexecute,$quiet);
           $cmd = "sort -k 3,3d -k 4,4n $lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined >$lanepath/04_ASSEMBLY/$sampleName\.breakpoints\.processed\.filter\.combined\.sorted";                 #re-sort
           RunCommand($cmd,$noexecute,$quiet);
