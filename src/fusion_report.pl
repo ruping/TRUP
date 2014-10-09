@@ -14,7 +14,7 @@ while ( <IN> ) {
 
    my ($transcript, $idx, $blatScore, $length, $partner, $dir, $breakpoint, $rep, $selfChain, $type, $strand, $blat1, $blat2, $covSpan, $covEncom, $covAll, $covSpanAll, $spanScore) = split /\t/;
 
-   #next if ($selfChain eq 'CC');
+   #next if (($selfChain eq 'CC') and ($rep =~ /R/));   #one end repeat and both are self chain
 
    my $trans;
    my $fusion;
@@ -64,6 +64,7 @@ while ( <IN> ) {
       $trans->{'blat1_chr'} = $4;
       $trans->{'blat1_ts'}  = $5;
       $trans->{'blat1_te'}  = $6;
+      next if $trans->{'blat1_chr'} eq 'chrM';                                       #skip mitochondrial chromosome
       if ($trans->{'blat1_st'} eq '+'){
         $trans->{'bpig1'} = $trans->{'blat1_chr'}.':'.$trans->{'blat1_te'};
       } else {
@@ -78,6 +79,7 @@ while ( <IN> ) {
       $trans->{'blat2_chr'} = $4;
       $trans->{'blat2_ts'}  = $5;
       $trans->{'blat2_te'}  = $6;
+      next if $trans->{'blat2_chr'} eq 'chrM';                                       #skip mitochondrial chromosome
       if ($trans->{'blat2_st'} eq '+'){
         $trans->{'bpig2'} = $trans->{'blat2_chr'}.':'.$trans->{'blat2_ts'};
       } else {

@@ -294,9 +294,9 @@ while ( <IN> ){
       #11 QUAL String [!-~]+ ASCII of Phred-scaled base QUALity+33
 
       my @transcript;
-      my $transcript;
 
       if ($candidate =~ /^(.+?Confidence_([10]\.\d+).*?)\|(\d+)\|(.+?)\+(.+?)\|(.+?)\|(\d+)\.\.(\d+)\|(.+?)\|(.+?)\|(.+)$/) {
+         my $transcript;
          $transcript->{'name'} = $1;
          $transcript->{'confidence'} = $2;
          $transcript->{'length'} = $3;
@@ -327,6 +327,7 @@ while ( <IN> ){
 	  my $chimeric_score =  $genomeBlatPred{$candidate}{1}->{'cScore'};
 	  foreach my $idx (sort {$a<=>$b} keys %{$genomeBlatPred{$candidate}}) {
 	      my $trans_add_id = $candidate."\t".$idx;               #transcript name add the id
+              my $transcript;
 	      $transcript->{'name'} = $trans_add_id;
 	      $transcript->{'confidence'} = $confidence;
 	      $transcript->{'length'} = $length;
@@ -834,7 +835,7 @@ open ENCOMCOV, ">$encomcov";
 
 SINGLE:
 
-foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage{$a}{'info'}->{'con'} } keys %coverage){
+foreach my $transcript_name (sort { $coverage{$b}{'info'}->{'con'} <=> $coverage{$a}{'info'}->{'con'} } keys %coverage) {
 
    my $length = $coverage{$transcript_name}{'info'}->{'length'};
    my $gene1 = $coverage{$transcript_name}{'info'}->{'gene1'};
