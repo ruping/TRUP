@@ -130,6 +130,7 @@ my $tophat2_trans_index = "$anno/$species/$species\.bowtie2_index/$species\_tran
 my $gene_annotation = "$anno/$species/$species\.transcripts\_Ensembl\.gff";
 my $gene_annotation_gtf = "$anno/$species/$species\.transcripts\_Ensembl\.gtf";
 my $ensembl_gene_bed = "$anno/$species/$species\.genes\_Ensembl\.bed12";
+my $ensembl_gene_len = "$anno/$species/$species\.genelength\.ensembl";                 #gene length
 my $gencode_genemap = "$anno/$species/$species\.gencode/gencode\.v14\.genemap" if ($species eq 'hg19');
 my $gencode_gene_bed = "$anno/$species/$species\.gencode/gencode\.v14\.annotation\.gene\.bed12" if ($species eq 'hg19');
 my $ensembl_genemap = "$anno/$species/$species\.biomart\.txt";
@@ -1515,9 +1516,9 @@ if (exists $runlevel{$runlevels}) {
 
     my $cmd;
     if ($seqType =~ /^p/) { #paired-end
-      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --maxIntron $maxIntron --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type pair --maxIntron $maxIntron --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --genelength $ensembl_gene_len --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     } else { #single-end
-      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type single --maxIntron $maxIntron --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+      $cmd = "perl $bin/get_fusion_coverage.pl $gfc_opts --type single --maxIntron $maxIntron --mappingfile $lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --genelength $ensembl_gene_len --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam >$lanepath/05_FUSION/$sampleName\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     }
     RunCommand($cmd,$noexecute,$quiet);
   }

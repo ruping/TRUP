@@ -13,6 +13,7 @@ my $mapping;
 my $read_length;
 my $accepthits;
 my $encomcov;
+my $genelength;
 my $gene_annotation;
 my $selfChain;
 my $ensemble_ref_name;
@@ -29,6 +30,7 @@ GetOptions (
 	      "readlength|r=i"        => \$read_length,
 	      "accepthits|ah=s"       => \$accepthits,
 	      "encomcov=s"            => \$encomcov,
+              "genelength|gl=s"       => \$genelength,
 	      "geneanno|ga=s"         => \$gene_annotation,
               "selfChain=s"           => \$selfChain,
               "ensrefname|ern=s"      => \$ensemble_ref_name,
@@ -41,6 +43,7 @@ GetOptions (
 	                     print "usage: $0 [options]\n\nOptions:\n\t--type\t\tthe type of the reads, either pair or single\n";
                              print "\t--mappingfile\tthe mappingfile of the reads onto the assembled fusion candidates\n";
 			     print "\t--readlength\tthe length of the read\n";
+                             print "\t--genelength\tthe file of gene length ( exon added up)\n";
 			     print "\t--geneanno\tthe ensemble gene anotation file\n";
                              print "\t--selfChain\tthe self Chain annotation downloaded from UCSC Table.\n";
                              print "\t--ensrefname\tthe ensemble, refseq, gene name list table\n";
@@ -148,6 +151,15 @@ if ($genomeBlatPred eq 'SRP') {
     close REFGENE;
 } #if refseq mapping
 
+open GL, "$genelength";
+my %genelength;
+while ( <GL> ){
+  chomp;
+  my ($ens, $len) = split /\t/;
+  $genelength{$ens} = $len;
+}
+close GL;
+
 open GA, "$gene_annotation";
 my %gene;
 my %gene_annotation;
@@ -167,7 +179,7 @@ while ( <GA> ) {
      $tag =~ /^ID=(.+?);Name=(.+?);/;
      my $ensemble = $1;
      my $gene = $2;
-     my $genelength= $end-$start+1;
+     my $genelength= (exists($genelength{$ensemble}))? $genelength{$ensemble} : ($end-$start);
      $gene{$ensemble}{'chr'}    = $chr;
      $gene{$ensemble}{'start'}  = $start;
      $gene{$ensemble}{'end'}    = $end;
@@ -1074,14 +1086,14 @@ sub breakpointInGene {
              if ($mRNA_start <= $coor and $coor <= $mRNA_end) { #overlapping mRNA
 
                if ($exonInclFlag == 1) {            #BEST
-                 if ($mRNA_size > $max_mlength) {
+                 if ($glength > $max_mlength) {
                    $geneName = $gname;
                    if ($bstrand eq $gstrand) {
                      $orientation = '->';
                    } else {
                      $orientation = '<-';
                    }
-                   $max_mlength = $mRNA_size;
+                   $max_mlength = $glength;
                  }
                  $max_glength = $glength if ($glength > $max_glength);
                  $geneMode = 'mRNA-exon';
@@ -1172,11 +1184,11 @@ sub exonIncl {
   my @ers = sort {$a <=> $b} keys %{$exons};
   my $eptr = 0;
 
-  while (($eptr<=$#ers) and ($exons->{$ers[$eptr]} < $coor)){
+  while (($eptr<=$#ers) and ($exons->{$ers[$eptr]} < ($coor-5) )){  #allow five base pair tolerance
     $eptr++;
   }
 
-  if ($ers[$eptr] <= $coor){
+  if ($ers[$eptr] <= ($coor+5) ){ #allow five base pair tolerance
     $eflag = 1;
   }
 

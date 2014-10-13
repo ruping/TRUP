@@ -225,18 +225,18 @@ foreach my $bp (keys %redundancy) {
    my $supportA = $support + $support2;
    my $pwA = $pw + $pw2;
 
-   next if ($repornot eq 'R');   #now it is not repeat
+   next if ($repornot eq 'R');                        #now it is not repeat
    next if ($chr eq 'chrM' or $chr2 eq 'chrM');       #now it is not chrM
-   next if ($support < 3 and $pw < 5 and $ct == 0);                #now support is at least 3
+   #next if ($support < 3 and $pw < 5 and $ct == 0);   #now support is at least 3
 
    if (! exists($forget{$id})) {
 
      print "$remember{$id}" if (! exists $printed{$id} );
      $printed{$id} = '';
 
-   } else { #it is forgot, SAVE
+   } else { #it is forgot, SAVE SAVE SAVE
 
-       if ( $disco >= 8 and $single{$bp}{'id'} ne '' ) {
+       if ( $disco >= 3 and $single{$bp}{'id'} ne '' ) {
 
           my $idS = $single{$bp}{'id'};
 
@@ -244,6 +244,7 @@ foreach my $bp (keys %redundancy) {
              next if ($single{$bp}{'su'} < 5 or $single{$bp}{'pw'} < 3);
              next if $single{$bp}{'rep'} eq 'R';
           }
+          #now the rest single bps must be better than 5,3 thresholds
 
           print "$remember{$idS}" if (! exists $printed{$idS} );
           $printed{$idS} = '';
