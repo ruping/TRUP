@@ -3,14 +3,14 @@ TRUP is a pipeline designed for analyzing RNA-seq data from Tumor samples..
 
 Learn More
 ---
-Cancer cells express many rearranged transcripts posing increased complexity to transcriptome analysis. As an unified pipeline, TRUP is designed to sensitively and accurately dissect the complexity of the cancer transcriptome by analyzing RNA-seq data obtained from tumour tissues. The current functionalities of TRUP include: 1) identification of fusion transcripts; 2) Gene and isoform expression quantification and 3) Differential Expression analysis.
+Cancer cells express many rearranged transcripts posing increased complexity to transcriptome analysis. As an unified pipeline, TRUP is designed to sensitively and accurately dissect the complexity of the cancer transcriptome by analyzing RNA-seq data obtained from tumour tissues. The current functionalities of TRUP include: 1) identification of fusion transcripts; 3) RNA-seq quality assesment; 2) Gene-read counting. The fusion detection module in TRUP combines split-read/read-pair mapping with regional de-novo assembly to achieve a balance between sensitivity and precision.
 
 
 Dependencies
 ---
 +   Samtools.
 +   Bowtie2.
-+   GSNAP (version > 2012-07-20).
++   GSNAP (version > 2012-07-20) or STAR (version 2.4.0)
 +   Velvet (https://github.com/dzerbino/velvet).
 +   Oases (https://github.com/dzerbino/oases).
 +   R libraries: feilds, KernSmooth, lattice, RColorBrewer and R2HTML.
@@ -95,31 +95,31 @@ Assuming that in the directory "RP" there are two gzipped fastq-files are called
 
 **Run-level 1** (Quality check, mapping of spiked-in read pairs and give a rough estimate of the insert size etc.):
 
-	$ perl RTrace.pl --runlevel 1 --sampleName SAMPLE --readpool RP --root PD --threads TH --anno AD 2>>run.log 
+	$ perl RTrace.pl --runlevel 1 --sampleName SAMPLE --type p --readpool RP --root PD --threads TH --anno AD 2>>run.log 
 
-where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call.
+where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call. ``--type`` indicates sequencing type, either ``s``(single-end) or ``p``(paired-end).
 
 **Run-level 2** (mapping with gsnap [default] or tophat 1/2, generating reports):
 
-	$ perl RTrace.pl --runlevel 2 --sampleName SAMPLE --readpool RP --$root PD --anno AD --threads TH --WIG --patient ID --tissue type --threads TH --gf pdf 2>>run.log
+	$ perl RTrace.pl --runlevel 2 --sampleName SAMPLE --type p --readpool RP --$root PD --anno AD --threads TH --WIG --patient ID --tissue type --threads TH --gf pdf 2>>run.log
 
 where ``--WIG`` is set to generate bigWiggle file for visualization purpose. ``--patient`` and ``--tissue`` can be set if user need to run edgeR and cuffdiff after processing all the samples. If a X11 is not always available, set ``--gf`` to be ``pdf`` to generate the report figures in pdf format instead of png. However, if X11 is available, do not set the --gf option.
 
 **Run-level 3** (collect regions containning potential breakpoints from the mapping of gsnap, perform regional assembly in the candidate regions):
 
-	$ perl RTrace.pl --runlevel 3 --sampleName SAMPLE --readpool RP --root PD --anno AD --threads TH --RA 1 2>>run.log
+	$ perl RTrace.pl --runlevel 3 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH --RA 1 2>>run.log
 
 where ``--RA`` is set to 1 to indicate an independent regional assembly around each breakpoint.
 
 **Run-level 4** (Dectecting fusion events using the assembled transcripts):
 
-	$ perl RTrace.pl --runlevel 4 --sampleName SAMPLE --readpool RP --root PD --anno AD --threads TH 2>>run.log
+	$ perl RTrace.pl --runlevel 4 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH 2>>run.log
 
 If user could not use BLAT, ``--BT`` should be set to use GMAP in this step.
 
 **Run-level 5** (run cufflinks for gene/isoform quantification):
 
-	$ perl RTrace.pl --runlevel 5 --sampleName SAMPLE --readpool RP --root PD --anno AD --threads TH --gtf-guide --known-trans refseq 2>>run.log
+	$ perl RTrace.pl --runlevel 5 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH --gtf-guide --known-trans refseq 2>>run.log
 
 where ``--known-trans`` can be set to 'ensembl' or 'refseq' to indicate the annotation to be used for cufflinks.
 
