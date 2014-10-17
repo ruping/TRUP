@@ -99,7 +99,7 @@ Assuming that in the directory "RP" there are two gzipped fastq-files are called
 
 where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call. ``--type`` indicates sequencing type, either ``s``(single-end) or ``p``(paired-end).
 
-**Run-level 2** (mapping with gsnap [default] or tophat 1/2, generating reports):
+**Run-level 2** (mapping with gsnap [default] or STAR, generating reports):
 
 	$ perl RTrace.pl --runlevel 2 --sampleName SAMPLE --type p --readpool RP --$root PD --anno AD --threads TH --WIG --patient ID --tissue type --threads TH --gf pdf 2>>run.log
 
