@@ -8,8 +8,9 @@ Cancer cells express many rearranged transcripts posing increased complexity to 
 
 Dependencies
 ---
-+   Samtools.
-+   Bowtie2.
++   Samtools
++   Bowtie2
++   BLAT
 +   GSNAP (version > 2012-07-20, recommended for fusion detection) or STAR (version 2.4.0)
 +   Velvet (https://github.com/dzerbino/velvet).
 +   Oases (https://github.com/dzerbino/oases).
@@ -98,7 +99,7 @@ Assuming that in the directory "RP" there are two gzipped fastq-files are called
 
 	$ perl RTrace.pl --runlevel 1 --sampleName SAMPLE --type p --readpool RP --root PD --threads TH --anno AD 2>>run.log 
 
-where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call. ``--type`` indicates sequencing type, either ``s``(single-end) or ``p``(paired-end).
+where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call. ``--type`` indicates sequencing type, either ``s``(single-end) or ``p``(paired-end). If your fastq files have names with a run ID (e.g., _001, _002, etc), usually produced by CASAVA, set ``runID`` to 001, 002, etc. --Rbinary`` can be used to set binary name for R (if you have an alternative binary name for R)
 
 **Run-level 2** (mapping with gsnap [default] or STAR, generating reports):
 
@@ -116,7 +117,7 @@ where ``--RA`` is set to 1 to indicate an independent regional assembly around e
 
 	$ perl RTrace.pl --runlevel 4 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH 2>>run.log
 
-If user could not use BLAT, ``--BT`` should be set to use GMAP in this step.
+User can use GMAP instead of BLAT for mapping the assembled contigs back to the reference, in which case, ``--GMAP`` should be set to use GMAP in this step. ``--misPen`` can be adjusted to integer numbers higher than 2 (default) to suppress low quality blat results. ``--uniqueBase`` can be set to integers more than 100 (default, which is exactly just one match, suggest for 300 maximum, which allows three times of matches to the reference) to allow multiple mapping segments to be granted as "unique" to increase sensitivity. 
 
 **Run-level 5** (run cufflinks for gene/isoform quantification):
 
