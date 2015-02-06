@@ -32,6 +32,7 @@ Example:
          central_directory / version  / annotation files and directories
 
 If users choose to prepare annotation directories and files by themselves, it can be achieved in the following way (using hg19 as an example):
+I am devising a script to generate the annotations automatically and also make them more consistent in terms of naming.
 
 TRUP_ANNOTATION/hg19/
 
@@ -79,11 +80,11 @@ No installation is required if pre-compiled binaries in bin/ are compatible with
 
 If pre-compiled binaries are incompatible with your system, you will need to rebuild them from source.
 
-Make sure you have installed Bamtools (https://github.com/pezmaster31/bamtools). Then write down the bamtools_directory where ./lib/ and ./include/ sub-directories are located. Currently bamtools 2.0 has been tested.
+Make sure you have installed Bamtools (https://github.com/pezmaster31/bamtools). Then write down the bamtools_directory where ./lib/ and ./include/ sub-directories are located. Currently bamtools 2.3.0 has been tested. Also make sure you have zlib installed. Then write down the zlib_directory where ./lib/ and ./include/ sub-directories are located
 
 run make in following way to install
 
-	$ make BAMTOOLS_ROOT=/bamtools_directory/
+	$ make BAMTOOLS_ROOT=/bamtools_directory/ ZLIB_ROOT=/zlib_directory/
 
 The binaries will be built at bin/. Any existing files will be overwritten.
 
