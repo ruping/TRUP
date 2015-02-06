@@ -10,7 +10,7 @@ Dependencies
 ---
 +   Samtools.
 +   Bowtie2.
-+   GSNAP (version > 2012-07-20) or STAR (version 2.4.0)
++   GSNAP (version > 2012-07-20, recommended for fusion detection) or STAR (version 2.4.0)
 +   Velvet (https://github.com/dzerbino/velvet).
 +   Oases (https://github.com/dzerbino/oases).
 +   R libraries: feilds, KernSmooth, lattice, RColorBrewer and R2HTML.
@@ -18,8 +18,9 @@ Dependencies
 
 Annotation files
 ---
-Annotation files are available upon request. Currently hg19 and mm10 are available.
- 
+Annotation files are available upon request via email. Currently hg19 is available. The hg19 annoatation is downloadable via: 
+	https://drive.google.com/file/d/0B8NcFh4TSjvOTlhSb3hLdkpMalE/view?usp=sharing
+
 All the annotation files and directories should be put under an central annotation directory whose name will be used for argument "--anno" when running TRUP. The structure of the annotation directory and sub-directories are illustrated as the following example:
 
 Example:
