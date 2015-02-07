@@ -1952,8 +1952,7 @@ sub helpm {
   print STDERR "\t--insertsd\tthe SD of insert size of read mates (not required, can be decided automatically)\n";
 
   print STDERR "\nrunlevel 3: selecting anormalous/breakpoint-surrouding reads and preforming the assembly\n";
-  print STDERR "\t--SM\t\tforce to do a second mapping of trimed initially unmapped reads reported by TopHat, for run-level 3\n";
-  print STDERR "\t--RA\t\tuse regional assembly for runlevel 3. Default is 1. When using tophat as mapper in runlevel 2, set to 0.\n";
+  print STDERR "\t--RA\t\tuse regional assembly for runlevel 3. Default is to set.\n";
   print STDERR "\t--consisCount\tnumber of consistent read pairs with discordant mapping (default: 5). use smaller value For <70bp reads or low depth data.\n";
 
   print STDERR "\nrunlevel 4: detection of fusion candidates\n";
