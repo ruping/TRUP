@@ -162,6 +162,6 @@ Previous Affiliation:
 Dept. Vingron (Computational Molecular Biology)
 Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Germany
 
-Email: rs3412@columbia.edu
+Email: rs3412@c2b2.columbia.edu
 
 Project Website: https://github.com/ruping/TRUP
