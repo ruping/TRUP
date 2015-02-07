@@ -1,4 +1,4 @@
-TRUP is a pipeline designed for analyzing RNA-seq data from Tumor samples..
+TRUP is a pipeline designed for analyzing RNA-seq data from Tumor samples.
 
 
 Learn More
@@ -155,6 +155,8 @@ Contact
 ---
 Sun Ruping
 
+If you are willing to receive updates and notice, send an email to regularhand@gmail.com.
+
 Current Affiliation:
 Califano Lab, Department of Systems Biology, Columbia University, New York, NY, USA
 
@@ -162,6 +164,14 @@ Previous Affiliation:
 Dept. Vingron (Computational Molecular Biology)
 Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Germany
 
-Email: rs3412@c2b2.columbia.edu
+Email: 
+Current Affiliation:
+Califano Lab, Department of Systems Biology, Columbia University, New York, NY, USA
+
+Previous Affiliation:
+Dept. Vingron (Computational Molecular Biology)
+Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Germany
+
+Email: regularhand@gmail.com
 
 Project Website: https://github.com/ruping/TRUP
