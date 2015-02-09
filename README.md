@@ -164,14 +164,6 @@ Previous Affiliation:
 Dept. Vingron (Computational Molecular Biology)
 Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Germany
 
-Email: 
-Current Affiliation:
-Califano Lab, Department of Systems Biology, Columbia University, New York, NY, USA
-
-Previous Affiliation:
-Dept. Vingron (Computational Molecular Biology)
-Max Planck Institute for Molecular Genetics. Ihnestr. 63-73, D-14195 Berlin, Germany
-
 Email: regularhand@gmail.com
 
 Project Website: https://github.com/ruping/TRUP
