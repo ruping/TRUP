@@ -98,31 +98,31 @@ Assuming that in the directory "RP" there are two gzipped fastq-files are called
 
 **Run-level 1** (Quality check, mapping of spiked-in read pairs and give a rough estimate of the insert size etc.):
 
-	$ perl RTrace.pl --runlevel 1 --sampleName SAMPLE --type p --readpool RP --root PD --threads TH --anno AD 2>>run.log 
+	$ perl RTrace.pl --runlevel 1 --sampleName SAMPLE --seqType p --readpool RP --root PD --threads TH --anno AD 2>>run.log 
 
-where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call. ``--type`` indicates sequencing type, either ``s``(single-end) or ``p``(paired-end). If your fastq files have names with a run ID (e.g., _001, _002, etc), usually produced by CASAVA, set ``runID`` to 001, 002, etc. --Rbinary`` can be used to set binary name for R (if you have an alternative binary name for R)
+where "TH" is the number of computing threads. If one wants to stop after the quality check, add ``--QC`` in the command call. ``--seqType`` indicates sequencing type, either ``s``(single-end) or ``p``(paired-end). If your fastq files have names with a run ID (e.g., _001, _002, etc), usually produced by CASAVA, set ``runID`` to 001, 002, etc. --Rbinary`` can be used to set binary name for R (if you have an alternative binary name for R)
 
 **Run-level 2** (mapping with gsnap [default] or STAR, generating reports):
 
-	$ perl RTrace.pl --runlevel 2 --sampleName SAMPLE --type p --readpool RP --$root PD --anno AD --threads TH --WIG --patient ID --tissue type --threads TH --gf pdf 2>>run.log
+	$ perl RTrace.pl --runlevel 2 --sampleName SAMPLE --seqType p --readpool RP --root PD --anno AD --threads TH --WIG --patient ID --tissue type --threads TH --gf pdf 2>>run.log
 
 where ``--WIG`` is set to generate bigWiggle file for visualization purpose. ``--patient`` and ``--tissue`` can be set if user need to run edgeR and cuffdiff after processing all the samples. If a X11 is not always available, set ``--gf`` to be ``pdf`` to generate the report figures in pdf format instead of png. However, if X11 is available, do not set the --gf option.
 
 **Run-level 3** (collect regions containning potential breakpoints from the mapping of gsnap, perform regional assembly in the candidate regions):
 
-	$ perl RTrace.pl --runlevel 3 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH --RA 1 2>>run.log
+	$ perl RTrace.pl --runlevel 3 --sampleName SAMPLE --seqType p --readpool RP --root PD --anno AD --threads TH --RA 1 2>>run.log
 
 where ``--RA`` is set to 1 to indicate an independent regional assembly around each breakpoint.
 
 **Run-level 4** (Dectecting fusion events using the assembled transcripts):
 
-	$ perl RTrace.pl --runlevel 4 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH 2>>run.log
+	$ perl RTrace.pl --runlevel 4 --sampleName SAMPLE --seqType p --readpool RP --root PD --anno AD --threads TH 2>>run.log
 
 User can use GMAP instead of BLAT for mapping the assembled contigs back to the reference, in which case, ``--GMAP`` should be set to use GMAP in this step. ``--misPen`` can be adjusted to integer numbers higher than 2 (default) to suppress low quality blat results. ``--uniqueBase`` can be set to integers more than 100 (default, which is exactly just one match, suggest for 300 maximum, which allows three times of matches to the reference) to allow multiple mapping segments to be granted as "unique" to increase sensitivity. 
 
 **Run-level 5** (run cufflinks for gene/isoform quantification):
 
-	$ perl RTrace.pl --runlevel 5 --sampleName SAMPLE --type p --readpool RP --root PD --anno AD --threads TH --gtf-guide --known-trans refseq 2>>run.log
+	$ perl RTrace.pl --runlevel 5 --sampleName SAMPLE --seqType p --readpool RP --root PD --anno AD --threads TH --gtf-guide --known-trans refseq 2>>run.log
 
 where ``--known-trans`` can be set to 'ensembl' or 'refseq' to indicate the annotation to be used for cufflinks.
 
@@ -140,7 +140,7 @@ Note: do not set ``--lanename`` for runlevel 6 and 7, as these two runlevels are
 
 The Run-levels metioned above can also be combined in the same command line, as following,
 
-	$ perl RTrace.pl --runlevel 1-4 --sampleName SAMPLE --readpool RP --root PD --anno AD --threads TH --WIG --patient ID --tissue type --gf pdf --RA 1 2>>run.log
+	$ perl RTrace.pl --runlevel 1-4 --sampleName SAMPLE --seqType p --readpool RP --root PD --anno AD --threads TH --WIG --patient ID --tissue type --gf pdf --RA 1 2>>run.log
 
 One can also call combinations of different Run-levels, such as ``--$runlevel 1,2`` or ``--runlevel 2,3,4``. But in these combined ways, one should specify all necessary options in the command line.
 
