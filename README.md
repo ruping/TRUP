@@ -19,7 +19,7 @@ Dependencies
 
 Annotation files
 ---
-Annotation files are available upon request via email. Currently hg19 is available. The hg19 and mm10 annoatation is downloadable via: 
+The hg19 and mm10 annoatation is downloadable via the link below: 
 
 **hg19**
 
