@@ -19,8 +19,15 @@ Dependencies
 
 Annotation files
 ---
-Annotation files are available upon request via email. Currently hg19 is available. The hg19 annoatation is downloadable via: 
+Annotation files are available upon request via email. Currently hg19 is available. The hg19 and mm10 annoatation is downloadable via: 
+**hg19**
+
 	https://drive.google.com/file/d/0B8NcFh4TSjvOTlhSb3hLdkpMalE/view?usp=sharing
+
+**mm10**
+
+	https://drive.google.com/file/d/0B8NcFh4TSjvOVzFsZWstZmlHa1U/view?usp=sharing
+
 
 All the annotation files and directories should be put under an central annotation directory whose name will be used for argument "--anno" when running TRUP. The structure of the annotation directory and sub-directories are illustrated as the following example:
 
