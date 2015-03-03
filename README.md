@@ -28,7 +28,8 @@ The hg19 and mm10 annoatation is downloadable via the link below:
 
 **mm10**
 
-	https://drive.google.com/file/d/0B8NcFh4TSjvOVzFsZWstZmlHa1U/view?usp=sharing
+	https://drive.google.com/file/d/0B8NcFh4TSjvOaFNCM2FmLVU1eFE/view?usp=sharing
+	
 
 
 All the annotation files and directories should be put under an central annotation directory whose name will be used for argument "--anno" when running TRUP. The structure of the annotation directory and sub-directories are illustrated as the following example:
