@@ -23,7 +23,8 @@ The hg19 and mm10 annoatation is downloadable via the link below:
 
 **hg19**
 
-	https://drive.google.com/file/d/0B8NcFh4TSjvOTlhSb3hLdkpMalE/view?usp=sharing
+	https://drive.google.com/file/d/0B8NcFh4TSjvOQVN1anhrSVdLVjA/view?usp=sharing
+	https://drive.google.com/file/d/0B8NcFh4TSjvOWVlvOVVFWjRxZDQ/view?usp=sharing
 
 **mm10**
 
