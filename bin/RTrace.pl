@@ -730,7 +730,7 @@ if (exists $runlevel{$runlevels}) {
         if (-s "$lanepath/03_STATS/$sampleName\.bedgraph") {
            my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.plus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.plus\.bw";
            RunCommand($cmd,$noexecute,$quiet);
-           my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.minus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.minus\.bw";
+           $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.minus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.minus\.bw";
            RunCommand($cmd,$noexecute,$quiet);
         }
         else {
