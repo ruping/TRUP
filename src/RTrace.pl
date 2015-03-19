@@ -31,6 +31,7 @@ my $idra       = 0;      #for a specific breakpoint id
 my $consisCount = 5;     #the threshold for the number of consistent mate pairs with discordant maping
 my $force;   #force
 my $bigWig;  #wiggle file
+my $strandWig, #splitstrand for wiggle
 my $gtf_guide_assembly;  #for cufflinks
 my $known_trans = 'ensembl';         #for cufflinks
 my $frag_bias_correct;   #for cufflinks
@@ -92,6 +93,7 @@ GetOptions(
            "gf=s"         => \$gf,
            "idra=i"       => \$idra,
            "WIG"          => \$bigWig,
+           "strandWig"    => \$strandWig,
            "fqreid"       => \$fq_reid,
            "gtf-guide"    => \$gtf_guide_assembly,
            "known-trans"  => \$known_trans,
@@ -723,20 +725,45 @@ if (exists $runlevel{$runlevels}) {
   }
 
   if ($bigWig) { #generate wiggle file
-    unless (-s "$lanepath/03_STATS/$sampleName\.bw"){
-      if (-s "$lanepath/03_STATS/$sampleName\.bedgraph") {
-         my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.bw";
-         RunCommand($cmd,$noexecute,$quiet);
+    if ($strandWig) {
+      unless (-s "$lanepath/03_STATS/$sampleName\.plus\.bw") {
+        if (-s "$lanepath/03_STATS/$sampleName\.bedgraph") {
+           my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.plus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.plus\.bw";
+           RunCommand($cmd,$noexecute,$quiet);
+           my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.minus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.minus\.bw";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
+        else {
+           my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize -strand + >$lanepath/03_STATS/$sampleName\.plus\.bedgraph";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.plus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.plus\.bw";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize -strand - >$lanepath/03_STATS/$sampleName\.minus\.bedgraph";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.minus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.minus\.bw";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
+        if (-s "$lanepath/03_STATS/$sampleName\.plus\.bedgraph" and -s "$lanepath/03_STATS/$sampleName\.plus\.bw") {
+           my $cmd = "rm $lanepath/03_STATS/$sampleName\.plus\.bedgraph $lanepath/03_STATS/$sampleName\.minus\.bedgraph -f";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
       }
-      else {
-         my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize >$lanepath/03_STATS/$sampleName\.bedgraph";
-         RunCommand($cmd,$noexecute,$quiet);
-         $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.bw";
-         RunCommand($cmd,$noexecute,$quiet);
-      }
-      if (-s "$lanepath/03_STATS/$sampleName\.bedgraph" and -s "$lanepath/03_STATS/$sampleName\.bw") {
-         my $cmd = "rm $lanepath/03_STATS/$sampleName\.bedgraph -f";
-         RunCommand($cmd,$noexecute,$quiet);
+    } else { #unstranded
+      unless (-s "$lanepath/03_STATS/$sampleName\.bw") {
+        if (-s "$lanepath/03_STATS/$sampleName\.bedgraph") {
+           my $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.bw";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
+        else {
+           my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize >$lanepath/03_STATS/$sampleName\.bedgraph";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.bw";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
+        if (-s "$lanepath/03_STATS/$sampleName\.bedgraph" and -s "$lanepath/03_STATS/$sampleName\.bw") {
+           my $cmd = "rm $lanepath/03_STATS/$sampleName\.bedgraph -f";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
       }
     }
   }
