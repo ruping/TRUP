@@ -734,17 +734,25 @@ if (exists $runlevel{$runlevels}) {
            RunCommand($cmd,$noexecute,$quiet);
         }
         else {
-           my $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize -strand + >$lanepath/03_STATS/$sampleName\.plus\.bedgraph";
+           my $cmd = "samtools view $lanepath/02_MAPPING/$mappedBam -h \| awk -F\'\t\' \'\$1 \~ \/\^\@\/ \|\| \$2 \=\= 99 \|\| \$2 \=\= 147 \|\| \$2 \=\= 97 \|\| \$2 \=\= 145 \|\| \$2 \=\= 355 \|\| \$2 \=\= 403\' \| samtools view -Sb - >$lanepath/02_MAPPING/plus.bam";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "samtools view $lanepath/02_MAPPING/$mappedBam -h \| awk -F\'\t\' \'\$1 \~ \/\^\@\/ \|\| \$2 \=\= 83 \|\| \$2 \=\= 163 \|\| \$2 \=\= 81 \|\| \$2 \=\= 161 \|\| \$2 \=\= 339 \|\| \$2 \=\= 419\' \| samtools view -Sb - >$lanepath/02_MAPPING/minus.bam";
+           RunCommand($cmd,$noexecute,$quiet);
+           $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/plus.bam -bg -split -g $chromosomeSize >$lanepath/03_STATS/$sampleName\.plus\.bedgraph";
            RunCommand($cmd,$noexecute,$quiet);
            $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.plus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.plus\.bw";
            RunCommand($cmd,$noexecute,$quiet);
-           $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/$mappedBam -bg -split -g $chromosomeSize -strand - >$lanepath/03_STATS/$sampleName\.minus\.bedgraph";
+           $cmd = "genomeCoverageBed -ibam $lanepath/02_MAPPING/minus.bam -bg -split -g $chromosomeSize >$lanepath/03_STATS/$sampleName\.minus\.bedgraph";
            RunCommand($cmd,$noexecute,$quiet);
            $cmd = "$bin/bedGraphToBigWig $lanepath/03_STATS/$sampleName\.minus\.bedgraph $chromosomeSize $lanepath/03_STATS/$sampleName\.minus\.bw";
            RunCommand($cmd,$noexecute,$quiet);
         }
         if (-s "$lanepath/03_STATS/$sampleName\.plus\.bedgraph" and -s "$lanepath/03_STATS/$sampleName\.plus\.bw") {
            my $cmd = "rm $lanepath/03_STATS/$sampleName\.plus\.bedgraph $lanepath/03_STATS/$sampleName\.minus\.bedgraph -f";
+           RunCommand($cmd,$noexecute,$quiet);
+        }
+        if (-s "$lanepath/03_STATS/$sampleName\.plus\.bw" and -s "$lanepath/02_MAPPING/plus.bam"){
+           my $cmd = "rm $lanepath/02_MAPPING/plus.bam $lanepath/02_MAPPING/minus.bam -f";
            RunCommand($cmd,$noexecute,$quiet);
         }
       }

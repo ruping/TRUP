@@ -47,7 +47,7 @@ struct parameters* interface(struct parameters* param, int argc, char *argv[]){
   while (1){
 
     int option_index = 0;
-    c = getopt_long_only (argc, argv,"hur:m:t:i",long_options, &option_index);
+    c = getopt_long_only (argc, argv,"hur:m:t:i:",long_options, &option_index);
 
     if (c == -1) {
       break;
