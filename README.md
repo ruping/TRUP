@@ -94,7 +94,7 @@ Make sure you have installed Bamtools (https://github.com/pezmaster31/bamtools).
 
 run make in following way to install
 
-	$ make BAMTOOLS_ROOT=/bamtools_directory/ ZLIB_ROOT=/zlib_directory/
+	$ make BAMTOOLS_ROOT=/bamtools_directory/ ZLIB_ROOT=/zlib_directory/ BOOST_ROOT=/boost_directory/
 
 The binaries will be built at bin/. Any existing files will be overwritten.
 
