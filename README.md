@@ -90,7 +90,7 @@ No installation is required if pre-compiled binaries in bin/ are compatible with
 
 If pre-compiled binaries are incompatible with your system, you will need to rebuild them from source.
 
-Make sure you have installed Bamtools (https://github.com/pezmaster31/bamtools). Then write down the bamtools_directory where ./lib/ and ./include/ sub-directories are located. Currently bamtools 2.3.0 has been tested. Also make sure you have zlib installed. Then write down the zlib_directory where ./lib/ and ./include/ sub-directories are located
+Make sure you have installed Bamtools (https://github.com/pezmaster31/bamtools). Then write down the bamtools_directory where ./lib/ and ./include/ sub-directories are located. Currently bamtools 2.3.0 has been tested. Also make sure you have zlib and boost installed. Then write down the zlib or boost_directory where ./lib/ and ./include/ sub-directories are located
 
 run make in following way to install
 
