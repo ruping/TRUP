@@ -165,10 +165,10 @@ int main (int argc, char *argv[]) {
   }
 
   // attempt to write unmapped reads
-  ofstream unmapped_f;
-  string unmapped = param->unmapped;
-  if ( unmapped != "") {
-    unmapped_f.open(param->unmapped);
+  BamWriter unmapped_f;
+  if ( !unmapped_f.Open(param->unmapped, header, refs) ) {
+    cerr << "Could not open output BAM file" << endl;
+    exit(0);
   }
 
   // attempt to write arp reads
@@ -219,53 +219,63 @@ int main (int argc, char *argv[]) {
     unsigned int matePos = 0;
 
     
-    if ( bam.IsMapped() == true) {
+    if ( bam.IsMapped() == true || bam.IsMateMapped() == true ) {
 
       writer.SaveAlignment(bam);                    // write mapped tags to a new bam
 
-      bam.GetTag("NH", unique);                     // uniqueness
-
-      blockStarts.push_back(0);
-      ParseCigar(bam.CigarData, blockStarts, blockLengths, cigarEnd, jc, chimeric, hoe, cliptype, cliplen); 
-
-      chrom  = refs.at(bam.RefID).RefName;          // chromosome
-      if (bam.IsReverseStrand()) strand = "-";      // strand -
-      alignmentStart = bam.Position+1;              // start
-      alignmentEnd   = bam.GetEndPosition();        // end
-
-      if ( unique == 1 ) {                            // check breakpoint reads
-
-        if (chimeric == true) {
-
-          if (type == "p"){
-            if ( bam.IsMateMapped() == true){
-              mateChr = refs.at(bam.MateRefID).RefName;
-              matePos = bam.MatePosition;
-              int mateDistance = matePos-alignmentStart;
-              if (mateChr != chrom || abs(mateDistance) > maxIntron) 
-                mateStatus = "w";
-            }
-          }
-
-          if (hoe  == false) {
-            breakpoint =  alignmentStart;
-          }
-          else if (hoe == true) {
-            vector<int>::iterator bsiter = blockStarts.end();
-            vector<int>::iterator bliter = blockLengths.end();
-            breakpoint = alignmentStart + *(bsiter-1) + *(bliter-1);
-          }
-          if ( bp_file != "" ) {
-            bp_f << chrom << "\t" << breakpoint << "\t" << bam.Name << "\t" << mateStatus << "\t" << cliptype << endl;
+      if ( bam.IsMapped() == true ){
+        if ( bam.HasTag("NH") ) {
+          bam.GetTag("NH", unique);                   // rnaseq aligners, such as gsnap and tophat
+        } else {
+          if (bam.MapQuality > 10) {                  // other aligner
+            unique = 1;
           }
         }
 
-      } // check breakpoint reads
 
+        blockStarts.push_back(0);
+        ParseCigar(bam.CigarData, blockStarts, blockLengths, cigarEnd, jc, chimeric, hoe, cliptype, cliplen); 
+
+        chrom  = refs.at(bam.RefID).RefName;          // chromosome
+        if (bam.IsReverseStrand()) strand = "-";      // strand -
+        alignmentStart = bam.Position+1;              // start
+        alignmentEnd   = bam.GetEndPosition();        // end
+
+
+        if ( unique == 1 ) {                            // check breakpoint reads
+
+          if (chimeric == true) {
+
+            if (type == "p"){
+              if ( bam.IsMateMapped() == true ) {
+                mateChr = refs.at(bam.MateRefID).RefName;
+                matePos = bam.MatePosition;
+                int mateDistance = matePos-alignmentStart;
+                if (mateChr != chrom || abs(mateDistance) > maxIntron) 
+                  mateStatus = "w";
+              }
+            }
+
+            if (hoe  == false) {
+              breakpoint =  alignmentStart;
+            }
+            else if (hoe == true) {
+              vector<int>::iterator bsiter = blockStarts.end();
+              vector<int>::iterator bliter = blockLengths.end();
+              breakpoint = alignmentStart + *(bsiter-1) + *(bliter-1);
+            }
+            if ( bp_file != "" ) {
+              bp_f << chrom << "\t" << breakpoint << "\t" << bam.Name << "\t" << mateStatus << "\t" << cliptype << endl;
+            }
+          }
+
+        } // check breakpoint reads
+      } // if mapped
     } else {
-      if ( unmapped != "" ) {
-        unmapped_f << bam.Name << endl;
-      }
+      //if ( unmapped != "" ) {
+      //  unmapped_f << bam.Name << endl;
+      //}
+      unmapped_f.SaveAlignment(bam);   //unmapped ones in bam format
     }
 
     if (type == "s") {  //single-end

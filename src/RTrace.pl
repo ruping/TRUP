@@ -715,13 +715,18 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$noexecute,$quiet);
   }
 
+  unless (-s "$lanepath/02_MAPPING/$mappedBam\.bai") {
+    my $cmd = "samtools index $lanepath/02_MAPPING/$mappedBam";
+    RunCommand($cmd,$noexecute,$quiet);
+  }
+
   if (-s "$lanepath/02_MAPPING/$mappedBam" and -s "$lanepath/02_MAPPING/accepted_hits\.mapped\.bam") {
     my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.mapped\.bam -f";
     RunCommand($cmd,$noexecute,$quiet);
   }
   if (-s "$lanepath/02_MAPPING/$mappedBam" and -s "$lanepath/02_MAPPING/accepted_hits\.bam") {
     my $cmd = "rm $lanepath/02_MAPPING/accepted_hits\.bam -f";
-    RunCommand($cmd,$noexecute,$quiet);
+    #RunCommand($cmd,$noexecute,$quiet);
   }
 
   if ($bigWig) { #generate wiggle file

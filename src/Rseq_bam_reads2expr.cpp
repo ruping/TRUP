@@ -246,9 +246,16 @@ int main ( int argc, char *argv[] ) {
       if ( bam.IsMapped() == false ) continue;   // skip unaligned reads
 
       unsigned int unique;
-      bam.GetTag("NH", unique);
+      if ( bam.HasTag("NH") ) {
+        bam.GetTag("NH", unique);                   // rnaseq aligners, such as gsnap and tophat                                                                                                                                                                                                                             
+      } else {
+        if (bam.MapQuality > 10) {                  // other aligner                                                                                                                                                                                                                                                         
+          unique = 1;
+        }
+      }
+
       if (param->unique == 1) {
-        if (unique != 1) {                       // skipe uniquelly mapped reads
+        if (unique != 1) {                       // skipe multi mapped reads
           continue;
         }
       }

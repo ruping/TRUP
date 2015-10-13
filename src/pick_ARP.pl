@@ -127,8 +127,9 @@ unless ($SM or $nc == 0) {
   open R1P, "$decompress $read_files_mate1 |";
   while ( <R1P> ) {
     chomp;
-    if ($_ =~ /^@(.+?)[\/\s]/) {
+    if ($_ =~ /^@(\S+)/) {
       my $frag_name = $1;
+      $frag_name =~ s/\/[A-Za-z0-9]+$//;
       if (exists $ARP{$frag_name}) {
 
         $_ = <R1P>;             #sequence
@@ -156,8 +157,9 @@ unless ($SM or $nc == 0) {
     open R2P, "$decompress $read_files_mate2 |";
     while ( <R2P> ) {
       chomp;
-      if ($_ =~ /^@(.+?)[\/\s]/) {
+      if ($_ =~ /^@(\S+)/) {
         my $frag_name = $1;
+        $frag_name =~ s/\/[A-Za-z0-9]+$//;
         if (exists $ARP{$frag_name}) {
 
           $_ = <R2P>;             #sequence
@@ -240,9 +242,10 @@ while ( <R1> ) {                #name
     chomp($MATE2);
   }
 
-  if ($_ =~ /^@(.+?)[\/\s](.+)$/) {
+  if ($_ =~ /^@(\S+)/) {
 
     my $frag_name = $1;
+    $frag_name =~ s/\/[A-Za-z0-9]+$//;
 
     if (exists $ARP{$frag_name}) {
 
