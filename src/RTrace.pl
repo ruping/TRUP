@@ -501,10 +501,14 @@ if (exists $runlevel{$runlevels}) {
      }
 
      unless (-s "$options{'lanepath'}/02_MAPPING/accepted_hits\.bam" or -s "$options{'lanepath'}/02_MAPPING/$mappedBam" or -s "$options{'lanepath'}/02_MAPPING/accepted_hits\.sam") {
-        my $cmd;
-        $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options \'\<zcat $options{'fastqFiles1'}\' \'\<zcat $options{'fastqFiles2'}\' >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam" if ($options{'seqType'} =~ /paired-end/);
-        $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options \'\<zcat $options{'fastqFiles1'}\' >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam" if ($options{'seqType'} =~ /single-end/);
-        RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
+       my $cmd;
+       if ($options{'seqType'} =~ /paired-end/) {
+         my $fastqswap = swapfastq($options{'fastqFiles1'},$options{'fastqFiles2'});
+         $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options $fastqswap >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
+       } elsif ($options{'seqType'} =~ /single-end/) {
+         $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options --force-single-end $options{'fastqFiles1'} >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
+       }
+       RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
      }
 
      if (-s "$options{'lanepath'}/02_MAPPING/accepted_hits\.sam" and (! -s "$options{'lanepath'}/02_MAPPING/accepted_hits\.bam" and ! -s "$options{'lanepath'}/02_MAPPING/$mappedBam")) {
@@ -1884,6 +1888,19 @@ sub mateorder {
   }
 
   return @tmp;
+}
+
+sub swapfastq {
+  my $fastq1 = shift;
+  my $fastq2 = shift;
+  my @fastq1 = split(' ', $fastq1);
+  my @fastq2 = split(' ', $fastq2);
+  my $outfastq = '';
+  for (my $i = 0; $i <= $#fastq1; $i++){
+    $outfastq .= join(' ', $fastq1[$i],$fastq2[$i]).' ';
+  }
+  $outfastq =~ s/\s$//;
+  return $outfastq;
 }
 
 sub round {
