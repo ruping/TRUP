@@ -502,11 +502,16 @@ if (exists $runlevel{$runlevels}) {
 
      unless (-s "$options{'lanepath'}/02_MAPPING/accepted_hits\.bam" or -s "$options{'lanepath'}/02_MAPPING/$mappedBam" or -s "$options{'lanepath'}/02_MAPPING/accepted_hits\.sam") {
        my $cmd;
+       my $zipOption = "--gunzip";
+       if ($options{'bzip'}) {
+         $zipOption = "--bunzip2";
+       }
+
        if ($options{'seqType'} =~ /paired-end/) {
          my $fastqswap = swapfastq($options{'fastqFiles1'},$options{'fastqFiles2'});
-         $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options $fastqswap >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
+         $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options $zipOption $fastqswap >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
        } elsif ($options{'seqType'} =~ /single-end/) {
-         $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options --force-single-end $options{'fastqFiles1'} >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
+         $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options $zipOption --force-single-end $options{'fastqFiles1'} >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
        }
        RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
      }
