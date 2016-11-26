@@ -76,9 +76,9 @@ HTML(mapping.stats.summary, innerBorder = 2, file= target)
 #quality distribution of reads
 HTML("<br> Read base quality distributions:", file = target)
 qual.plot = paste("base_qualities",gf,sep=".")
-mate1.qc = paste(lane,qcsuffix1,sep="")
+mate1.qc = paste("mate1",qcsuffix1,sep="")
 if (type == "p"){
-  mate2.qc = paste(lane,qcsuffix2,sep="")
+  mate2.qc = paste("mate2",qcsuffix2,sep="")
 }
 reads.qual.mate1 = read.table(paste(reads.dir, mate1.qc, sep="/"), header=T)
 if (type == "p"){
