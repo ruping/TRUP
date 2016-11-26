@@ -27,7 +27,7 @@ Bowtie2INDEX	$anno/$species/$species.bowtie2_index/$species/$species
 #GMAP index
 gmap_index	$anno/$species/$species.gmap_index/
 #GMAP splice site
-gmap_splicesites	$gmap_index/$species/$species.splicesites.iit
+gmap_splicesites	$anno/$species/$species.gmap_index/$species/$species.splicesites.iit
 #STAR index
 STAR_INDEX	$anno/$species/$species.star/
 #blat database
