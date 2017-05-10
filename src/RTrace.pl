@@ -371,7 +371,7 @@ if (exists($runlevel{$runlevels}) or exists($runTask{'QC'})) {
   #if ( $options{'fq_reid'} ) {  #renbame fastq id
   #  foreach my $read_file (@read_files) {
   #     my $reid_file = $read_file;
-  #     $reid_file =~ s/\.fq\.$zipSuffix/\.reid\.fq\.$zipSuffix/;
+  #     $reid_file =~ s/\.fq\.$options{'zipSuffix'}/\.reid\.fq\.$options{'zipSuffix'}/;
   #     unless (-e $reid_file) {
   #       my $cmd = "perl $options{'bin'}/fqreid.pl $read_file | $compress >$reid_file";
   #       RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
@@ -841,7 +841,7 @@ if (exists $runlevel{$runlevels}) {
   print STDERR "####### runlevel $runlevels done #######\n\n";
 }
 
-=pod
+
 ###
 ###runlevel3: select anormouls read pairs and do the assembly
 ###
@@ -852,9 +852,9 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  $RA = 1 if $mapper eq 'gsnap';
+  $options{'RA'} = 1 if $options{'mapper'} eq 'gsnap';
 
-  if ($RA != 0) {  #regional assembly test###############################################
+  if ($options{'RA'} != 0) {  #regional assembly test###############################################
 
     my $assembly_type = "independent regional assembly";
 
@@ -867,49 +867,27 @@ if (exists $runlevel{$runlevels}) {
     }
 
     unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted\.gz") {
-      unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.gz" or -s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted"){
+      unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.gz" or -s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted") {
         print STDERR "Error: breakpoint file does not exist, do runlevel 2 first.\n\n";
         exit 22;
       }
-      unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted"){
-        my $tmpOpt = ($tmpDir eq '')? "":"-T $tmpDir";
+      unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted") {
+        my $tmpOpt = ($options{'tmpDir'} eq '')? "":"-T $options{'tmpDir'}";
         my $cmd = "gzip -d -c $options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.gz | sort $tmpOpt -k 1,1d -k 2,2n >$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
-      if ( -s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.gz" and -s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted" ){
+      if ( -s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.gz" and -s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted" ) {
          my $cmd2 = "rm $options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.gz -f";
          RunCommand($cmd2,$options{'noexecute'},$options{'quiet'});
       }
-      if (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted"){
+      if (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted") {
          my $cmd3 = "gzip $options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints.sorted";
          RunCommand($cmd3,$options{'noexecute'},$options{'quiet'});
       }
     }
 
-    #merge breakpoints for different runs!!
+    #breakpoints
     my $breakpointSource = "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.sorted\.gz";
-    if (scalar(@merge) != 0) {
-      my $bpMerged = "";
-      foreach my $mergeC (@merge) {
-        my $cRunPath = "$root/$options{'sampleName'}"."\_$mergeC";
-        my $cRunBP = "$cRunPath/03_STATS/$options{'sampleName'}\.breakpoints.sorted\.gz";
-        my $cRunBP_us = "$cRunPath/03_STATS/$options{'sampleName'}\.breakpoints\.gz";
-        if (-s $cRunBP) {
-          $bpMerged .= $cRunBP." ";
-        } elsif (-s $cRunBP_us) {
-          $bpMerged .= $cRunBP_us." ";
-        } else {
-          print STDERR "merge error: $cRunBP or $cRunBP_us does not exit or has no content!!!\n";
-          exit 22;
-        }
-      }
-      $breakpointSource = "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.breakpoints\.merged\.sorted\.gz";
-      unless (-s $breakpointSource) {
-        my $tmpOpt = ($tmpDir eq '')? "":"-T $tmpDir";
-        my $cmd = "gzip -d -c $bpMerged |sort $tmpOpt -k 1,1d -k 2,2n | gzip >$breakpointSource";
-        RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
-      }
-    } #if merge,then redefine breakpointSource
     print STDERR "the breakpoint sources are: $breakpointSource\n";
     #breakpoint Source is defined
 
@@ -919,14 +897,14 @@ if (exists $runlevel{$runlevels}) {
       RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
     }
 
-    unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted"){
-      my $tmpOpt = ($tmpDir eq '')? "":"-T $tmpDir";
+    unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted") {
+      my $tmpOpt = ($options{'tmpDir'} eq '')? "":"-T $options{'tmpDir'}";
       my $cmd = "sort $tmpOpt -k 3,3d -k 4,4n $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted";
       RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
     }
 
     unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot"){
-      my $cmd = "perl $options{'bin'}/breakpoint_repeat_masker.pl $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted $repeatMasker >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot";
+      my $cmd = "perl $options{'bin'}/breakpoint_repeat_masker.pl $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted $confs{'repeatMasker'} >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot";
       RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
     }
 
@@ -934,14 +912,6 @@ if (exists $runlevel{$runlevels}) {
       unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.disco") {
         my $mapping_bam = "$options{'lanepath'}/02_MAPPING/$mappedBam";
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
-        if ($merge) {
-          if (-s "$options{'lanepath'}/$options{'sampleName'}\.merge\_list") {
-            $mapping_bam = "$options{'lanepath'}/$options{'sampleName'}\.merge\_list";
-          } else {
-            print STDERR "$options{'lanepath'}/$options{'sampleName'}\.merge\_list does not exit or has no content!!!\n";
-            exit 22;
-          }
-        }
         my $cmd = "$options{'bin'}/discordant_consistency --region $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot --mapping $mapping_bam --maxIntron $options{'maxIntron'} >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.disco";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
@@ -957,20 +927,12 @@ if (exists $runlevel{$runlevels}) {
       }
 
       unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted") {
-        unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate"){
+        unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate") {
           my $mapping_bam = "$options{'lanepath'}/02_MAPPING/$mappedBam";
           die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
-          if ($merge) {
-            if (-s "$options{'lanepath'}/$options{'sampleName'}\.merge\_list") {
-              $mapping_bam = "$options{'lanepath'}/$options{'sampleName'}\.merge\_list";
-            } else {
-              print STDERR "$options{'lanepath'}/$options{'sampleName'}\.merge\_list does not exit or has no content!!!\n";
-              exit 22;
-            }
-          }
           my $largestBPID = `tail -1 $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}.breakpoints.processed | cut -f 1`;
           $largestBPID =~ s/\n//;
-          my $cmd = "$options{'bin'}/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $consisCount --maxIntron $options{'maxIntron'} >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate";
+          my $cmd = "$options{'bin'}/discordant_mate --mapping $mapping_bam --idstart $largestBPID --consisCount $options{'consisCount'} --maxIntron $options{'maxIntron'} >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate";
           RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
         }
         if (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate") {
@@ -985,7 +947,7 @@ if (exists $runlevel{$runlevels}) {
       }
 
       unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter") {
-        my $cmd = "perl $options{'bin'}/discordant_mate_processing.pl $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted $repeatMasker $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter";
+        my $cmd = "perl $options{'bin'}/discordant_mate_processing.pl $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted $confs{'repeatMasker'} $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.disco\.sorted >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.sorted\.repornot\.dismate\.sorted\.filter";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
 
@@ -999,11 +961,11 @@ if (exists $runlevel{$runlevels}) {
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
 
-      if ($mapper eq 'star') {  #merge breakpoints for star mapper
+      if ($options{'mapper'} eq 'star') {  #merge breakpoints for star mapper
         unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.star.breakpoints") {
           my $largestBPID = `sort -k 1,1n $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}.breakpoints.processed.sorted.repornot.dismate.sorted | tail -1 | cut -f 1`;
           $largestBPID =~ s/\n//;
-          my $cmd = "perl $options{'bin'}/starjunction2bp.pl $largestBPID $options{'lanepath'}/02_MAPPING/starChimeric\.out\.junction $options{'maxIntron'} $repeatMasker >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.star.breakpoints";
+          my $cmd = "perl $options{'bin'}/starjunction2bp.pl $largestBPID $options{'lanepath'}/02_MAPPING/starChimeric\.out\.junction $options{'maxIntron'} $confs{'repeatMasker'} >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.star.breakpoints";
           RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
         }
         unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.star.breakpoints.masked") {
@@ -1026,17 +988,9 @@ if (exists $runlevel{$runlevels}) {
     } #single-end reads
 
 
-    if ($RA == 1) { #independent regional assembly
+    if ($options{'RA'} == 1) { #independent regional assembly
       unless (-s "$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted\.reads") {
         my $mapping_bam = "$options{'lanepath'}/02_MAPPING/$mappedBam";
-        if ($merge) {
-          if (-s "$options{'lanepath'}/$options{'sampleName'}\.merge\_list") {
-            $mapping_bam = "$options{'lanepath'}/$options{'sampleName'}\.merge\_list";
-          } else {
-            print STDERR "$options{'lanepath'}/$options{'sampleName'}\.merge\_list does not exit or has no content!!!\n";
-            exit 22;
-          }
-        }
         die "Error: the mapping bam file is not available." unless (-e $mapping_bam);
         my $typeop = ($options{'seqType'} =~ /paired-end/)? "--type p":"--type s";
         my $cmd = "$options{'bin'}/reads_in_region --region $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted --mapping $mapping_bam $typeop --maxIntron $options{'maxIntron'} >$options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted\.reads";
@@ -1044,54 +998,23 @@ if (exists $runlevel{$runlevels}) {
       }
 
       my @RAssembly_reads;
-      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
-      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
+      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
+      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
       @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
       my @RAssembly_reads_gz;
-      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /paired-end/);
-      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /single-end/);
+      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /paired-end/);
+      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /single-end/);
       @RAssembly_reads_gz = uniqueArray(\@RAssembly_reads_gz) if ($options{'seqType'} =~ /single-end/);
       unless ( ($options{'seqType'} =~ /paired-end/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) or ($options{'seqType'} =~ /single-end/ and ($#RAssembly_reads == 0 or $#RAssembly_reads_gz == 0)) ) { #get raw reads
 
         #need to do get raw reads here
         my @reads;
-        if ($trimedlen != $readlen) {
-          @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*trimed\.fq\.$zipSuffix"); #trimmed reads
-          @reads = mateorder(\@reads, $runID) if ($options{'seqType'} =~ /paired-end/);
-          if (scalar(@merge) != 0) {
-            foreach my $mergeC (@merge) {
-              next if ($mergeC eq $runID);
-              my $cRunPath = "$root/$options{'sampleName'}"."\_$mergeC";
-              my @readsMerge = bsd_glob("$cRunPath/01_READS/$options{'sampleName'}*trimed\.fq\.$zipSuffix");
-              @readsMerge = mateorder(\@readsMerge, $mergeC) if ($options{'seqType'} =~ /paired-end/);
-              $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1] if ($options{'seqType'} =~ /paired-end/);
-            }
-          } #if merge
-        } else {
-          if ($options{'seqType'} =~ /paired-end/){ #paired-end
-            @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
-            @reads = mateorder(\@reads, $runID);
-          } else { #single-end
-            @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.fq\.$zipSuffix"); #original reads
-            @reads = uniqueArray(\@reads);
-          }
-          if (scalar(@merge) != 0){
-            foreach my $mergeC (@merge) {
-              next if ($mergeC eq $runID);
-              my $cRunPath = "$root/$options{'sampleName'}"."\_$mergeC";
-              my @readsMerge;
-              if ($options{'seqType'} =~ /paired-end/){
-                @readsMerge = bsd_glob("$cRunPath/01_READS/$options{'sampleName'}\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
-                @readsMerge = mateorder(\@readsMerge, $mergeC);
-              } else {
-                @readsMerge = bsd_glob("$cRunPath/01_READS/$options{'sampleName'}*{\_$mergeC,}\.fq\.$zipSuffix");
-                @readsMerge = uniqueArray(\@readsMerge);
-              }
-              $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1] if ($options{'seqType'} =~ /paired-end/);
-            }
-          } #if merge
+        if ($options{'seqType'} =~ /paired-end/) {    #paired-end
+          @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.fq\.$options{'zipSuffix'}"); #original reads
+          @reads = mateorder(\@reads);
+        } else {                                      #single-end
+          @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.fq\.$options{'zipSuffix'}"); #original reads
+          @reads = uniqueArray(\@reads);
         }
 
         my $cmd;
@@ -1112,15 +1035,15 @@ if (exists $runlevel{$runlevels}) {
 
     unless (-s "$options{'lanepath'}/04_ASSEMBLY/transcripts.fa") {
 
-      if ($RA == 1) {
+      if ($options{'RA'} == 1) {
 
         my @RAssembly_reads;
-        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
-        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
+        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
+        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
         @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
         my @RAssembly_reads_gz;
-        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /paired-end/);
-        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /single-end/);
+        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /paired-end/);
+        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /single-end/);
         @RAssembly_reads_gz = uniqueArray(\@RAssembly_reads_gz) if ($options{'seqType'} =~ /single-end/);
 
         if (($options{'seqType'} =~ /paired-end/ and $#RAssembly_reads != 1) or ($options{'seqType'} =~ /single-end/ and $#RAssembly_reads != 0)) {
@@ -1134,12 +1057,12 @@ if (exists $runlevel{$runlevels}) {
             print STDERR "Error: RA read files are not correctly generated...\n\n";
             exit 22;
           }
-          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
-          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
+          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
+          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
           @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
         }
 
-        @RAssembly_reads = mateorder(\@RAssembly_reads, $runID) if ($options{'seqType'} =~ /paired-end/);
+        @RAssembly_reads = mateorder(\@RAssembly_reads) if ($options{'seqType'} =~ /paired-end/);
         my $ra_reads1_file = $RAssembly_reads[0];
         my $ra_reads2_file = $RAssembly_reads[1] if ($options{'seqType'} =~ /paired-end/);
 
@@ -1163,7 +1086,7 @@ if (exists $runlevel{$runlevels}) {
         my %printed_speed;
         foreach my $bp_id (sort {$a<=>$b} keys %ra_reads1_jumpers) {
 
-          if ($idra != 0 and $bp_id != $idra) {
+          if ($options{'idra'} != 0 and $bp_id != $options{'idra'}) {
              next;
           }
 
@@ -1209,7 +1132,7 @@ if (exists $runlevel{$runlevels}) {
 
           if (-e "$options{'lanepath'}/04_ASSEMBLY/$bp_id/") {
             my $cmd = "rm $options{'lanepath'}/04_ASSEMBLY/$bp_id/ -rf";
-            RunCommand($cmd,$options{'noexecute'},1) unless $idra != 0;
+            RunCommand($cmd,$options{'noexecute'},1) unless $options{'idra'} != 0;
           }
 
           $speed_count++;
@@ -1269,27 +1192,27 @@ if (exists $runlevel{$runlevels}) {
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
-  if ($GMAP) {  #using GMAP
+  if ($options{'GMAP'}) {  #using GMAP
       unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.gmap") {
-        my $speciesIndex = (-e "$gmap_index/$species\-all\/$species\-all.genomecomp")? $species."\-all":$species;
-        my $cmd = "gmap -D $gmap_index -d $speciesIndex --format=psl -t $options{'threads'} --intronlength=230000 $options{'lanepath'}/04_ASSEMBLY/transcripts\.fa >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.gmap";
+        my $speciesIndex = (-e "$confs{'gmap_index'}/$options{'species'}\-all\/$options{'species'}\-all.genomecomp")? $options{'species'}."\-all":$options{'species'};
+        my $cmd = "gmap -D $confs{'gmap_index'} -d $speciesIndex --format=psl -t $options{'threads'} --intronlength=230000 $options{'lanepath'}/04_ASSEMBLY/transcripts\.fa >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.gmap";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
 
       unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq") {
-        my $cmd = "perl $options{'bin'}/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $options{'lanepath'}/04_ASSEMBLY/transcripts.fa --uniqueBase $uniqueBase --misPen $misPen --maxIntron $options{'maxIntron'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.gmap >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration 2>$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq";
+        my $cmd = "perl $options{'bin'}/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $options{'lanepath'}/04_ASSEMBLY/transcripts.fa --uniqueBase $options{'uniqueBase'} --misPen $options{'misPen'} --maxIntron $options{'maxIntron'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.gmap >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration 2>$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
   } #GMAP
 
   else {  #using BLAT
       unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.blat") {
-        my $cmd = "blat -maxIntron=230000 $blatDatabase $options{'lanepath'}/04\_ASSEMBLY/transcripts\.fa $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.blat";
+        my $cmd = "blat -maxIntron=230000 $confs{'blatDatabase'} $options{'lanepath'}/04\_ASSEMBLY/transcripts\.fa $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.blat";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
 
       unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq") {
-        my $cmd = "perl $options{'bin'}/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $options{'lanepath'}/04_ASSEMBLY/transcripts.fa --uniqueBase $uniqueBase --misPen $misPen --maxIntron $options{'maxIntron'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.blat >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration 2>$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq";
+        my $cmd = "perl $options{'bin'}/pick_fusion_transcripts_from_genomeBLAT.pl --transcripts $options{'lanepath'}/04_ASSEMBLY/transcripts.fa --uniqueBase $options{'uniqueBase'} --misPen $options{'misPen'} --maxIntron $options{'maxIntron'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.transcripts\.genome\.blat >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration 2>$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
   } #BLAT
@@ -1315,42 +1238,12 @@ if (exists $runlevel{$runlevels}) {
     } else {  #bowtie2 is not done
 
       my @reads;
-      if ($trimedlen != $readlen) {
-          @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*trimed\.fq\.$zipSuffix"); #trimmed reads
-          @reads = mateorder(\@reads, $runID) if ($options{'seqType'} =~ /paired-end/);
-          if (scalar(@merge) != 0) {
-            foreach my $mergeC (@merge) {
-              next if ($mergeC eq $runID);
-              my $cRunPath = "$root/$options{'sampleName'}"."\_$mergeC";
-              my @readsMerge = bsd_glob("$cRunPath/01_READS/$options{'sampleName'}*trimed\.fq\.$zipSuffix");
-              @readsMerge = mateorder(\@readsMerge, $mergeC) if ($options{'seqType'} =~ /paired-end/);
-              $reads[0] .= ",".$readsMerge[0];
-              $reads[1] .= ",".$readsMerge[1] if ($options{'seqType'} =~ /paired-end/);
-            }
-          } #if merge
-       } else {
-         if ($options{'seqType'} =~ /paired-end/){
-           @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]{\_$runID,}\.fq\.$zipSuffix"); #original reads
-           @reads = mateorder(\@reads, $runID);
-         } else {
-           @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*{\_$runID,}\.fq\.$zipSuffix");
-         }
-         if (scalar(@merge) != 0) {
-           foreach my $mergeC (@merge) {
-             next if ($mergeC eq $runID);
-             my $cRunPath = "$root/$options{'sampleName'}"."\_$mergeC";
-             my @readsMerge;
-             if ($options{'seqType'} =~ /paired-end/) {
-               @readsMerge= bsd_glob("$cRunPath/01_READS/$options{'sampleName'}\_{R,}[123]{\_$mergeC,}\.fq\.$zipSuffix");
-               @readsMerge = mateorder(\@readsMerge, $mergeC);
-             } else {
-               @readsMerge= bsd_glob("$cRunPath/01_READS/$options{'sampleName'}*{\_$mergeC,}\.fq\.$zipSuffix");
-             }
-             $reads[0] .= ",".$readsMerge[0];
-             $reads[1] .= ",".$readsMerge[1] if ($options{'seqType'} =~ /paired-end/);
-           }
-         } #if merge
-       } #original read length
+      if ($options{'seqType'} =~ /paired-end/) {
+        @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.fq\.$options{'zipSuffix'}"); #original reads
+        @reads = mateorder(\@reads);
+      } else {
+        @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.fq\.$options{'zipSuffix'}");
+      }
 
       my $readsop = ($options{'seqType'} =~ /paired-end/)? "-1 $reads[0] -2 $reads[1]":"-U $reads[0]";
       my $cmd = "bowtie2 -k 22 -p $options{'threads'} --no-unal --score-min L,-2,-0.15 -x $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq\.index $readsop >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie2\.sam";
@@ -1372,28 +1265,15 @@ if (exists $runlevel{$runlevels}) {
     $gfc_opts = "--genomeBlatPred $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration";
 
     my $readingBam = "$options{'lanepath'}/02_MAPPING/$mappedBam";
-    if ($customMappedBam ne ''){
-       $readingBam = $customMappedBam;
+    if ($options{'customMappedBam'} ne '') {
+       $readingBam = $options{'customMappedBam'};
     }
-    if ($merge) {
-      foreach my $mergeC (@merge) {
-         next if ($mergeC eq $runID);
-         my $cRunPath = "$root/$options{'sampleName'}"."\_$mergeC";
-         my $cRunBam = "$cRunPath/02_MAPPING/$mappedBam";
-         if (-s $cRunBam){
-           $readingBam .= ",".$cRunBam;
-         } else {
-           print STDERR "merge error: $cRunBam does not exist!!!!";
-           exit 22;
-         }
-      }
-    } #if merge
 
     my $cmd;
     if ($options{'seqType'} =~ /paired-end/) { #paired-end
-      $cmd = "perl $options{'bin'}/get_fusion_coverage.pl $gfc_opts --type pair --maxIntron $options{'maxIntron'} --mappingfile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --genelength $ensembl_gene_len --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam --encomcov $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+      $cmd = "perl $options{'bin'}/get_fusion_coverage.pl $gfc_opts --type pair --maxIntron $options{'maxIntron'} --mappingfile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $options{'readlen'} --geneanno $confs{'gene_annotation'} --genelength $confs{'ensembl_gene_len'} --repeatmasker $confs{'repeatMasker'} --selfChain $confs{'selfChain'} --accepthits $readingBam --encomcov $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov.enco >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     } else { #single-end
-      $cmd = "perl $options{'bin'}/get_fusion_coverage.pl $gfc_opts --type single --maxIntron $options{'maxIntron'} --mappingfile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $trimedlen --geneanno $gene_annotation --genelength $ensembl_gene_len --repeatmasker $repeatMasker --selfChain $selfChain --accepthits $readingBam >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov";
+      $cmd = "perl $options{'bin'}/get_fusion_coverage.pl $gfc_opts --type single --maxIntron $options{'maxIntron'} --mappingfile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie2\.bam --readlength $options{'readlen'} --geneanno $confs{'gene_annotation'} --genelength $confs{'ensembl_gene_len'} --repeatmasker $confs{'repeatMasker'} --selfChain $confs{'selfChain'} --accepthits $readingBam >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov";
     }
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
@@ -1403,7 +1283,7 @@ if (exists $runlevel{$runlevels}) {
     my $fpv_opts = '';
     $fpv_opts = "--genomeBlatPred";
     my $typeop = ($options{'seqType'} =~ /^paired-end/)? "--seqType p":"--seqType s";
-    my $cmd = "perl $options{'bin'}/further_processing_for_read_visualization.pl $fpv_opts $typeop --fusionseqfile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq --coveragefile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov --readlength $trimedlen >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis";
+    my $cmd = "perl $options{'bin'}/further_processing_for_read_visualization.pl $fpv_opts $typeop --fusionseqfile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.seq --coveragefile $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov --readlength $options{'readlen'} >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
@@ -1415,21 +1295,21 @@ if (exists $runlevel{$runlevels}) {
   #}
 
   unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa") {
-    my $cmd = "perl $options{'bin'}/vis2fa.pl $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis $readlen >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa";
+    my $cmd = "perl $options{'bin'}/vis2fa.pl $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis $options{'readlen'} >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
   unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl"){
-    my $cmd = "blat -maxIntron=230000 $blatDatabase $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
-    if ($GMAP) {
-       my $speciesIndex = (-e "$gmap_index/$species\-all\/$species\-all.genomecomp")? $species."\-all":$species;
-       $cmd = "gmap -D $gmap_index -d $speciesIndex --format=psl -t $options{'threads'} --intronlength=230000 $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
+    my $cmd = "blat -maxIntron=230000 $confs{'blatDatabase'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
+    if ($options{'GMAP'}) {
+       my $speciesIndex = (-e "$confs{'gmap_index'}/$options{'species'}\-all\/$options{'species'}\-all.genomecomp")? $options{'species'}."\-all":$options{'species'};
+       $cmd = "gmap -D $confs{'gmap_index'} -d $speciesIndex --format=psl -t $options{'threads'} --intronlength=230000 $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl";
     }
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
   unless (-s "$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass") {
-    my $cmd = "perl $options{'bin'}/pick_fusion_transcripts_from_genomeBLAT.pl --identity 94 --final 1 --uniqueBase $uniqueBase --misPen $misPen --maxIntron $options{'maxIntron'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
+    my $cmd = "perl $options{'bin'}/pick_fusion_transcripts_from_genomeBLAT.pl --identity 94 --final 1 --uniqueBase $options{'uniqueBase'} --misPen $options{'misPen'} --maxIntron $options{'maxIntron'} $options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl >$options{'lanepath'}/05_FUSION/$options{'sampleName'}\.fusion_transcirpts_after_filtration\.bowtie\.cov\.vis\.fa\.psl\.pass";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
@@ -1474,21 +1354,21 @@ if (exists $runlevel{$runlevels}) {
   unless (-s "$options{'lanepath'}/06_CUFFLINKS/transcripts\.gtf") {
 
     my $cufflinks_options = "";
-    my $known_trans_file = $gene_annotation_gtf;
-    if ($known_trans eq 'refseq') {
-      $known_trans_file = $refseq_gene_gtf;
+    my $known_trans_file = $confs{'gene_annotation_gtf'};
+    if ($options{'known_trans'} eq 'refseq') {
+      $known_trans_file = $confs{'refseq_gene_gtf'};
     }
 
-    if ( $gtf_guide_assembly ) {
+    if ( $options{'gtf_guide_assembly'} ) {
       $cufflinks_options .= "--GTF-guide $known_trans_file ";
     }
     else {
       $cufflinks_options .= "--GTF $known_trans_file ";
     }
-    if ( $frag_bias_correct ) {
+    if ( $options{'frag_bias_correct'} ) {
       $cufflinks_options .= "--frag-bias-correct ";
     }
-    if ( $upper_quantile_norm ){
+    if ( $options{'upper_quantile_norm'} ){
       $cufflinks_options .= "--upper-quartile-norm ";
     }
 
@@ -1505,7 +1385,7 @@ if (exists $runlevel{$runlevels}) {
 
   if (-s "$options{'lanepath'}/06_CUFFLINKS/transcripts\.gtf") { #collect the gtf list
      my $current_gtf = "$options{'lanepath'}/06_CUFFLINKS/transcripts\.gtf";
-     my $gtf_list = "$root/GTF\_list\.txt";
+     my $gtf_list = "$options{'root'}/GTF\_list\.txt";
 
      if (! -e "$gtf_list") {
         open GTF_LIST, ">>$gtf_list";
@@ -1528,7 +1408,7 @@ if (exists $runlevel{$runlevels}) {
   } #gtf file is generated
 
   unless (-s "$options{'lanepath'}/06_CUFFLINKS/$options{'sampleName'}\.transcripts\.gtf\.tmap") {
-    my $cmd = "cuffcompare -o $options{'lanepath'}/06_CUFFLINKS/$options{'sampleName'} -r $refseq_gene_gtf $options{'lanepath'}/06_CUFFLINKS/transcripts\.gtf";
+    my $cmd = "cuffcompare -o $options{'lanepath'}/06_CUFFLINKS/$options{'sampleName'} -r $confs{'refseq_gene_gtf'} $options{'lanepath'}/06_CUFFLINKS/transcripts\.gtf";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
@@ -1551,9 +1431,9 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  my $cuffmerge_output = "$root/cuffmerge";
-  my $cuffdiff_output = "$root/cuffdiff";
-  my $gtf_list = "$root/GTF\_list\.txt";
+  my $cuffmerge_output = "$options{'root'}/cuffmerge";
+  my $cuffdiff_output = "$options{'root'}/cuffdiff";
+  my $gtf_list = "$options{'root'}/GTF\_list\.txt";
 
   unless (-s "$gtf_list") {
     print STDERR "Error: $gtf_list file does not exist!!! Please rerun RTrace.pl for each sample for runlevel 5 (cufflinks).\n\n";
@@ -1567,7 +1447,7 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$cuffmerge_output/merged\.gtf") {
-    my $cmd = "cuffmerge -o $cuffmerge_output --ref-gtf $gene_annotation_gtf --num-threads $options{'threads'} --ref-sequence $genome_fasta $gtf_list";
+    my $cmd = "cuffmerge -o $cuffmerge_output --ref-gtf $confs{'gene_annotation_gtf'} --num-threads $options{'threads'} --ref-sequence $confs{'GFASTA'} $gtf_list";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
@@ -1579,12 +1459,12 @@ if (exists $runlevel{$runlevels}) {
 
   unless (-s "$cuffdiff_output/splicing\.diff") {
     my %bam_files_cd;
-    open TARGETS, "$root/edgeR/targets" || die "Error: could not open $root/edgeR/targets for the information of bam files for cuffdiff.\n please rerun the pipeline for each samples with --patient and --tissue arguments set.\n";
+    open TARGETS, "$options{'root'}/edgeR/targets" || die "Error: could not open $options{'root'}/edgeR/targets for the information of bam files for cuffdiff.\n please rerun the pipeline for each samples with --patient and --tissue arguments set.\n";
     while ( <TARGETS> ) {
        chomp;
        next if /^label/;
        my ($cu_sample, $cu_expr_count, $tissue, $patient) = split /\t/;
-       my $cu_bam_file = "$root/$cu_sample/02_MAPPING/$mappedBam";
+       my $cu_bam_file = "$options{'root'}/$cu_sample/02_MAPPING/$mappedBam";
        if (-e "$cu_bam_file"){
          push (@{$bam_files_cd{$tissue}}, $cu_bam_file);
        } else {
@@ -1622,20 +1502,20 @@ if (exists $runlevel{$runlevels}) {
 
 
 ##write target file --- for edgeR (and cuffdiff) ########################
-if ($patient and $tissue) {
+if ($options{'patient'} and $options{'tissue'}) {
   my $count_file = "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.ensembl\_gene\.count";
-  unless (-e "$root/edgeR") {
-    my $cmd = "mkdir -p $root/edgeR";
+  unless (-e "$options{'root'}/edgeR") {
+    my $cmd = "mkdir -p $options{'root'}/edgeR";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
-  if (! -s "$root/edgeR/targets") {
-    open TARGETS_OUT, ">>$root/edgeR/targets";
+  if (! -s "$options{'root'}/edgeR/targets") {
+    open TARGETS_OUT, ">>$options{'root'}/edgeR/targets";
     printf TARGETS_OUT "%s\n", join("\t", 'label', 'files', 'tissue', 'patient');
-    printf TARGETS_OUT "%s\n", join("\t", $options{'sampleName'}, $count_file, $tissue, $patient);
+    printf TARGETS_OUT "%s\n", join("\t", $options{'sampleName'}, $count_file, $options{'tissue'}, $options{'patient'});
     close TARGETS_OUT;
   } else {
     my $writeornot = 1;
-    open TARGETS_IN, "$root/edgeR/targets";
+    open TARGETS_IN, "$options{'root'}/edgeR/targets";
     while ( <TARGETS_IN> ){
        chomp;
        my @cols = split /\t/;
@@ -1643,12 +1523,12 @@ if ($patient and $tissue) {
     }
     close TARGETS_IN;
     if ($writeornot == 1){
-      open TARGETS_OUT, ">>$root/edgeR/targets";
-      printf TARGETS_OUT "%s\n", join("\t", $options{'sampleName'}, $count_file, $tissue, $patient);
+      open TARGETS_OUT, ">>$options{'root'}/edgeR/targets";
+      printf TARGETS_OUT "%s\n", join("\t", $options{'sampleName'}, $count_file, $options{'tissue'}, $options{'patient'});
       close TARGETS_OUT;
     }
   } #existing targets file
-} elsif ($patient or $tissue) {
+} elsif ($options{'patient'} or $options{'tissue'}) {
   print STDERR "please specify both --patient and --tissue information\n";
   exit 22;
 }
@@ -1664,10 +1544,10 @@ if (exists $runlevel{$runlevels}) {
   printtime();
   print STDERR "####### runlevel $runlevels now #######\n\n";
 
-  my $edgeR_output = "$root/edgeR";
+  my $edgeR_output = "$options{'root'}/edgeR";
 
   print STDERR "DE analysis parameters:\n";
-  print STDERR "priordf: $priordf\; spaired: $spaired\; $pairDE1\-$pairDE2\n";
+  print STDERR "priordf: $options{'priordf'}\; spaired: $options{'spaired'}\; $options{'pairDE1'}\-$options{'pairDE2'}\n";
 
   if (! -e $edgeR_output) {
      print STDERR "Error: $edgeR_output dir does not exist!!! Please rerun RTrace.pl for each sample with --patient and --tissue set.\n\n";
@@ -1678,12 +1558,12 @@ if (exists $runlevel{$runlevels}) {
   }
 
   unless (-s "$edgeR_output/topDE.txt") {
-    my $cmd = "$options{'Rbinary'} CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$priordf spaired=$spaired pair1=\"$pairDE1\" pair2=\"$pairDE2\"\' $options{'bin'}/edgeR_test.R $edgeR_output/R\_html\.out";
+    my $cmd = "$options{'Rbinary'} CMD BATCH --no-save --no-restore "."\'--args path=\"$edgeR_output\" priordf=$options{'priordf'} spaired=$options{'spaired'} pair1=\"$options{'pairDE1'}\" pair2=\"$options{'pairDE2'}\"\' $options{'bin'}/edgeR_test.R $edgeR_output/R\_html\.out";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
   unless (-s "$edgeR_output/DE\_table\.txt") {
-    my $cmd = "perl $options{'bin'}/get_DEtable.pl $edgeR_output topDE\.txt ifDE\.txt $spaired >$edgeR_output/DE\_table\.txt";
+    my $cmd = "perl $options{'bin'}/get_DEtable.pl $edgeR_output topDE\.txt ifDE\.txt $options{'spaired'} >$edgeR_output/DE\_table\.txt";
     RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
   }
 
@@ -1692,7 +1572,7 @@ if (exists $runlevel{$runlevels}) {
 
 }
 
-
+=pod
 ###
 ###runlevel8: SNV/INDEL calling from bam file
 ###
@@ -1713,7 +1593,7 @@ if (exists $runlevel{$runlevels}) {
     unless (-s "$options{'lanepath'}/08_VARIANTS/$options{'sampleName'}\.transcriptome.vcf"){
       my $mapping_bam = "$options{'lanepath'}/02_MAPPING/$mappedBam";
       if (-s $mapping_bam){
-        my $cmd = "samtools mpileup -DSEugd 1000 -q 1 -C 50 -f $genome_fasta $mapping_bam | bcftools view -p 0.9 -vcg - >$options{'lanepath'}/08_VARIANTS/$options{'sampleName'}\.transcriptome.vcf";
+        my $cmd = "samtools mpileup -DSEugd 1000 -q 1 -C 50 -f $confs{'GFASTA'} $mapping_bam | bcftools view -p 0.9 -vcg - >$options{'lanepath'}/08_VARIANTS/$options{'sampleName'}\.transcriptome.vcf";
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
       else {
@@ -1844,7 +1724,7 @@ sub helpm {
   print STDERR "\t--pairDE1\tspecify the name of the groups to be compared, e.g., Normal. (pairDE2 \-\> pairedDE1)\n";
   print STDERR "\t--pairDE2\tspecify the name of the groups to be compared, e.g., Tumour. (pairDE2 \-\> pairedDE1)\n";
 
-  print STDERR "\nrunlevel 8: call SNV/INDEL from the mapping bam files using samtools\n";
+  #print STDERR "\nrunlevel 8: call SNV/INDEL from the mapping bam files using samtools\n";
 
   print STDERR "\nOTHER OPTIONS\n";
   print STDERR "\t--maxIntron\tthe maximum length of intron, to select for discordant mapping (fusion detection, default: $options{'maxIntron'})\n";
