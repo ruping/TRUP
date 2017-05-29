@@ -499,7 +499,7 @@ if (exists $runlevel{$runlevels}) {
         $quality_options = "--quality-protocol=sanger";
      } else {
         $quality_options = "--quality-zero-score=$options{'qual_zero'} --quality-print-shift=$options{'qual_move'}";
-     }q
+     }
 
      unless (-s "$options{'lanepath'}/02_MAPPING/accepted_hits\.bam" or -s "$options{'lanepath'}/02_MAPPING/$mappedBam" or -s "$options{'lanepath'}/02_MAPPING/accepted_hits\.sam") {
        my $cmd;
