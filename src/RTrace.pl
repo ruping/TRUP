@@ -409,8 +409,8 @@ if (defined $options{'sampleName'}) {
       chomp;
       next if ($_ !~ /^\d+/);
       my @cols = split /\t/;
-      $qual_min = $cols[2] if ($cols[2] < $qual_min or $qual_min = -1);
-      $qual_max = $cols[3] if ($cols[3] > $qual_max or $qual_max = -1);
+      $qual_min = $cols[2] if ($cols[2] < $qual_min or $qual_min == -1);
+      $qual_max = $cols[3] if ($cols[3] > $qual_max or $qual_max == -1);
       print STDERR "$cols[2]\t$cols[3]\t$qual_min\t$qual_max\n";
     }
     close QC;
