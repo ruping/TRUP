@@ -5,8 +5,6 @@ use Getopt::Long;
 
 my $arp_file;
 my $unmap_file;
-my $AB;
-my $SM;
 my $RA;
 my $nc = 3;
 my $read_file_1 = '';
@@ -20,8 +18,6 @@ GetOptions (
               "readfile2|r2=s"   => \$read_file_2,
               "nc|n=i"           => \$nc,
               "output|o=s"       => \$outputDir,
-              "AB"               => \$AB,
-              "SM"               => \$SM,
               "RA"               => \$RA,
 	      "help|h" => sub{
 	                     print "usage: $0 [options]\n\nOptions:\n";
@@ -31,7 +27,6 @@ GetOptions (
 			     print "\t--readfile2\tthe 3' end reads\n";
                              print "\t--nc\t\tnumber of undecided nucleotide allowed\n";
                              print "\t--AB\t\twhether AB\n";
-                             print "\t--SM\t\twhether for second mapping\n";
                              print "\t--RA\t\twhether for regional assembly\n";
                              print "\t--output\twhere to output.\n";
 			     print "\t--help\t\tprint this help message\n\n";
@@ -62,7 +57,7 @@ if ($read_files_mate1[0] =~ /\.gz$/){
 
 my %ARP;  #hash to remember the anomalous read pairs
 
-unless ($SM or $RA) {
+unless ($RA) {
   open UM, "gzip -d -c $unmap_file |";
   while ( <UM> ) {
     chomp;
@@ -74,9 +69,6 @@ unless ($SM or $RA) {
     }
     $frag_name =~ s/\/[12].*?$//; #replace the end
 
-    if ($AB) {
-      $frag_name =~ s/^(.+)[AB]$/\1/;
-    }
     $ARP{$frag_name} = '';
 
     $_ = <UM>;
@@ -93,10 +85,6 @@ my $flag_ra = 0;              #for regional assembly
 while ( <ARP> ) {
 
    chomp;
-
-   if ($AB) {
-     $_ =~ s/^(.+)[AB]$/\1/;
-   }
 
    #for regional assembly started here#############
    if ($RA) {
@@ -123,7 +111,7 @@ print STDERR "ARP file loaded\n";
 
 
 #check for number of un-decided nucleotides
-unless ($SM or $nc == 0) {
+unless ($nc == 0) {
   open R1P, "$decompress $read_files_mate1 |";
   while ( <R1P> ) {
     chomp;
@@ -185,41 +173,14 @@ unless ($SM or $nc == 0) {
   } #when it is paired-end experiment
 } ##############check for undecided nucleiotide
 
-
-my $a_R1 = $read_files_mate1[0];
-$a_R1 =~ /^(.+)\/(.+?)$/;
-$outputDir = $1 if ($outputDir eq "SRP");
-$a_R1 = $2;
-if($SM) {
- $a_R1 =~ s/fq\.$zipSuffix$/ARP\.secondmapping\.fq/;
- $a_R1 =~ s/fastq\.$zipSuffix$/ARP\.secondmapping\.fq/;
-}
-elsif($RA) {
- $a_R1 =~ s/fq\.$zipSuffix$/RAssembly\.fq/;
- $a_R1 =~ s/fastq\.$zipSuffix$/RAssembly\.fq/;
-}
-else {
- $a_R1 =~ s/fq\.$zipSuffix$/ARP\.fq/;
- $a_R1 =~ s/fastq\.$zipSuffix$/ARP\.fq/;
-}
+#output of RAssembly fq
+my $a_R1 = 'RAssembly_1\.fq';
 $a_R1 = "$outputDir\/".$a_R1;
 
 
 my $a_R2;
 if ($read_file_2 ne '') {
-  $a_R2 = $read_files_mate2[0];
-  $a_R2 =~ /^(.+)\/(.+?)$/;
-  $a_R2 = $2;
-  if ($SM) {
-    $a_R2 =~ s/fq\.$zipSuffix$/ARP\.secondmapping\.fq/;
-    $a_R2 =~ s/fastq\.$zipSuffix$/ARP\.secondmapping\.fq/;
-  } elsif ($RA) {
-    $a_R2 =~ s/fq\.$zipSuffix$/RAssembly\.fq/;
-    $a_R2 =~ s/fastq\.$zipSuffix$/RAssembly\.fq/;
-  } else {
-    $a_R2 =~ s/fq\.$zipSuffix$/ARP\.fq/;
-    $a_R2 =~ s/fastq\.$zipSuffix$/ARP\.fq/;
-  }
+  $a_R2 = 'RAssembly_2.fq';
   $a_R2 = "$outputDir\/".$a_R2;
 }
 

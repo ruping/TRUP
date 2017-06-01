@@ -998,12 +998,10 @@ if (exists $runlevel{$runlevels}) {
       }
 
       my @RAssembly_reads;
-      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
-      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
+      @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/RAssembly*\.fq");
       @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
       my @RAssembly_reads_gz;
-      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /paired-end/);
-      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /single-end/);
+      @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/RAssembly*\.fq\.gz");
       @RAssembly_reads_gz = uniqueArray(\@RAssembly_reads_gz) if ($options{'seqType'} =~ /single-end/);
       unless ( ($options{'seqType'} =~ /paired-end/ and ($#RAssembly_reads == 1 or $#RAssembly_reads_gz == 1)) or ($options{'seqType'} =~ /single-end/ and ($#RAssembly_reads == 0 or $#RAssembly_reads_gz == 0)) ) { #get raw reads
 
@@ -1016,9 +1014,9 @@ if (exists $runlevel{$runlevels}) {
 
         my $cmd;
         if ($options{'seqType'} =~ /paired-end/){
-          $cmd = "perl $options{'bin'}/pick_ARP.pl --arpfile $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --readfile2 $reads[1] --RA";
+          $cmd = "perl $options{'bin'}/pick_ARP.pl --arpfile $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted\.reads --output $options{'lanepath'}/01_READS/ --readfile1 $reads[0] --readfile2 $reads[1] --RA";
         } else {
-          $cmd = "perl $options{'bin'}/pick_ARP.pl --arpfile $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted\.reads --readfile1 $reads[0] --RA";
+          $cmd = "perl $options{'bin'}/pick_ARP.pl --arpfile $options{'lanepath'}/04_ASSEMBLY/$options{'sampleName'}\.breakpoints\.processed\.filter\.combined\.sorted\.reads --output $options{'lanepath'}/01_READS/ --readfile1 $reads[0] --RA";
         }
         RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
       }
@@ -1035,16 +1033,14 @@ if (exists $runlevel{$runlevels}) {
       if ($options{'RA'} == 1) {
 
         my @RAssembly_reads;
-        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
-        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
+        @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/RAssembly*\.fq");
         @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
         my @RAssembly_reads_gz;
-        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /paired-end/);
-        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq\.gz") if ($options{'seqType'} =~ /single-end/);
+        @RAssembly_reads_gz = bsd_glob("$options{'lanepath'}/01_READS/RAssembly*\.fq\.gz");
         @RAssembly_reads_gz = uniqueArray(\@RAssembly_reads_gz) if ($options{'seqType'} =~ /single-end/);
 
-        if (($options{'seqType'} =~ /paired-end/ and $#RAssembly_reads != 1) or ($options{'seqType'} =~ /single-end/ and $#RAssembly_reads != 0)) {
-          if (($options{'seqType'} =~ /paired-end/ and $#RAssembly_reads_gz == 1) or ($options{'seqType'} =~ /single-end/ and $#RAssembly_reads_gz == 0)) {
+        if (($options{'seqType'} =~ /paired-end/ and $#RAssembly_reads != 1) or ($options{'seqType'} =~ /single-end/ and $#RAssembly_reads != 0)) {          #no original file
+          if (($options{'seqType'} =~ /paired-end/ and $#RAssembly_reads_gz == 1) or ($options{'seqType'} =~ /single-end/ and $#RAssembly_reads_gz == 0)) {  #having gzipped file
             foreach my $RA_read_file_gz (@RAssembly_reads_gz) {
                (my $RA_read_file = $RA_read_file_gz) =~ s/\.gz$//;
                my $cmd = "gzip -d -c $RA_read_file_gz >$RA_read_file";
@@ -1054,8 +1050,7 @@ if (exists $runlevel{$runlevels}) {
             print STDERR "Error: RA read files are not correctly generated...\n\n";
             exit 22;
           }
-          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.RAssembly\.fq") if ($options{'seqType'} =~ /paired-end/);
-          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.RAssembly\.fq") if ($options{'seqType'} =~ /single-end/);
+          @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/RAssembly*\.fq");
           @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
         }
 
