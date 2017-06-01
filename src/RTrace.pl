@@ -665,7 +665,7 @@ if (exists $runlevel{$runlevels}) {
     }
   }
 
-  unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.pos\.gff\.gz"){
+  unless (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.pos\.gff\.gz") {
     if (-s "$options{'lanepath'}/03_STATS/$options{'sampleName'}\.pos\.gff"){
       my $cmd = "gzip $options{'lanepath'}/03_STATS/$options{'sampleName'}\.pos\.gff";
       RunCommand($cmd,$options{'noexecute'},$options{'quiet'});
@@ -1009,12 +1009,9 @@ if (exists $runlevel{$runlevels}) {
 
         #need to do get raw reads here
         my @reads;
+        ($reads[0] = $options{'fastqFiles1'}) =~ s/\s/\,/g;
         if ($options{'seqType'} =~ /paired-end/) {    #paired-end
-          @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.fq\.$options{'zipSuffix'}"); #original reads
-          @reads = mateorder(\@reads);
-        } else {                                      #single-end
-          @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.fq\.$options{'zipSuffix'}"); #original reads
-          @reads = uniqueArray(\@reads);
+          ($reads[1] = $options{'fastqFiles2'}) =~ s/\s/\,/g;
         }
 
         my $cmd;
@@ -1238,11 +1235,9 @@ if (exists $runlevel{$runlevels}) {
     } else {  #bowtie2 is not done
 
       my @reads;
+      ($reads[0] = $options{'fastqFiles1'}) =~ s/\s/\,/g;
       if ($options{'seqType'} =~ /paired-end/) {
-        @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}\_{R,}[123]\.fq\.$options{'zipSuffix'}"); #original reads
-        @reads = mateorder(\@reads);
-      } else {
-        @reads = bsd_glob("$options{'lanepath'}/01_READS/$options{'sampleName'}*\.fq\.$options{'zipSuffix'}");
+        ($reads[1] = $options{'fastqFiles2'}) =~ s/\s/\,/g;
       }
 
       my $readsop = ($options{'seqType'} =~ /paired-end/)? "-1 $reads[0] -2 $reads[1]":"-U $reads[0]";
