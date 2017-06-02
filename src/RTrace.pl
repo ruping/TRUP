@@ -1053,6 +1053,7 @@ if (exists $runlevel{$runlevels}) {
           @RAssembly_reads = bsd_glob("$options{'lanepath'}/01_READS/RAssembly*\.fq");
           @RAssembly_reads = uniqueArray(\@RAssembly_reads) if ($options{'seqType'} =~ /single-end/);
         }
+        print STDERR Dumper (\@RAssembly_reads);
 
         @RAssembly_reads = mateorder(\@RAssembly_reads) if ($options{'seqType'} =~ /paired-end/);
         my $ra_reads1_file = $RAssembly_reads[0];
