@@ -1743,7 +1743,7 @@ sub printtime {
 }
 
 sub mateorder {
-  my $r = @_;
+  my $r = shift;
   my @tmp;
 
   if (scalar(@{$r}) != 2) {
