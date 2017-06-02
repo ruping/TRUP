@@ -172,9 +172,11 @@ unless ($nc == 0) {
     close R2P;
   } #when it is paired-end experiment
 } ##############check for undecided nucleiotide
+print STDERR "ARP with more than 3 undecided nucleotides have been removed\n";
+
 
 #output of RAssembly fq
-my $a_R1 = 'RAssembly_1\.fq';
+my $a_R1 = 'RAssembly_1.fq';
 $a_R1 = "$outputDir\/".$a_R1;
 
 
