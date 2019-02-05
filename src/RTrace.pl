@@ -507,8 +507,12 @@ if (exists $runlevel{$runlevels}) {
          $zipOption = "--bunzip2";
        }
 
+       print STDERR "quality_options: $quality_options\n";
+       print STDERR "zipOption: $zipOption\n";
+
        if ($options{'seqType'} =~ /paired-end/) {
          my $fastqswap = swapfastq($options{'fastqFiles1'},$options{'fastqFiles2'});
+         print STDERR "fastqswap: $fastqswap\n";
          $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options $zipOption $fastqswap >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
        } elsif ($options{'seqType'} =~ /single-end/) {
          $cmd = "gsnap -d $options{'species'} -D $confs{'gmap_index'} --format=sam --nthreads=$options{'threads'} -s $confs{'gmap_splicesites'} --npaths=5 $quality_options $zipOption --force-single-end $options{'fastqFiles1'} >$options{'lanepath'}/02_MAPPING/accepted_hits\.sam";
